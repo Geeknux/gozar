@@ -4,7 +4,7 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M1 (discovery + CRUD) done.
+**Status:** M2 (semantic layer + query engine) done.
 
 ## Development
 
@@ -12,6 +12,7 @@ and a natural-language (Persian-first) report interface. See
 uv sync                                          # install deps + dev tools
 uv run python example_project/manage.py migrate
 uv run python example_project/manage.py seed_demo
+uv run python example_project/manage.py gozar_calendar     # Jalali calendar table
 uv run python example_project/manage.py createsuperuser
 ./scripts/build-frontend.sh                      # React SPA → src/bi_admin/static/bi_admin/spa
 uv run python example_project/manage.py runserver  # open http://127.0.0.1:8000/gozar/
@@ -57,8 +58,63 @@ class OrderOptions(ModelOptions):
         return {"updated": queryset.filter(status="pending").update(status="cancelled")}
 ```
 
+### Reports: semantic models
+
+Describe what can be reported on in the same `gozar.py`. Labels, synonyms and
+descriptions (Persian and English) feed the catalog and the NL interface:
+
+```python
+from django.db.models import Count, Q, Sum
+from bi_admin.semantic import Dimension, Measure, Semantic, register
+
+@register
+class OrderMetrics(Semantic):          # ReportSpec.semantic_model = "order_metrics"
+    model = Order
+    time_dimension = "created_at"
+    dimensions = {
+        "created_at": Dimension("created_at", type="time",
+                                label={"fa": "تاریخ ثبت سفارش", "en": "Order date"}),
+        "city": Dimension("customer__city__name", label={"fa": "شهر", "en": "City"},
+                          synonyms={"fa": ["محل"]}),
+        "status": Dimension("status"),  # type and labels inferred from the field
+    }
+    measures = {
+        "revenue": Measure(Sum("amount", filter=Q(status="paid")), format="currency",
+                           label={"fa": "درآمد", "en": "Revenue"},
+                           synonyms={"fa": ["فروش", "گردش مالی"], "en": ["sales"]}),
+        "orders": Measure(Count("id"), label={"fa": "تعداد سفارش", "en": "Orders"}),
+    }
+```
+
+Then run a `ReportSpec` (`POST /gozar/api/reports/run`, or
+`bi_admin.engine.run(spec, request)` in Python):
+
+```json
+{
+  "semantic_model": "order_metrics",
+  "measures": ["revenue", "orders"],
+  "dimensions": ["city"],
+  "time_grain": "month",
+  "calendar": "jalali",
+  "relative_period": "last_3_months",
+  "filters": [{"field": "status", "op": "in", "value": ["paid", "refunded"]}],
+  "sort": [{"field": "revenue", "direction": "desc"}],
+  "limit": 100
+}
+```
+
+Grains are `day/week/month/season/year` in the Jalali (grouped in the database
+through the `CalendarDay` table — run `manage.py gozar_calendar` once) or
+Gregorian calendar. Relative periods such as `this_month`, `last_season`,
+`last_3_months`, `past_30_days` or `last_year` are resolved in Python against
+today's date. `POST /gozar/api/reports/validate` returns structured errors with
+suggestions, and `GET /gozar/api/reports/catalog?lang=fa` lists the semantic
+models the user may report on. Reports need the same staff session and model
+view permission as the CRUD API.
+
 Optional settings: `GOZAR = {"INCLUDE_APPS": [...], "EXCLUDE_APPS": [...],
-"EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None}`.
+"EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None, "REPORT_MAX_ROWS": 10000,
+"REPORT_MAX_DIMENSIONS": 6, "WEEKEND_DAYS": [4]}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs`.
@@ -68,11 +124,15 @@ The JSON API (django-ninja, staff session + CSRF) is documented at
 - `src/bi_admin/` — the installable app:
   - `discovery/` — registry built from `_meta`, relation graph, lookup-path validation;
   - `crud/` — `ModelOptions` (the `ModelAdmin` counterpart) and the CRUD service;
-  - `api/` — auth, metadata, and CRUD endpoints;
-  - `semantic`, `engine`, `execution`, `access`, `calendar`, `nl` — later milestones.
+  - `semantic/` — `Semantic`, `Dimension`, `Measure`, `@register`, the catalog;
+  - `engine/` — `ReportSpec`, validator, ORM compiler, runner;
+  - `calendar/` — Jalali helpers, `CalendarDay` table builder, relative periods;
+  - `api/` — auth, metadata, CRUD and report endpoints;
+  - `execution`, `access`, `nl` — later milestones.
 - `frontend/` — React + TypeScript SPA (Vite), RTL, Jalali dates.
 - `example_project/` — demo project with the `shop` app (City, Customer,
-  Product, Order, OrderItem), its `gozar.py`, and the `seed_demo` command.
+  Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
+  and the `seed_demo` command.
 - `tests/` — pytest suite; `tests/nl_golden/` holds NL → ReportSpec fixtures.
 
 ## License

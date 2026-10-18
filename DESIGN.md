@@ -4,7 +4,8 @@
 
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
-> Status: M0 (skeleton) and M1 (discovery + CRUD) done — see §10 for decisions.
+> Status: M0 (skeleton), M1 (discovery + CRUD) and M2 (semantic layer + query
+> engine) done — see §10 for decisions.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -241,6 +242,7 @@ connection alias, `SET statement_timeout`, row limit, audited.
   2. DB functions (PostgreSQL SQL/PLpgSQL function for jalali conversion)
      exposed as Django `Func` expressions.
 - Prefer option 1 (also enables holidays/working days in reports).
+  **Decided in M2: option 1** (`bi_admin.CalendarDay`, see §10).
 - Relative periods ("last year", "this season", "last 3 months") resolve in
   deterministic Python code against today's Jalali date — never by the LLM.
 - Library for Python-side conversion: `jdatetime` (verify current status).
@@ -424,6 +426,88 @@ Decided (M1, 2026-10-18):
   via the Vite manifest. Dates are shown in Jalali via `Intl`
   (`fa-IR-u-ca-persian`), numbers with Persian digits. Date inputs are still
   Gregorian browser pickers — Jalali pickers come with M3.
+
+Decided (M2, 2026-10-18):
+
+- Semantic API (`bi_admin.semantic`): subclass `Semantic` (`model`, optional
+  `name`, `label`, `synonyms`, `description`, `time_dimension`, `dimensions`,
+  `measures`) and decorate with `@register` in an app's `gozar.py`. The key in
+  `ReportSpec.semantic_model` defaults to the snake-cased class name
+  (`OrderMetrics` → `order_metrics`). Models bind lazily: dimension paths are
+  checked with `Registry.resolve_lookup`, measure expressions are resolved
+  against the model without querying; mistakes raise `ImproperlyConfigured` and
+  surface as system check `bi_admin.E001`. Labels/descriptions normalise to
+  `{"fa", "en"}` (a bare string is Persian; defaults come from verbose names),
+  synonyms to per-language lists. Dimension `type` is inferred from the field
+  (date/datetime → time, numbers → number, boolean, otherwise category);
+  expression dimensions need an explicit type. `hidden=True` keeps an item out
+  of the catalog and the validator. `catalog(lang, request)` lists what a user
+  may report on.
+- Permissions: `Semantic.has_permission` defaults to the CRUD view permission
+  of the model (change implies view) and `get_queryset` to the CRUD options'
+  queryset, so reports and CRUD see the same rows. M4 adds row-level rules on
+  top of `get_queryset`.
+- `ReportSpec` (`bi_admin.engine.spec`) is the §3.3 model with
+  `extra="forbid"`. Filter values for time dimensions are dates, Gregorian
+  (`2026-03-21`) or Jalali (`1405/01/01`, any year below 1700), Persian digits
+  allowed; a category value may be its choice label (`پرداخت‌شده` → `paid`).
+- Validator (`bi_admin.engine.validate`) collects every problem into
+  `SpecError(code, message, path, value, suggestions)`; suggestions match keys,
+  labels and synonyms (Arabic ي/ك normalised) and then fuzzy matches. Codes:
+  `unknown_semantic_model`, `unknown_measure`, `not_a_measure`,
+  `unknown_dimension`, `not_a_dimension`, `invalid_lookup`, `duplicate`,
+  `no_measures`, `too_many_dimensions`, `no_time_dimension`,
+  `not_a_time_dimension`, `unknown_relative_period`, `invalid_operator`,
+  `invalid_value`, `invalid_choice`, `measure_filter_not_supported`,
+  `sort_field_not_in_report`, `unknown_field`, `invalid_limit`,
+  `limit_exceeded`, `not_supported` (`compare_to`, until M6) and
+  `clarification_needed`. Caps: `GOZAR["REPORT_MAX_ROWS"]` (10 000; also the
+  limit when `limit` is null) and `GOZAR["REPORT_MAX_DIMENSIONS"]` (6).
+  Filtering on measures (HAVING) is deferred.
+- Time semantics: `time_grain` adds the time dimension (spec's or the model's
+  default) as the first group key; any time dimension listed in `dimensions` is
+  bucketed too (grain defaults to `day`). Null times form a null bucket, sorted
+  last. All date logic uses local dates in `TIME_ZONE`; date filters and
+  periods compile to half-open aware datetime ranges so indexes still apply.
+  Default order: chronological when bucketed, else first measure descending;
+  remaining group keys always break ties so `LIMIT` is deterministic.
+- Jalali grouping: calendar dimension table `bi_admin.CalendarDay` (one row per
+  day: Gregorian y/q/m/d, ISO week, Jalali y/season/m/d, Saturday-based Jalali
+  weekday, `*_start` dates of the enclosing week/month/season/year in both
+  calendars, `is_weekend` (Friday; `GOZAR["WEEKEND_DAYS"]`), `is_holiday` +
+  `holiday_name` for the fixed solar holidays — lunar holidays move every year
+  and must be added per row). The compiler groups by a correlated lookup
+  `(SELECT jalali_month_start FROM bi_admin_calendarday WHERE date =
+  local_date(created_at))`; Django groups by select position on SQLite and
+  PostgreSQL, verified on both. Gregorian grains use `Trunc*` (ISO weeks start
+  Monday; `season` = calendar quarter) and need no table. A Jalali query whose
+  dates the table doesn't cover fails with `409 calendar_not_populated` rather
+  than returning null buckets. `manage.py gozar_calendar [--start] [--end]
+  [--clear]` fills it (default: 15 Jalali years back to the end of the year 5
+  ahead; idempotent; keeps edited rows). The per-row lookup is a PK probe; if it
+  shows up in profiles, M4/M7 can denormalise a date key or pre-aggregate.
+- Result shape: a bucket's value is its Gregorian start date (ISO) plus a
+  neutral label in `<key>__label` (`1405-07`, `1405-S3`, `1405`, `2026-W42`,
+  `2026-Q4`); the UI formats month/season names. Decimals become ints when
+  integral (within 2^53), otherwise floats. The response carries `columns`
+  (role, type, fa/en label, grain, calendar, choices, format), `rows`,
+  `truncated`, the normalised `spec` and the resolved `period`.
+- Relative periods (`bi_admin.calendar.periods`): `today`, `yesterday`,
+  `this_<unit>` (to date), `last_<unit>`, `last_<N>_<unit>s` (N complete units
+  before the current one) and `past_<N>_<unit>s` (current unit to date plus the
+  N-1 before it); units day/week/month/season(=quarter)/year; in the spec's
+  calendar; resolved against `periods.today()` (= `timezone.localdate()`, which
+  tests monkeypatch).
+- API: `GET /api/reports/catalog?lang=fa|en`, `POST /api/reports/validate`,
+  `POST /api/reports/run` — staff session + CSRF like CRUD; `403
+  permission_denied` without the model's view permission, `422` with structured
+  errors for an invalid spec (pydantic's own 422 for schema errors). Suggestions
+  for an unknown semantic model only list models the user may see.
+- Demo `OrderMetrics` (`example_project/shop/gozar.py`) follows §3.2, plus
+  `province`, `customer` and `amount` dimensions and `paid_orders`/`customers`
+  measures. Two deliberate changes from the sketch: `aov` averages paid orders
+  only (consistent with `revenue`), and the synonym "استان" moved from `city` to
+  the new `province` dimension.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

@@ -1,1 +1,1 @@
-"""calendar — see DESIGN.md."""
+"""Calendars: Jalali helpers, the ``CalendarDay`` dimension table, relative periods."""
