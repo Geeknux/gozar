@@ -1,0 +1,1 @@
+"""discovery — see DESIGN.md."""

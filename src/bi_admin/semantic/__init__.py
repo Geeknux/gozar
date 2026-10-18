@@ -1,0 +1,1 @@
+"""semantic — see DESIGN.md."""

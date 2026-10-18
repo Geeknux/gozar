@@ -1,0 +1,1 @@
+"""access — see DESIGN.md."""
