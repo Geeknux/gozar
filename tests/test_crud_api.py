@@ -1,8 +1,10 @@
 """M1: CRUD JSON API — list/search/filter/sort, detail, create/update, delete, perms."""
 
 from decimal import Decimal
+from io import StringIO
 
 import pytest
+from django.core.management import call_command
 from django.utils import timezone
 
 from bi_admin.models import ChangeLog
@@ -161,7 +163,7 @@ def test_list_filters(admin_client, seeded):
     assert paid["count"] == Order.objects.filter(status="paid").count()
     assert paid["total"] == 60
 
-    tehran = City.objects.get(name="تهران")
+    tehran = City.objects.get(name="Tehran")
     by_city = admin_client.get(crud("shop.order"), {"customer__city": tehran.pk}).json()
     assert by_city["count"] == Order.objects.filter(customer__city=tehran).count()
 
@@ -183,11 +185,29 @@ def test_list_rejects_unknown_filters_and_bad_values(admin_client, seeded):
     assert admin_client.get(crud("shop.order"), {"page_size": "x"}).status_code == 400
 
 
-def test_search_across_relations_and_arabic_letters(admin_client, seeded):
+def test_search_across_relations(admin_client, seeded):
     customer = Customer.objects.first()
     last_name = customer.name.split()[-1]
     data = admin_client.get(crud("shop.order"), {"q": last_name, "page_size": 500}).json()
     assert data["count"] == Order.objects.filter(customer__name__icontains=last_name).count() > 0
+    # case-insensitive on the English data set
+    upper = admin_client.get(crud("shop.order"), {"q": last_name.upper(), "page_size": 500}).json()
+    assert upper["count"] == data["count"]
+    cities = admin_client.get(crud("shop.city"), {"q": "teh"}).json()
+    assert [r["label"] for r in cities["rows"]] == ["Tehran"]
+
+
+def test_persian_search_accepts_arabic_kaf_and_yeh(admin_client, seeded_fa):
+    """Users often type Arabic ك/ي; the Persian seed data uses ک/ی."""
+    customer = next(c for c in Customer.objects.order_by("id") if "ی" in c.name.split()[-1])
+    last_name = customer.name.split()[-1]  # e.g. کریمی, محمدی
+    arabic = last_name.replace("ی", "ي").replace("ک", "ك")
+    assert arabic != last_name
+    expected = Order.objects.filter(customer__name__icontains=last_name).count()
+    data = admin_client.get(crud("shop.order"), {"q": arabic, "page_size": 500}).json()
+    assert data["count"] == expected > 0
+    found = admin_client.get(crud("shop.customer"), {"q": arabic, "page_size": 500}).json()
+    assert found["count"] == Customer.objects.filter(name__icontains=last_name).count()
 
     City.objects.create(name="کرمانشاه", province="کرمانشاه")
     arabic = "كرمانشاه"  # Arabic kaf
@@ -294,9 +314,11 @@ def test_new_object_defaults(admin_client):
 # --- autocomplete ------------------------------------------------------------------
 
 
-def test_autocomplete_uses_target_search(admin_client, seeded):
-    resp = admin_client.get(crud("shop.customer", "autocomplete"), {"field": "city", "q": "تهر"})
-    assert [r["label"] for r in resp.json()["results"]] == ["تهران"]
+@pytest.mark.parametrize("locale, q, label", [("en", "teh", "Tehran"), ("fa", "تهر", "تهران")])
+def test_autocomplete_uses_target_search(admin_client, db, locale, q, label):
+    call_command("seed_demo", customers=5, orders=5, locale=locale, stdout=StringIO())
+    resp = admin_client.get(crud("shop.customer", "autocomplete"), {"field": "city", "q": q})
+    assert [r["label"] for r in resp.json()["results"]] == [label]
     assert (
         admin_client.get(crud("shop.customer", "autocomplete"), {"field": "name"}).status_code
         == 400
@@ -305,9 +327,9 @@ def test_autocomplete_uses_target_search(admin_client, seeded):
 
 def test_autocomplete_for_filter_paths_and_unregistered_targets(admin_client, seeded):
     resp = admin_client.get(
-        crud("shop.order", "autocomplete"), {"field": "customer__city", "q": "شیر"}
+        crud("shop.order", "autocomplete"), {"field": "customer__city", "q": "shir"}
     )
-    assert [r["label"] for r in resp.json()["results"]] == ["شیراز"]
+    assert [r["label"] for r in resp.json()["results"]] == ["Shiraz"]
     perms = admin_client.get(
         crud("auth.user", "autocomplete"), {"field": "user_permissions", "q": "order"}
     )

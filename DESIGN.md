@@ -524,9 +524,18 @@ Decided (i18n + preferences, 2026-10-18):
   makemessages -l fa` + `compilemessages` from `src/bi_admin`. The demo shop
   does the same in `example_project/shop/locale/`. Verbose names follow the
   Django convention (lower-case English, e.g. `order`); `path_label` and
-  semantic fallbacks capitalise them, the SPA capitalises headings. Seed
-  *data* (city, customer and product names) stays Persian on purpose — it is
-  data, not UI text, and exercises Persian search/normalisation.
+  semantic fallbacks capitalise them, the SPA capitalises headings.
+- Demo seed data (2026-10-19): `seed_demo` writes English names by default —
+  real Iranian cities with English city and province names (Tehran / Tehran,
+  Mashhad / Razavi Khorasan, …), English customer names (Ali Karimi, …) and
+  product names (Saffron 5 g, …). `--locale fa` writes the Persian data set for
+  RTL demos and the Arabic ك/ي → Persian ک/ی search normalisation. `City.name`
+  is in the chosen locale and `City.name_en` is always English. The data sets
+  are parallel tables drawn by the same random calls, so a given `--seed`
+  produces identical orders, amounts, dates, phones and cities in both locales;
+  only the names differ (a test asserts this). Tests use the English set
+  (`seeded` fixture) and the Persian one where it matters (`seeded_fa`, e.g.
+  Arabic kaf/yeh search, Persian autocomplete).
 - The discovery registry is cached **per active language**, since verbose names
   and choice labels are translated when it is built. Semantic models bind once
   and compute both languages up front (`in_languages`): default labels come

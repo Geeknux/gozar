@@ -50,10 +50,62 @@ def test_seed_demo_counts_and_consistency():
     assert not Order.objects.filter(status__in=["paid", "refunded"], paid_at__isnull=True)
 
 
+def snapshot():
+    customers = list(Customer.objects.order_by("id").values_list("name", "phone", "city__name_en"))
+    orders = list(Order.objects.order_by("id").values_list("status", "amount", "customer__phone"))
+    return customers, orders
+
+
 @pytest.mark.django_db
-def test_seed_demo_is_deterministic():
+@pytest.mark.parametrize("locale", ["en", "fa"])
+def test_seed_demo_is_deterministic(locale):
+    seed(locale=locale)
+    first = snapshot()
+    seed(flush=True, locale=locale)
+    assert snapshot() == first
+
+
+@pytest.mark.django_db
+def test_seed_demo_english_by_default():
     seed()
-    first = list(Order.objects.order_by("id").values_list("status", "amount"))
-    seed(flush=True)
-    second = list(Order.objects.order_by("id").values_list("status", "amount"))
-    assert first == second
+    tehran = City.objects.get(name="Tehran")
+    assert (tehran.name_en, tehran.province) == ("Tehran", "Tehran")
+    assert City.objects.get(name="Mashhad").province == "Razavi Khorasan"
+    assert Product.objects.filter(name="Saffron 5 g", category="grocery").exists()
+    for text in [
+        *City.objects.values_list("name", flat=True),
+        *City.objects.values_list("province", flat=True),
+        *Product.objects.values_list("name", flat=True),
+        *Customer.objects.values_list("name", flat=True),
+    ]:
+        assert text.isascii(), text
+
+
+@pytest.mark.django_db
+def test_seed_demo_persian_locale():
+    seed(locale="fa")
+    tehran = City.objects.get(name="تهران")
+    assert (tehran.name_en, tehran.province) == ("Tehran", "تهران")  # both name fields filled
+    assert City.objects.get(name="مشهد").province == "خراسان رضوی"
+    assert Product.objects.filter(name="زعفران ۵ گرم").exists()
+    assert all(not name.isascii() for name in Customer.objects.values_list("name", flat=True))
+
+
+@pytest.mark.django_db
+def test_seed_locales_differ_only_in_names():
+    """Same seed → same draws: the fa data set is the en one with Persian names."""
+    seed()
+    en_customers, en_orders = snapshot()
+    seed(flush=True, locale="fa")
+    fa_customers, fa_orders = snapshot()
+    assert en_orders == fa_orders
+    assert [(p, c) for _, p, c in en_customers] == [(p, c) for _, p, c in fa_customers]
+    assert [n for n, _, _ in en_customers] != [n for n, _, _ in fa_customers]
+
+
+@pytest.mark.django_db
+def test_seed_demo_rejects_unknown_locale():
+    from django.core.management import CommandError
+
+    with pytest.raises(CommandError):
+        seed(locale="de")

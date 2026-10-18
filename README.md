@@ -12,8 +12,8 @@ per-user language and calendar preferences.
 ```sh
 uv sync                                          # install deps + dev tools
 uv run python example_project/manage.py migrate
-uv run python example_project/manage.py seed_demo
-uv run python example_project/manage.py gozar_calendar     # calendar table (Jalali reports)
+uv run python example_project/manage.py seed_demo       # English names; --locale fa for Persian
+uv run python example_project/manage.py gozar_calendar  # calendar table (Jalali reports)
 uv run python example_project/manage.py createsuperuser
 ./scripts/build-frontend.sh                      # React SPA → src/bi_admin/static/bi_admin/spa
 uv run python example_project/manage.py runserver  # open http://127.0.0.1:8000/gozar/
@@ -163,7 +163,11 @@ The JSON API (django-ninja, staff session + CSRF) is documented at
   dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates).
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
-  and the `seed_demo` command.
+  and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,
+  `--flush`, `--locale en|fa`). The default English data set uses real Iranian
+  cities with English names; `--locale fa` writes the same data with Persian
+  names, handy for RTL demos and Arabic/Persian letter search
+  (`seed_demo --flush --locale fa`).
 - `tests/` — pytest suite; `tests/nl_golden/` holds NL → ReportSpec fixtures.
 
 ## License

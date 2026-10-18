@@ -1,47 +1,75 @@
-"""Deterministic demo data: cities, customers, products, orders over ~2 years."""
+"""Deterministic demo data: cities, customers, products, orders over ~2 years.
+
+``--locale en`` (default) writes English names; ``--locale fa`` the Persian data
+set (useful for RTL demos and Arabic/Persian letter search normalisation). Both
+locales draw the same random numbers, so a given seed yields the same orders,
+amounts and dates either way — only the names differ.
+"""
 
 import random
 from datetime import timedelta
 from decimal import Decimal
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
 from shop.models import City, Customer, Order, OrderItem, Product
 
+LOCALES = ("en", "fa")
+
+# (Persian name, English name, Persian province, English province)
 CITIES = [
-    ("تهران", "Tehran", "تهران"),
-    ("مشهد", "Mashhad", "خراسان رضوی"),
-    ("اصفهان", "Isfahan", "اصفهان"),
-    ("شیراز", "Shiraz", "فارس"),
-    ("تبریز", "Tabriz", "آذربایجان شرقی"),
-    ("کرج", "Karaj", "البرز"),
-    ("اهواز", "Ahvaz", "خوزستان"),
-    ("قم", "Qom", "قم"),
-    ("رشت", "Rasht", "گیلان"),
-    ("کرمان", "Kerman", "کرمان"),
+    ("تهران", "Tehran", "تهران", "Tehran"),
+    ("مشهد", "Mashhad", "خراسان رضوی", "Razavi Khorasan"),
+    ("اصفهان", "Isfahan", "اصفهان", "Isfahan"),
+    ("شیراز", "Shiraz", "فارس", "Fars"),
+    ("تبریز", "Tabriz", "آذربایجان شرقی", "East Azerbaijan"),
+    ("کرج", "Karaj", "البرز", "Alborz"),
+    ("اهواز", "Ahvaz", "خوزستان", "Khuzestan"),
+    ("قم", "Qom", "قم", "Qom"),
+    ("رشت", "Rasht", "گیلان", "Gilan"),
+    ("کرمان", "Kerman", "کرمان", "Kerman"),
 ]
 # Relative order volume per city (Tehran dominates, as in real data).
 CITY_WEIGHTS = [30, 12, 10, 9, 8, 8, 6, 6, 5, 6]
 
+# (Persian name, English name, category, price in rials)
 PRODUCTS = [
-    ("گوشی هوشمند", "electronics", 25_000_000),
-    ("هدفون بی‌سیم", "electronics", 4_500_000),
-    ("لپ‌تاپ", "electronics", 60_000_000),
-    ("رمان", "books", 350_000),
-    ("کتاب آشپزی", "books", 600_000),
-    ("تی‌شرت", "clothing", 450_000),
-    ("کاپشن", "clothing", 3_200_000),
-    ("برنج ایرانی ۱۰ کیلو", "grocery", 2_800_000),
-    ("چای ۵۰۰ گرم", "grocery", 400_000),
-    ("زعفران ۵ گرم", "grocery", 1_100_000),
-    ("سرویس قابلمه", "home", 7_500_000),
-    ("سماور برقی", "home", 3_900_000),
+    ("گوشی هوشمند", "Smartphone", "electronics", 25_000_000),
+    ("هدفون بی‌سیم", "Wireless headphones", "electronics", 4_500_000),
+    ("لپ‌تاپ", "Laptop", "electronics", 60_000_000),
+    ("رمان", "Novel", "books", 350_000),
+    ("کتاب آشپزی", "Cookbook", "books", 600_000),
+    ("تی‌شرت", "T-shirt", "clothing", 450_000),
+    ("کاپشن", "Winter jacket", "clothing", 3_200_000),
+    ("برنج ایرانی ۱۰ کیلو", "Persian rice 10 kg", "grocery", 2_800_000),
+    ("چای ۵۰۰ گرم", "Tea 500 g", "grocery", 400_000),
+    ("زعفران ۵ گرم", "Saffron 5 g", "grocery", 1_100_000),
+    ("سرویس قابلمه", "Cookware set", "home", 7_500_000),
+    ("سماور برقی", "Electric samovar", "home", 3_900_000),
 ]
 
-FIRST_NAMES = ["علی", "زهرا", "محمد", "فاطمه", "حسین", "مریم", "رضا", "سارا", "امیر", "نرگس"]
-LAST_NAMES = ["محمدی", "حسینی", "رضایی", "احمدی", "کریمی", "موسوی", "جعفری", "صادقی"]
+# Parallel lists: the same random draws pick the same person in either locale.
+FIRST_NAMES = {
+    "fa": ["علی", "زهرا", "محمد", "فاطمه", "حسین", "مریم", "رضا", "سارا", "امیر", "نرگس"],
+    "en": [
+        "Ali",
+        "Zahra",
+        "Mohammad",
+        "Fatemeh",
+        "Hossein",
+        "Maryam",
+        "Reza",
+        "Sara",
+        "Amir",
+        "Narges",
+    ],
+}
+LAST_NAMES = {
+    "fa": ["محمدی", "حسینی", "رضایی", "احمدی", "کریمی", "موسوی", "جعفری", "صادقی"],
+    "en": ["Mohammadi", "Hosseini", "Rezaei", "Ahmadi", "Karimi", "Mousavi", "Jafari", "Sadeghi"],
+}
 
 STATUSES = ["paid", "paid", "paid", "paid", "paid", "paid", "pending", "cancelled", "refunded"]
 
@@ -55,9 +83,14 @@ class Command(BaseCommand):
         parser.add_argument("--orders", type=int, default=3000)
         parser.add_argument("--days", type=int, default=730, help="history length")
         parser.add_argument("--flush", action="store_true", help="delete existing shop data")
+        parser.add_argument(
+            "--locale", choices=LOCALES, default="en", help="language of names (default: en)"
+        )
 
     @transaction.atomic
-    def handle(self, *args, seed, customers, orders, days, flush, **options):
+    def handle(self, *args, seed, customers, orders, days, flush, locale="en", **options):
+        if locale not in LOCALES:  # call_command() kwargs skip argparse's choices
+            raise CommandError(f"Unknown locale {locale!r}; choose one of {', '.join(LOCALES)}")
         rng = random.Random(seed)
         now = timezone.now()
 
@@ -68,20 +101,26 @@ class Command(BaseCommand):
             Product.objects.all().delete()
             City.objects.all().delete()
 
+        fa = locale == "fa"
         cities = [
-            City.objects.get_or_create(name=n, defaults={"name_en": en, "province": p})[0]
-            for n, en, p in CITIES
+            City.objects.get_or_create(
+                name=fa_name if fa else en_name,
+                defaults={"name_en": en_name, "province": fa_prov if fa else en_prov},
+            )[0]
+            for fa_name, en_name, fa_prov, en_prov in CITIES
         ]
         products = [
             Product.objects.get_or_create(
-                name=n, defaults={"category": c, "price": Decimal(price)}
+                name=fa_name if fa else en_name,
+                defaults={"category": c, "price": Decimal(price)},
             )[0]
-            for n, c, price in PRODUCTS
+            for fa_name, en_name, c, price in PRODUCTS
         ]
+        first_names, last_names = FIRST_NAMES[locale], LAST_NAMES[locale]
 
         new_customers = Customer.objects.bulk_create(
             Customer(
-                name=f"{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}",
+                name=f"{rng.choice(first_names)} {rng.choice(last_names)}",
                 phone=f"09{rng.randint(100000000, 999999999)}",
                 city=rng.choices(cities, weights=CITY_WEIGHTS)[0],
                 created_at=now - timedelta(days=rng.randint(days, days + 365)),
@@ -125,7 +164,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded {len(cities)} cities, {len(products)} products, "
+                f"Seeded ({locale}) {len(cities)} cities, {len(products)} products, "
                 f"{len(new_customers)} customers, {len(created_orders)} orders."
             )
         )
