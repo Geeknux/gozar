@@ -30,3 +30,7 @@ GOZAR_DB=postgres POSTGRES_HOST=localhost uv run pytest
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem) and the `seed_demo` command.
 - `tests/` — pytest suite; `tests/nl_golden/` holds NL → ReportSpec fixtures.
+
+## License
+
+[MIT](LICENSE)
