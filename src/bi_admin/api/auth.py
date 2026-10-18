@@ -1,8 +1,11 @@
 from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
+from django.utils.translation import gettext as _
 from ninja import Router, Schema
 from ninja.errors import HttpError
 from ninja.utils import check_csrf
+
+from bi_admin import preferences
 
 router = Router(tags=["auth"])
 
@@ -29,21 +32,32 @@ def csrf(request):
 @router.get("/me", auth=None)
 def me(request):
     user = request.user
+    prefs = preferences.get(request).as_dict()
     if user.is_authenticated and user.is_active and user.is_staff:
-        return {"authenticated": True, "user": user_payload(user)}
-    return {"authenticated": False, "user": None}
+        return {"authenticated": True, "user": user_payload(user), "preferences": prefs}
+    return {"authenticated": False, "user": None, "preferences": prefs}
 
 
 @router.post("/login", auth=None)
 def do_login(request, data: LoginIn):
     error = check_csrf(request)
     if error:
-        raise HttpError(403, "CSRF verification failed")
+        raise HttpError(403, _("CSRF verification failed"))
     user = authenticate(request, username=data.username, password=data.password)
     if user is None or not (user.is_active and user.is_staff):
-        raise HttpError(401, "نام کاربری یا گذرواژه نادرست است، یا حساب دسترسی مدیریت ندارد.")
+        raise HttpError(
+            401, _("Incorrect username or password, or the account has no admin access.")
+        )
     login(request, user)
-    return {"authenticated": True, "user": user_payload(user), "csrftoken": get_token(request)}
+    request._gozar_preferences = None
+    prefs = preferences.get(request)
+    preferences.activate(request, prefs)
+    return {
+        "authenticated": True,
+        "user": user_payload(user),
+        "preferences": prefs.as_dict(),
+        "csrftoken": get_token(request),
+    }
 
 
 @router.post("/logout")

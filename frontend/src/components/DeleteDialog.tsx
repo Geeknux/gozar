@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
+import { useI18n } from "../i18n";
 import type { DeletePlan } from "../types";
-import { formatNumber } from "../format";
 
 type Props = {
   plan: DeletePlan;
@@ -12,17 +12,18 @@ type Props = {
 };
 
 export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }: Props) {
+  const { t, fmt, cap } = useI18n();
   return (
     <div className="overlay" role="dialog" aria-modal="true">
       <div className="card dialog">
         <h2>{title}</h2>
         {plan.deletable ? (
           <>
-            <p>این موارد حذف خواهند شد:</p>
+            <p>{t("delete.willDelete")}</p>
             <ul>
               {plan.summary.map((s) => (
                 <li key={s.model}>
-                  {s.verbose_name}: {formatNumber(s.count)}
+                  {cap(s.verbose_name)}: {fmt.number(s.count)}
                 </li>
               ))}
             </ul>
@@ -31,14 +32,14 @@ export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }:
           <>
             {plan.protected.length > 0 && (
               <>
-                <p className="error">به‌خاطر وابستگی این رکوردها، حذف ممکن نیست:</p>
+                <p className="error">{t("delete.protected")}</p>
                 <ul>
                   {plan.protected.map((p) => (
                     <li key={p.model}>
-                      {p.verbose_name} ({formatNumber(p.count)}):{" "}
+                      {cap(p.verbose_name)} ({fmt.number(p.count)}):{" "}
                       {p.sample.map((s, i) => (
                         <span key={String(s.pk)}>
-                          {i > 0 && "، "}
+                          {i > 0 && t("common.listSeparator")}
                           <Link to={`/${p.model.replace(".", "/")}/${s.pk}`}>
                             <bdi>{s.label}</bdi>
                           </Link>
@@ -50,20 +51,18 @@ export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }:
               </>
             )}
             {plan.perms_needed.length > 0 && (
-              <p className="error">
-                برای حذف این موارد مجوز ندارید: {plan.perms_needed.join("، ")}
-              </p>
+              <p className="error">{t("delete.noPermission", { models: fmt.list(plan.perms_needed) })}</p>
             )}
           </>
         )}
         <div className="dialog-actions">
           {plan.deletable && (
             <button type="button" className="danger" disabled={busy} onClick={onConfirm}>
-              بله، حذف شود
+              {t("delete.confirm")}
             </button>
           )}
           <button type="button" onClick={onCancel} disabled={busy}>
-            انصراف
+            {t("common.cancel")}
           </button>
         </div>
       </div>

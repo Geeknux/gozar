@@ -4,8 +4,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api, crudPath } from "../api";
 import DeleteDialog from "../components/DeleteDialog";
 import RelationSelect from "../components/RelationSelect";
-import { formatCell, formatDate, toLatinDigits } from "../format";
 import { useModelMeta } from "../hooks";
+import { toLatinDigits, useI18n } from "../i18n";
 import type { DeletePlan, FieldMeta, HistoryEntry, ObjectData, Ref } from "../types";
 
 type Values = Record<string, unknown>;
@@ -55,6 +55,7 @@ function fromApi(field: FieldMeta, value: unknown): unknown {
 
 export default function ObjectForm() {
   const { app, model, pk } = useParams();
+  const { t, fmt, cap } = useI18n();
   const label = `${app}.${model}`;
   const isNew = !pk;
   const navigate = useNavigate();
@@ -88,7 +89,7 @@ export default function ObjectForm() {
   }, [meta, label, pk, isNew, reload]);
 
   if (metaError || loadError) return <p className="error">{metaError || loadError}</p>;
-  if (!meta || !obj) return <p className="muted">در حال بارگذاری…</p>;
+  if (!meta || !obj) return <p className="muted">{t("app.loading")}</p>;
 
   const fieldsByName = Object.fromEntries(meta.fields.map((f) => [f.name, f]));
   const readonly = new Set(meta.form.readonly_fields);
@@ -114,7 +115,7 @@ export default function ObjectForm() {
       const saved = isNew
         ? await api<ObjectData>(crudPath(label), { method: "POST", body })
         : await api<ObjectData>(crudPath(label, String(pk)), { method: "PATCH", body });
-      const msg = `«${saved.label}» ذخیره شد.`;
+      const msg = t("form.saved", { label: saved.label });
       if (then === "list") navigate(`/${app}/${model}`, { state: { notice: msg } });
       else if (then === "another") {
         navigate(`/${app}/${model}/add`);
@@ -163,16 +164,16 @@ export default function ObjectForm() {
   return (
     <div className="form-page">
       <nav className="breadcrumbs">
-        <Link to="/">پیشخوان</Link> › <Link to={`/${app}/${model}`}>{meta.verbose_name_plural}</Link> ›{" "}
-        <bdi>{isNew ? `افزودن ${meta.verbose_name}` : obj.label}</bdi>
+        <Link to="/">{t("nav.dashboard")}</Link> › <Link to={`/${app}/${model}`}>{cap(meta.verbose_name_plural)}</Link> ›{" "}
+        <bdi>{isNew ? t("form.add", { model: meta.verbose_name }) : obj.label}</bdi>
       </nav>
       <div className="page-head">
         <h1>
-          <bdi>{isNew ? `افزودن ${meta.verbose_name}` : obj.label}</bdi>
+          <bdi>{isNew ? t("form.add", { model: meta.verbose_name }) : obj.label}</bdi>
         </h1>
         {!isNew && (
           <button type="button" className="link" onClick={toggleHistory}>
-            {history ? "بستن تاریخچه" : "تاریخچه"}
+            {history ? t("form.closeHistory") : t("form.history")}
           </button>
         )}
       </div>
@@ -184,24 +185,24 @@ export default function ObjectForm() {
           ))}
         </div>
       )}
-      {Object.keys(errors).length > 0 && !general.length && <p className="error">لطفاً خطاهای زیر را برطرف کنید.</p>}
+      {Object.keys(errors).length > 0 && !general.length && <p className="error">{t("form.fixErrors")}</p>}
 
       {history && (
         <section className="card history">
           {history.length === 0 ? (
-            <p className="muted">تاریخچه‌ای ثبت نشده است.</p>
+            <p className="muted">{t("form.noHistory")}</p>
           ) : (
             <table className="grid">
               <tbody>
                 {history.map((h, i) => (
                   <tr key={i}>
-                    <td>{formatDate(h.timestamp)}</td>
+                    <td>{fmt.date(h.timestamp)}</td>
                     <td>
                       <bdi>{h.user ?? "—"}</bdi>
                     </td>
                     <td>{h.action_display}</td>
                     <td>
-                      {h.changes.fields?.map((n) => fieldsByName[n]?.verbose_name ?? n).join("، ")}
+                      {fmt.list(h.changes.fields?.map((n) => cap(fieldsByName[n]?.verbose_name ?? n)) ?? [])}
                     </td>
                   </tr>
                 ))}
@@ -219,12 +220,12 @@ export default function ObjectForm() {
           return (
             <div key={name} className={`form-row${errors[name] ? " has-error" : ""}`}>
               <label htmlFor={`f-${name}`} className={field.required && !ro ? "required" : ""}>
-                {field.verbose_name}
+                {cap(field.verbose_name)}
               </label>
               <div className="form-input">
                 {ro ? (
                   <div className="readonly">
-                    <bdi>{formatCell(obj.values[name], field.kind)}</bdi>
+                    <bdi>{fmt.cell(obj.values[name], field.kind)}</bdi>
                   </div>
                 ) : (
                   <FieldInput field={field} model={label} value={values[name]} onChange={(v) => set(name, v)} isNew={isNew} />
@@ -244,21 +245,21 @@ export default function ObjectForm() {
           {canEdit && (
             <>
               <button type="submit" className="primary" disabled={busy}>
-                ذخیره
+                {t("form.save")}
               </button>
               <button type="button" disabled={busy} onClick={(e) => save(e, "continue")}>
-                ذخیره و ادامه ویرایش
+                {t("form.saveContinue")}
               </button>
               {meta.permissions.add && (
                 <button type="button" disabled={busy} onClick={(e) => save(e, "another")}>
-                  ذخیره و افزودن مورد دیگر
+                  {t("form.saveAnother")}
                 </button>
               )}
             </>
           )}
           {!isNew && meta.permissions.delete && (
             <button type="button" className="danger push" disabled={busy} onClick={askDelete}>
-              حذف
+              {t("common.delete")}
             </button>
           )}
         </div>
@@ -267,7 +268,7 @@ export default function ObjectForm() {
       {plan && (
         <DeleteDialog
           plan={plan}
-          title={`حذف «${obj.label}»`}
+          title={t("form.deleteTitle", { label: obj.label })}
           busy={busy}
           onCancel={() => setPlan(null)}
           onConfirm={doDelete}
@@ -286,6 +287,7 @@ type InputProps = {
 };
 
 function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
+  const { t } = useI18n();
   const id = `f-${field.name}`;
   const str = value === null || value === undefined ? "" : String(value);
 
@@ -307,9 +309,9 @@ function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
       if (field.null) {
         return (
           <select id={id} value={str} onChange={(e) => onChange(e.target.value === "" ? null : e.target.value === "true")}>
-            <option value="">نامشخص</option>
-            <option value="true">بله</option>
-            <option value="false">خیر</option>
+            <option value="">{t("common.unknown")}</option>
+            <option value="true">{t("common.yes")}</option>
+            <option value="false">{t("common.no")}</option>
           </select>
         );
       }
@@ -346,7 +348,7 @@ function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
           type="password"
           dir="ltr"
           autoComplete="new-password"
-          placeholder={isNew ? "" : "برای تغییر وارد کنید؛ خالی یعنی بدون تغییر"}
+          placeholder={isNew ? "" : t("form.passwordPlaceholder")}
           value={str}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -369,7 +371,7 @@ function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
             {refs.map((r) => (
               <li key={String(r.pk)}>
                 <bdi>{r.label}</bdi>
-                <button type="button" aria-label="حذف" onClick={() => onChange(refs.filter((x) => x.pk !== r.pk))}>
+                <button type="button" aria-label={t("common.remove")} onClick={() => onChange(refs.filter((x) => x.pk !== r.pk))}>
                   ×
                 </button>
               </li>
@@ -379,7 +381,7 @@ function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
             model={model}
             field={field.name}
             value={null}
-            placeholder="+ افزودن…"
+            placeholder={t("form.addItem")}
             onChange={(r) => r && !refs.some((x) => x.pk === r.pk) && onChange([...refs, r])}
           />
         </div>

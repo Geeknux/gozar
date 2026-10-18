@@ -15,6 +15,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from django.conf import settings
+from django.utils.translation import gettext as _
 
 from bi_admin.calendar import jalali, periods
 from bi_admin.discovery import get_registry
@@ -65,7 +66,7 @@ class SpecValidationError(Exception):
         return [e.code for e in self.errors]
 
     def as_dict(self) -> dict[str, Any]:
-        return {"detail": "Invalid report spec", "errors": [e.as_dict() for e in self.errors]}
+        return {"detail": _("Invalid report spec"), "errors": [e.as_dict() for e in self.errors]}
 
 
 @dataclass(frozen=True)
@@ -126,8 +127,11 @@ def _suggest(value: str, items: dict[str, Dimension] | dict[str, Measure]) -> li
 
 
 class _Validator:
-    def __init__(self, spec: ReportSpec, today: dt.date | None):
-        self.spec = spec
+    def __init__(self, spec: ReportSpec, today: dt.date | None, calendar: str | None):
+        from bi_admin import preferences
+
+        self.calendar = spec.calendar or calendar or preferences.default_calendar()
+        self.spec = spec.model_copy(update={"calendar": self.calendar})
         self.today = today
         self.errors: list[SpecError] = []
 
@@ -149,7 +153,7 @@ class _Validator:
             names = semantic_site.names()
             self.error(
                 "unknown_semantic_model",
-                f"Unknown semantic model {spec.semantic_model!r}",
+                _("Unknown semantic model %(name)r") % {"name": spec.semantic_model},
                 "semantic_model",
                 spec.semantic_model,
                 difflib.get_close_matches(spec.semantic_model, names, n=3) or names,
@@ -170,7 +174,7 @@ class _Validator:
         if spec.compare_to is not None:
             self.error(
                 "not_supported",
-                "compare_to is not supported yet (planned for M6)",
+                _("compare_to is not supported yet (planned for M6)"),
                 "compare_to",
                 spec.compare_to,
             )
@@ -184,7 +188,7 @@ class _Validator:
             filters=filters,
             sort=sort,
             limit=limit,
-            calendar=spec.calendar,
+            calendar=self.calendar,
             time_dimension=time_dim,
             time_grain=next((g.grain for g in groups if g.dimension is time_dim), None),
             period=period,
@@ -197,12 +201,17 @@ class _Validator:
         if dim is None:
             if key in self.meas:
                 self.error(
-                    "not_a_dimension", f"{key!r} is a measure, not a dimension", path, key, [key]
+                    "not_a_dimension",
+                    _("%(key)r is a measure, not a dimension") % {"key": key},
+                    path,
+                    key,
+                    [key],
                 )
             else:
                 self.error(
                     "unknown_dimension",
-                    f"Unknown dimension {key!r} on {self.sem.name}",
+                    _("Unknown dimension %(key)r on %(model)s")
+                    % {"key": key, "model": self.sem.name},
                     path,
                     key,
                     _suggest(key, self.dims),
@@ -219,26 +228,33 @@ class _Validator:
     def measures(self) -> list[Measure]:
         if not self.spec.measures:
             self.error(
-                "no_measures", "Pick at least one measure", "measures", None, list(self.meas)
+                "no_measures", _("Pick at least one measure"), "measures", None, list(self.meas)
             )
         out: list[Measure] = []
         seen = set()
         for i, key in enumerate(self.spec.measures):
             path = f"measures[{i}]"
             if key in seen:
-                self.error("duplicate", f"Measure {key!r} is listed twice", path, key)
+                self.error(
+                    "duplicate", _("Measure %(key)r is listed twice") % {"key": key}, path, key
+                )
                 continue
             seen.add(key)
             m = self.meas.get(key)
             if m is None:
                 if key in self.dims:
                     self.error(
-                        "not_a_measure", f"{key!r} is a dimension, not a measure", path, key, [key]
+                        "not_a_measure",
+                        _("%(key)r is a dimension, not a measure") % {"key": key},
+                        path,
+                        key,
+                        [key],
                     )
                 else:
                     self.error(
                         "unknown_measure",
-                        f"Unknown measure {key!r} on {self.sem.name}",
+                        _("Unknown measure %(key)r on %(model)s")
+                        % {"key": key, "model": self.sem.name},
                         path,
                         key,
                         _suggest(key, self.meas),
@@ -256,7 +272,7 @@ class _Validator:
                 if spec.time_grain or spec.relative_period:
                     self.error(
                         "no_time_dimension",
-                        f"{self.sem.name} has no time dimension",
+                        _("%(model)s has no time dimension") % {"model": self.sem.name},
                         "time_dimension",
                     )
                 return None
@@ -264,7 +280,7 @@ class _Validator:
         if dim is not None and dim.type != "time":
             self.error(
                 "not_a_time_dimension",
-                f"{key!r} is not a time dimension",
+                _("%(key)r is not a time dimension") % {"key": key},
                 "time_dimension",
                 key,
                 [k for k, d in self.dims.items() if d.type == "time"],
@@ -280,7 +296,9 @@ class _Validator:
         for i, key in enumerate(spec.dimensions):
             path = f"dimensions[{i}]"
             if key in seen:
-                self.error("duplicate", f"Dimension {key!r} is listed twice", path, key)
+                self.error(
+                    "duplicate", _("Dimension %(key)r is listed twice") % {"key": key}, path, key
+                )
                 continue
             seen.add(key)
             dim = self.lookup_dimension(key, path)
@@ -292,7 +310,7 @@ class _Validator:
         if len(groups) > max_dimensions():
             self.error(
                 "too_many_dimensions",
-                f"At most {max_dimensions()} dimensions per report",
+                _("At most %(count)s dimensions per report") % {"count": max_dimensions()},
                 "dimensions",
                 len(groups),
             )
@@ -303,7 +321,7 @@ class _Validator:
         if not name:
             return None
         try:
-            period = periods.resolve(name, self.spec.calendar, self.today)
+            period = periods.resolve(name, self.calendar, self.today)
         except periods.PeriodError as exc:
             self.error(
                 "unknown_relative_period",
@@ -322,7 +340,8 @@ class _Validator:
             if f.field in self.meas and f.field not in self.dims:
                 self.error(
                     "measure_filter_not_supported",
-                    f"Filtering on measure {f.field!r} is not supported; filter on a dimension",
+                    _("Filtering on measure %(key)r is not supported; filter on a dimension")
+                    % {"key": f.field},
                     f"{path}.field",
                     f.field,
                 )
@@ -342,12 +361,13 @@ class _Validator:
                 return True
             if isinstance(value, bool):
                 return value
-            self.error("invalid_value", "is_null takes true/false", vpath, value)
+            self.error("invalid_value", _("is_null takes true/false"), vpath, value)
             return _INVALID
         if op in ("gte", "lte", "between") and dim.type not in ("time", "number"):
             self.error(
                 "invalid_operator",
-                f"{op!r} needs a time or number dimension; {dim.key!r} is {dim.type}",
+                _("%(op)r needs a time or number dimension; %(key)r is %(type)s")
+                % {"op": op, "key": dim.key, "type": dim.type},
                 f"{path}.op",
                 op,
                 ["eq", "neq", "in", "not_in", "contains", "is_null"],
@@ -356,27 +376,30 @@ class _Validator:
         if op == "contains" and dim.type not in ("category", "geo"):
             self.error(
                 "invalid_operator",
-                f"'contains' needs a text dimension; {dim.key!r} is {dim.type}",
+                _("'contains' needs a text dimension; %(key)r is %(type)s")
+                % {"key": dim.key, "type": dim.type},
                 f"{path}.op",
                 op,
             )
             return _INVALID
         if op in ("in", "not_in", "between"):
             if not isinstance(value, list) or not value:
-                self.error("invalid_value", f"{op!r} takes a non-empty list", vpath, value)
+                self.error(
+                    "invalid_value", _("%(op)r takes a non-empty list") % {"op": op}, vpath, value
+                )
                 return _INVALID
             if op == "between" and len(value) != 2:
-                self.error("invalid_value", "'between' takes [low, high]", vpath, value)
+                self.error("invalid_value", _("'between' takes [low, high]"), vpath, value)
                 return _INVALID
             coerced = [self.coerce(dim, v, f"{vpath}[{j}]") for j, v in enumerate(value)]
             if any(c is _INVALID for c in coerced):
                 return _INVALID
             if op == "between" and coerced[0] > coerced[1]:
-                self.error("invalid_value", "'between' low is greater than high", vpath, value)
+                self.error("invalid_value", _("'between' low is greater than high"), vpath, value)
                 return _INVALID
             return coerced
         if isinstance(value, list) or value is None:
-            self.error("invalid_value", f"{op!r} takes a single value", vpath, value)
+            self.error("invalid_value", _("%(op)r takes a single value") % {"op": op}, vpath, value)
             return _INVALID
         if op == "contains":
             return str(value)
@@ -384,7 +407,7 @@ class _Validator:
 
     def coerce(self, dim: Dimension, value: Any, path: str) -> Any:
         if isinstance(value, list) or value is None:
-            self.error("invalid_value", "Expected a single value", path, value)
+            self.error("invalid_value", _("Expected a single value"), path, value)
             return _INVALID
         if dim.type == "time":
             try:
@@ -392,19 +415,19 @@ class _Validator:
             except ValueError:
                 self.error(
                     "invalid_value",
-                    "Expected a date: 2026-03-21 (Gregorian) or 1405/01/01 (Jalali)",
+                    _("Expected a date: 2026-03-21 (Gregorian) or 1405/01/01 (Jalali)"),
                     path,
                     value,
                 )
                 return _INVALID
         if dim.type == "number":
             if isinstance(value, bool):
-                self.error("invalid_value", "Expected a number", path, value)
+                self.error("invalid_value", _("Expected a number"), path, value)
                 return _INVALID
             try:
                 return Decimal(str(value).translate(jalali.PERSIAN_DIGITS))
             except InvalidOperation:
-                self.error("invalid_value", "Expected a number", path, value)
+                self.error("invalid_value", _("Expected a number"), path, value)
                 return _INVALID
         if dim.type == "boolean":
             if isinstance(value, bool):
@@ -414,21 +437,23 @@ class _Validator:
                 return True
             if low in ("0", "false", "no"):
                 return False
-            self.error("invalid_value", "Expected true or false", path, value)
+            self.error("invalid_value", _("Expected true or false"), path, value)
             return _INVALID
         if dim.choices:
-            values = {str(v): v for v, _ in dim.choices}
+            values = {str(v): v for v, _labels in dim.choices}
             if str(value) in values:
                 return values[str(value)]
-            by_label = {_normalise(label): v for v, label in dim.choices}
+            by_label = {
+                _normalise(label): v for v, labels in dim.choices for label in labels.values()
+            }
             if _normalise(str(value)) in by_label:
                 return by_label[_normalise(str(value))]
             self.error(
                 "invalid_choice",
-                f"{value!r} is not a valid {dim.key}",
+                _("%(value)r is not a valid %(key)s") % {"value": value, "key": dim.key},
                 path,
                 value,
-                [str(v) for v, _ in dim.choices],
+                [str(v) for v, _labels in dim.choices],
             )
             return _INVALID
         return value
@@ -442,7 +467,8 @@ class _Validator:
                 known = s.field in self.dims or s.field in self.meas
                 self.error(
                     "sort_field_not_in_report" if known else "unknown_field",
-                    f"Sort field {s.field!r} must be one of the report's measures or dimensions",
+                    _("Sort field %(key)r must be one of the report's measures or dimensions")
+                    % {"key": s.field},
                     path,
                     s.field,
                     sorted(selected),
@@ -457,17 +483,24 @@ class _Validator:
         if limit is None:
             return cap
         if limit < 1:
-            self.error("invalid_limit", "limit must be at least 1", "limit", limit)
+            self.error("invalid_limit", _("limit must be at least 1"), "limit", limit)
         elif limit > cap:
-            self.error("limit_exceeded", f"limit may not exceed {cap}", "limit", limit)
+            self.error(
+                "limit_exceeded", _("limit may not exceed %(max)s") % {"max": cap}, "limit", limit
+            )
         return min(max(limit, 1), cap)
 
 
 _INVALID = object()
 
 
-def validate(spec: ReportSpec | dict, today: dt.date | None = None) -> ValidatedReport:
-    """Validate ``spec``; raises ``SpecValidationError`` listing every problem."""
+def validate(
+    spec: ReportSpec | dict, today: dt.date | None = None, calendar: str | None = None
+) -> ValidatedReport:
+    """Validate ``spec``; raises ``SpecValidationError`` listing every problem.
+
+    ``calendar`` is used when the spec names none (the user's preference);
+    otherwise ``GOZAR["DEFAULT_CALENDAR"]`` (Gregorian) applies."""
     if isinstance(spec, dict):
         spec = ReportSpec.model_validate(spec)
-    return _Validator(spec, today).run()
+    return _Validator(spec, today, calendar).run()

@@ -1,0 +1,117 @@
+# Persian translation of Gozar demo shop.
+# This file is distributed under the same license as Gozar (MIT).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Gozar demo shop\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 23:37+0330\n"
+"PO-Revision-Date: 2026-10-18 23:40+0330\n"
+"Last-Translator: Gozar contributors\n"
+"Language-Team: Persian\n"
+"Language: fa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+msgid "Shop"
+msgstr "فروشگاه"
+
+msgid "Cancel selected orders"
+msgstr "لغو سفارش‌های انتخاب‌شده"
+
+msgid "name"
+msgstr "نام"
+
+msgid "English name"
+msgstr "نام انگلیسی"
+
+msgid "province"
+msgstr "استان"
+
+msgid "city"
+msgstr "شهر"
+
+msgid "cities"
+msgstr "شهرها"
+
+msgid "phone"
+msgstr "تلفن"
+
+msgid "joined at"
+msgstr "تاریخ عضویت"
+
+msgid "customer"
+msgstr "مشتری"
+
+msgid "customers"
+msgstr "مشتریان"
+
+msgid "Electronics"
+msgstr "الکترونیک"
+
+msgid "Books"
+msgstr "کتاب"
+
+msgid "Clothing"
+msgstr "پوشاک"
+
+msgid "Grocery"
+msgstr "خواربار"
+
+msgid "Home & kitchen"
+msgstr "خانه و آشپزخانه"
+
+msgid "category"
+msgstr "دسته"
+
+msgid "price"
+msgstr "قیمت"
+
+msgid "product"
+msgstr "محصول"
+
+msgid "products"
+msgstr "محصولات"
+
+msgid "Awaiting payment"
+msgstr "در انتظار پرداخت"
+
+msgid "Paid"
+msgstr "پرداخت‌شده"
+
+msgid "Cancelled"
+msgstr "لغوشده"
+
+msgid "Refunded"
+msgstr "مرجوعی"
+
+msgid "status"
+msgstr "وضعیت"
+
+msgid "amount"
+msgstr "مبلغ"
+
+msgid "created at"
+msgstr "تاریخ ثبت"
+
+msgid "paid at"
+msgstr "تاریخ پرداخت"
+
+msgid "order"
+msgstr "سفارش"
+
+msgid "orders"
+msgstr "سفارش‌ها"
+
+msgid "quantity"
+msgstr "تعداد"
+
+msgid "unit price"
+msgstr "قیمت واحد"
+
+msgid "order item"
+msgstr "قلم سفارش"
+
+msgid "order items"
+msgstr "اقلام سفارش"

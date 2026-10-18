@@ -5,7 +5,7 @@
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
 > Status: M0 (skeleton), M1 (discovery + CRUD) and M2 (semantic layer + query
-> engine) done — see §10 for decisions.
+> engine) done, plus i18n + per-user preferences — see §10 for decisions.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -425,7 +425,8 @@ Decided (M1, 2026-10-18):
   shipped as a wheel artifact); Django serves the shell (`bi_admin.views.spa`)
   via the Vite manifest. Dates are shown in Jalali via `Intl`
   (`fa-IR-u-ca-persian`), numbers with Persian digits. Date inputs are still
-  Gregorian browser pickers — Jalali pickers come with M3.
+  Gregorian browser pickers — Jalali pickers come with M3. *(Superseded by the
+  i18n decisions below: English/Gregorian are now the defaults.)*
 
 Decided (M2, 2026-10-18):
 
@@ -508,6 +509,64 @@ Decided (M2, 2026-10-18):
   measures. Two deliberate changes from the sketch: `aov` averages paid orders
   only (consistent with `revenue`), and the synonym "استان" moved from `city` to
   the new `province` dimension.
+
+Decided (i18n + preferences, 2026-10-18):
+
+- **English is the source language and the default; Gregorian is the default
+  calendar.** Persian and Jalali stay fully supported as per-user choices.
+  This revises the Persian-first framing of §1 for the UI: the product is
+  bilingual, and Persian is still first-class (RTL, digits, Jalali in the DB).
+- Backend strings use gettext: error messages, the CRUD "Delete selected"
+  action, `ChangeLog` fields and action choices, `CalendarDay` and
+  `UserPreferences` verbose names, the SPA shell template. The Persian catalog
+  lives in `src/bi_admin/locale/fa/LC_MESSAGES/` with the compiled `.mo`
+  committed (CI needs no gettext tools); regenerate with `django-admin
+  makemessages -l fa` + `compilemessages` from `src/bi_admin`. The demo shop
+  does the same in `example_project/shop/locale/`. Verbose names follow the
+  Django convention (lower-case English, e.g. `order`); `path_label` and
+  semantic fallbacks capitalise them, the SPA capitalises headings. Seed
+  *data* (city, customer and product names) stays Persian on purpose — it is
+  data, not UI text, and exercises Persian search/normalisation.
+- The discovery registry is cached **per active language**, since verbose names
+  and choice labels are translated when it is built. Semantic models bind once
+  and compute both languages up front (`in_languages`): default labels come
+  from verbose names, a bare-string label/description is English source text
+  run through gettext (so `gettext_lazy("Revenue")` works), dimension choices
+  carry `{"fa", "en"}` labels and the validator accepts a choice label in
+  either language.
+- Preferences: `bi_admin.UserPreferences` (one row per user: `language` en|fa,
+  `calendar` gregorian|jalali, both blank = project default, plus an `options`
+  JSON object for later settings). Defaults: `GOZAR["DEFAULT_LANGUAGE"]` and
+  `GOZAR["DEFAULT_CALENDAR"]` (fallback en / gregorian; unsupported values
+  fall back too). Reading never creates a row.
+- `bi_admin.middleware.PreferencesMiddleware` (after `AuthenticationMiddleware`)
+  replaces `LocaleMiddleware`: staff users get their stored language, anonymous
+  requests the `django_language` cookie or `Accept-Language` when supported,
+  else the project default. It sets `Content-Language`, varies on
+  `Accept-Language`/`Cookie`, and restores the previous thread language after
+  the response so nothing leaks into the next request.
+- API: `GET /api/preferences` and `PATCH /api/preferences` (partial; `null`/`""`
+  resets a field; options are merged; 400 with per-field errors; the response is
+  already in the new language). `/auth/me` and the login response include
+  `preferences`. Same staff session + CSRF as the rest of the API; no model
+  permission is needed to set one's own preferences.
+- Reports: `ReportSpec.calendar` now defaults to `null` and resolves to the
+  spec's value → the user's calendar → `GOZAR["DEFAULT_CALENDAR"]`; the
+  response's `spec.calendar` shows the resolved one. `periods.resolve` defaults
+  to Gregorian. Report column metadata has `label` in the user's language plus
+  `labels` with both; `GET /api/reports/catalog` returns the user's language by
+  default (`lang=fa|en` overrides, `lang=all` returns both). Validation
+  messages are translated; error `code`s never change.
+- SPA: `frontend/src/i18n/` holds the `en` and `fa` dictionaries (`fa` is typed
+  against `en`, so a missing key fails `tsc`) and a small context
+  (`useI18n()` → `t`, `fmt`, `cap`, `lang`, `calendar`, `dir`); no new
+  dependency. `fmt` formats numbers and dates with `Intl`
+  (`en-US`/`fa-IR`, `-u-ca-gregory|persian`, Latin or Persian digits). The
+  Settings page (top bar → Settings) saves each change at once and applies it
+  immediately: `<html lang dir>`, digits, dates, and a remount of the routes so
+  pages refetch server-translated metadata. Before login the page follows the
+  server's choice (browser / project default) and offers an English/فارسی
+  switch that sets the `django_language` cookie.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

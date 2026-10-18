@@ -10,6 +10,8 @@ from django.templatetags.static import static
 from django.urls import reverse
 from django.views.decorators.csrf import ensure_csrf_cookie
 
+from bi_admin import preferences
+
 SPA_DIR = Path(__file__).resolve().parent / "static" / "bi_admin" / "spa"
 MANIFEST = SPA_DIR / ".vite" / "manifest.json"
 ENTRY = "index.html"
@@ -36,10 +38,17 @@ def spa_assets() -> dict | None:
 @ensure_csrf_cookie
 def spa(request, path: str = ""):
     base = reverse("bi_admin:spa")
+    prefs = preferences.get(request)
+    language = getattr(request, "LANGUAGE_CODE", None) or prefs.language
+    if language not in preferences.LANGUAGES:
+        language = preferences.default_language()
     config = {
         "basePath": base.rstrip("/"),
         "apiBase": base + "api",
-        "language": getattr(request, "LANGUAGE_CODE", settings.LANGUAGE_CODE),
+        "language": language,
+        "calendar": prefs.calendar,
+        "defaultLanguage": preferences.default_language(),
+        "defaultCalendar": preferences.default_calendar(),
     }
     dev_server = getattr(settings, "GOZAR", {}).get("VITE_DEV_SERVER")
     return render(
@@ -47,6 +56,7 @@ def spa(request, path: str = ""):
         "bi_admin/index.html",
         {
             "config": config,
+            "dir": "rtl" if language == "fa" else "ltr",
             "assets": None if dev_server else spa_assets(),
             "dev_server": dev_server.rstrip("/") if dev_server else None,
         },

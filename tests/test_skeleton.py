@@ -5,6 +5,7 @@ from io import StringIO
 import pytest
 from django.apps import apps
 from django.core.management import call_command
+from django.utils import translation
 
 import bi_admin
 from shop.models import City, Customer, Order, OrderItem, Product
@@ -19,7 +20,9 @@ def test_app_installed():
 
 
 def test_demo_models_relations_and_labels():
-    assert Order._meta.verbose_name == "سفارش"
+    assert Order._meta.verbose_name == "order"
+    with translation.override("fa"):
+        assert str(Order._meta.verbose_name) == "سفارش"
     assert Order._meta.get_field("customer").related_model is Customer
     assert Customer._meta.get_field("city").related_model is City
 

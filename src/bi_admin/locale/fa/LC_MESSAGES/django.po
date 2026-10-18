@@ -1,0 +1,403 @@
+# Persian translation of Gozar (bi_admin).
+# This file is distributed under the same license as Gozar (MIT).
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Gozar (bi_admin)\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-18 23:37+0330\n"
+"PO-Revision-Date: 2026-10-18 23:40+0330\n"
+"Last-Translator: Gozar contributors\n"
+"Language-Team: Persian\n"
+"Language: fa\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+msgid "CSRF verification failed"
+msgstr "بررسی CSRF ناموفق بود"
+
+msgid "Incorrect username or password, or the account has no admin access."
+msgstr "نام کاربری یا گذرواژه نادرست است، یا حساب دسترسی مدیریت ندارد."
+
+msgid "Invalid JSON body"
+msgstr "بدنهٔ JSON نامعتبر است"
+
+msgid "Unknown model"
+msgstr "مدل ناشناخته"
+
+msgid "Request body must be a JSON object"
+msgstr "بدنهٔ درخواست باید یک شیء JSON باشد"
+
+msgid "Validation failed"
+msgstr "اعتبارسنجی ناموفق بود"
+
+#, python-format
+msgid "Unknown relative period %(name)r"
+msgstr "بازهٔ نسبی ناشناخته: %(name)r"
+
+#, python-format
+msgid "Unknown unit %(unit)r in relative period %(name)r"
+msgstr "واحد ناشناختهٔ %(unit)r در بازهٔ نسبی %(name)r"
+
+#, python-format
+msgid "'this' takes no count: %(name)r"
+msgstr "«this» عدد نمی‌پذیرد: %(name)r"
+
+#, python-format
+msgid "'past' needs a count, e.g. past_3_%(unit)ss"
+msgstr "«past» به عدد نیاز دارد، مثلاً past_3_%(unit)ss"
+
+#, python-format
+msgid "Count must be between 1 and %(max)s: %(name)r"
+msgstr "عدد باید بین ۱ و %(max)s باشد: %(name)r"
+
+msgid "Delete selected"
+msgstr "حذف موارد انتخاب‌شده"
+
+#, python-format
+msgid "Unknown model %(model)r"
+msgstr "مدل ناشناخته: %(model)r"
+
+#, python-format
+msgid "Permission denied: %(perm)s %(model)s"
+msgstr "دسترسی مجاز نیست: %(perm)s %(model)s"
+
+#, python-format
+msgid "list_display entry %(name)r is not a field or callable"
+msgstr "مورد %(name)r در list_display نه فیلد است نه تابع"
+
+#, python-format
+msgid "Filtering on %(key)r is not allowed"
+msgstr "فیلتر روی %(key)r مجاز نیست"
+
+#, python-format
+msgid "Invalid boolean %(value)r"
+msgstr "مقدار بولی نامعتبر: %(value)r"
+
+#, python-format
+msgid "Invalid number %(value)r"
+msgstr "عدد نامعتبر: %(value)r"
+
+#, python-format
+msgid "Invalid date %(value)r"
+msgstr "تاریخ نامعتبر: %(value)r"
+
+#, python-format
+msgid "Invalid value %(value)r for %(field)s"
+msgstr "مقدار %(value)r برای %(field)s نامعتبر است"
+
+#, python-format
+msgid "Ordering by %(field)r is not allowed"
+msgstr "مرتب‌سازی بر اساس %(field)r مجاز نیست"
+
+msgid "page and page_size must be integers"
+msgstr "page و page_size باید عدد صحیح باشند"
+
+#, python-format
+msgid "Page %(page)s does not exist"
+msgstr "صفحهٔ %(page)s وجود ندارد"
+
+msgid "Not found"
+msgstr "پیدا نشد"
+
+msgid "Unknown or read-only fields"
+msgstr "فیلدهای ناشناخته یا فقط‌خواندنی"
+
+msgid "This field cannot be edited."
+msgstr "این فیلد قابل ویرایش نیست."
+
+msgid "Cannot delete"
+msgstr "حذف ممکن نیست"
+
+#, python-format
+msgid "Unknown action %(name)r"
+msgstr "عملیات ناشناخته: %(name)r"
+
+msgid "Select at least one row"
+msgstr "دست‌کم یک ردیف انتخاب کنید"
+
+msgid "Invalid primary key in selection"
+msgstr "کلید اصلی نامعتبر در موارد انتخاب‌شده"
+
+msgid "Permission denied"
+msgstr "دسترسی مجاز نیست"
+
+#, python-format
+msgid "%(field)r is not a relation field of %(model)s"
+msgstr "%(field)r فیلد رابطه‌ای %(model)s نیست"
+
+#, python-format
+msgid "Unknown field %(field)r"
+msgstr "فیلد ناشناخته: %(field)r"
+
+#, python-format
+msgid "%(field)r is not a relation field"
+msgstr "%(field)r فیلد رابطه‌ای نیست"
+
+#, python-format
+msgid "The calendar table lacks %(missing)s day(s) between %(start)s and %(end)s; run `manage.py gozar_calendar`"
+msgstr "جدول تقویم %(missing)s روز بین %(start)s و %(end)s را ندارد؛ دستور `manage.py gozar_calendar` را اجرا کنید"
+
+#, python-format
+msgid "Unknown semantic model %(name)r"
+msgstr "مدل معنایی ناشناخته: %(name)r"
+
+#, python-format
+msgid "Permission denied: report on %(name)s"
+msgstr "دسترسی به گزارش %(name)s مجاز نیست"
+
+msgid "Invalid report spec"
+msgstr "مشخصات گزارش نامعتبر است"
+
+msgid "compare_to is not supported yet (planned for M6)"
+msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"
+
+#, python-format
+msgid "%(key)r is a measure, not a dimension"
+msgstr "%(key)r یک سنجه است، نه بُعد"
+
+#, python-format
+msgid "Unknown dimension %(key)r on %(model)s"
+msgstr "بُعد ناشناختهٔ %(key)r در %(model)s"
+
+msgid "Pick at least one measure"
+msgstr "دست‌کم یک سنجه انتخاب کنید"
+
+#, python-format
+msgid "Measure %(key)r is listed twice"
+msgstr "سنجهٔ %(key)r دو بار آمده است"
+
+#, python-format
+msgid "%(key)r is a dimension, not a measure"
+msgstr "%(key)r یک بُعد است، نه سنجه"
+
+#, python-format
+msgid "Unknown measure %(key)r on %(model)s"
+msgstr "سنجهٔ ناشناختهٔ %(key)r در %(model)s"
+
+#, python-format
+msgid "%(model)s has no time dimension"
+msgstr "%(model)s بُعد زمانی ندارد"
+
+#, python-format
+msgid "%(key)r is not a time dimension"
+msgstr "%(key)r بُعد زمانی نیست"
+
+#, python-format
+msgid "Dimension %(key)r is listed twice"
+msgstr "بُعد %(key)r دو بار آمده است"
+
+#, python-format
+msgid "At most %(count)s dimensions per report"
+msgstr "هر گزارش حداکثر %(count)s بُعد می‌تواند داشته باشد"
+
+#, python-format
+msgid "Filtering on measure %(key)r is not supported; filter on a dimension"
+msgstr "فیلتر روی سنجهٔ %(key)r پشتیبانی نمی‌شود؛ روی یک بُعد فیلتر کنید"
+
+msgid "is_null takes true/false"
+msgstr "is_null مقدار true یا false می‌پذیرد"
+
+#, python-format
+msgid "%(op)r needs a time or number dimension; %(key)r is %(type)s"
+msgstr "%(op)r به بُعد زمانی یا عددی نیاز دارد؛ %(key)r از نوع %(type)s است"
+
+#, python-format
+msgid "'contains' needs a text dimension; %(key)r is %(type)s"
+msgstr "«contains» به بُعد متنی نیاز دارد؛ %(key)r از نوع %(type)s است"
+
+#, python-format
+msgid "%(op)r takes a non-empty list"
+msgstr "%(op)r یک فهرست غیرخالی می‌پذیرد"
+
+msgid "'between' takes [low, high]"
+msgstr "«between» مقدار [کمینه، بیشینه] می‌پذیرد"
+
+msgid "'between' low is greater than high"
+msgstr "در «between» کمینه از بیشینه بزرگ‌تر است"
+
+#, python-format
+msgid "%(op)r takes a single value"
+msgstr "%(op)r فقط یک مقدار می‌پذیرد"
+
+msgid "Expected a single value"
+msgstr "یک مقدار واحد لازم است"
+
+msgid "Expected a date: 2026-03-21 (Gregorian) or 1405/01/01 (Jalali)"
+msgstr "تاریخ لازم است: 2026-03-21 (میلادی) یا 1405/01/01 (شمسی)"
+
+msgid "Expected a number"
+msgstr "عدد لازم است"
+
+msgid "Expected true or false"
+msgstr "true یا false لازم است"
+
+#, python-format
+msgid "%(value)r is not a valid %(key)s"
+msgstr "%(value)r مقدار معتبری برای %(key)s نیست"
+
+#, python-format
+msgid "Sort field %(key)r must be one of the report's measures or dimensions"
+msgstr "فیلد مرتب‌سازی %(key)r باید یکی از سنجه‌ها یا ابعاد گزارش باشد"
+
+msgid "limit must be at least 1"
+msgstr "limit باید دست‌کم ۱ باشد"
+
+#, python-format
+msgid "limit may not exceed %(max)s"
+msgstr "limit نمی‌تواند از %(max)s بیشتر باشد"
+
+msgid "Addition"
+msgstr "افزودن"
+
+msgid "Change"
+msgstr "ویرایش"
+
+msgid "Deletion"
+msgstr "حذف"
+
+msgid "time"
+msgstr "زمان"
+
+msgid "user"
+msgstr "کاربر"
+
+msgid "model"
+msgstr "مدل"
+
+msgid "object id"
+msgstr "شناسهٔ شیء"
+
+msgid "object repr"
+msgstr "نمایش شیء"
+
+msgid "action"
+msgstr "عمل"
+
+msgid "changes"
+msgstr "تغییرات"
+
+msgid "change log entry"
+msgstr "سابقهٔ تغییر"
+
+msgid "change log entries"
+msgstr "سوابق تغییرات"
+
+msgid "date"
+msgstr "تاریخ"
+
+msgid "weekday (ISO, Monday=0)"
+msgstr "روز هفته (ISO، دوشنبه=۰)"
+
+msgid "Gregorian year"
+msgstr "سال میلادی"
+
+msgid "Gregorian quarter"
+msgstr "فصل میلادی"
+
+msgid "Gregorian month"
+msgstr "ماه میلادی"
+
+msgid "Gregorian day"
+msgstr "روز میلادی"
+
+msgid "ISO year"
+msgstr "سال ISO"
+
+msgid "ISO week"
+msgstr "هفتهٔ ISO"
+
+msgid "Gregorian week start"
+msgstr "آغاز هفتهٔ میلادی"
+
+msgid "Gregorian month start"
+msgstr "آغاز ماه میلادی"
+
+msgid "Gregorian quarter start"
+msgstr "آغاز فصل میلادی"
+
+msgid "Gregorian year start"
+msgstr "آغاز سال میلادی"
+
+msgid "Jalali year"
+msgstr "سال شمسی"
+
+msgid "Jalali season"
+msgstr "فصل شمسی"
+
+msgid "Jalali month"
+msgstr "ماه شمسی"
+
+msgid "Jalali day"
+msgstr "روز شمسی"
+
+msgid "Jalali weekday (Saturday=0)"
+msgstr "روز هفتهٔ شمسی (شنبه=۰)"
+
+msgid "Jalali week start"
+msgstr "آغاز هفتهٔ شمسی"
+
+msgid "Jalali month start"
+msgstr "آغاز ماه شمسی"
+
+msgid "Jalali season start"
+msgstr "آغاز فصل شمسی"
+
+msgid "Jalali year start"
+msgstr "آغاز سال شمسی"
+
+msgid "weekend"
+msgstr "آخر هفته"
+
+msgid "public holiday"
+msgstr "تعطیل رسمی"
+
+msgid "occasion"
+msgstr "مناسبت"
+
+msgid "calendar day"
+msgstr "روز تقویم"
+
+msgid "calendar days"
+msgstr "روزهای تقویم"
+
+msgid "Gregorian"
+msgstr "میلادی"
+
+msgid "Jalali (Solar Hijri)"
+msgstr "شمسی (هجری خورشیدی)"
+
+msgid "language"
+msgstr "زبان"
+
+msgid "calendar"
+msgstr "تقویم"
+
+msgid "other options"
+msgstr "سایر گزینه‌ها"
+
+msgid "updated at"
+msgstr "زمان به‌روزرسانی"
+
+msgid "user preferences"
+msgstr "ترجیحات کاربر"
+
+msgid "Unknown preference."
+msgstr "ترجیح ناشناخته."
+
+#, python-format
+msgid "Choose one of: %(choices)s."
+msgstr "یکی از این‌ها را انتخاب کنید: %(choices)s."
+
+msgid "Must be an object."
+msgstr "باید یک شیء باشد."
+
+msgid "Gozar"
+msgstr "گذر"
+
+msgid "The user interface has not been built yet. Run these commands in the frontend folder:"
+msgstr "رابط کاربری هنوز ساخته نشده است. در پوشهٔ frontend این دستورها را اجرا کنید:"
+
+msgid "The API is available at:"
+msgstr "API در این مسیر در دسترس است:"

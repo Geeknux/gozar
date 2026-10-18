@@ -21,6 +21,8 @@ from django.db.models.deletion import Collector, ProtectedError, RestrictedError
 from django.db.models.fields.files import FieldFile
 from django.forms.models import model_to_dict, modelform_factory
 from django.utils.encoding import force_str
+from django.utils.text import capfirst
+from django.utils.translation import gettext as _
 
 from bi_admin.crud.options import ModelOptions, site
 from bi_admin.discovery import get_registry, model_label
@@ -66,12 +68,15 @@ def get_options(label: str) -> ModelOptions:
     try:
         return site.options_for(label)
     except LookupError:
-        raise CrudError(404, f"Unknown model {label!r}") from None
+        raise CrudError(404, _("Unknown model %(model)r") % {"model": label}) from None
 
 
 def require(options: ModelOptions, request, perm: str) -> None:
     if not options.has_perm(request, perm):
-        raise CrudError(403, f"Permission denied: {perm} {options.label}")
+        raise CrudError(
+            403,
+            _("Permission denied: %(perm)s %(model)s") % {"perm": perm, "model": options.label},
+        )
 
 
 def visible_models(request) -> list[ModelOptions]:
@@ -173,7 +178,12 @@ def list_columns(options: ModelOptions) -> list[Column]:
         if name == "__str__":
             cols.append(
                 Column(
-                    name, options.info.verbose_name, "string", False, None, is_link=name in links
+                    name,
+                    capfirst(options.info.verbose_name),
+                    "string",
+                    False,
+                    None,
+                    is_link=name in links,
                 )
             )
             continue
@@ -183,7 +193,8 @@ def list_columns(options: ModelOptions) -> list[Column]:
             fn = getattr(options, name, None) or getattr(options.model, name, None)
             if fn is None:
                 raise CrudError(
-                    500, f"list_display entry {name!r} is not a field or callable"
+                    500,
+                    _("list_display entry %(name)r is not a field or callable") % {"name": name},
                 ) from None
             label = getattr(fn, "short_description", None) or name.replace("_", " ")
             cols.append(Column(name, force_str(label), "other", False, None, is_link=name in links))
@@ -210,14 +221,14 @@ def ends_on_relation(steps, path: str) -> bool:
 
 
 def path_label(model: type[models.Model], path: str) -> str:
-    """Human label for a lookup path: ``customer__city__name`` → ``مشتری / شهر / نام``."""
+    """Human label for a lookup path: ``customer__city__name`` → ``Customer / City / Name``."""
     parts, current = [], model
     for part in path.split("__"):
         f = current._meta.get_field(part)
         if hasattr(f, "verbose_name"):
-            parts.append(force_str(f.verbose_name))
+            parts.append(capfirst(force_str(f.verbose_name)))
         else:  # reverse relation
-            parts.append(force_str(f.related_model._meta.verbose_name_plural))
+            parts.append(capfirst(force_str(f.related_model._meta.verbose_name_plural)))
         if f.is_relation and f.related_model is not None:
             current = f.related_model
     return " / ".join(parts)
@@ -288,7 +299,7 @@ def _split_lookup(model: type[models.Model], key: str, allowed: set[str]) -> tup
             return key[: -len(suffix)], lookup
     if key in allowed:
         return key, "exact"
-    raise CrudError(400, f"Filtering on {key!r} is not allowed")
+    raise CrudError(400, _("Filtering on %(key)r is not allowed") % {"key": key})
 
 
 def _parse_bool(raw: str) -> bool:
@@ -297,7 +308,7 @@ def _parse_bool(raw: str) -> bool:
         return True
     if low in ("0", "false", "no", "off"):
         return False
-    raise CrudError(400, f"Invalid boolean {raw!r}")
+    raise CrudError(400, _("Invalid boolean %(value)r") % {"value": raw})
 
 
 def _convert(dfield: models.Field, lookup: str, raw: str) -> Any:
@@ -307,12 +318,12 @@ def _convert(dfield: models.Field, lookup: str, raw: str) -> Any:
         try:
             return int(raw)
         except ValueError:
-            raise CrudError(400, f"Invalid number {raw!r}") from None
+            raise CrudError(400, _("Invalid number %(value)r") % {"value": raw}) from None
     if lookup.startswith("date"):
         try:
             return dt.date.fromisoformat(raw)
         except ValueError:
-            raise CrudError(400, f"Invalid date {raw!r}") from None
+            raise CrudError(400, _("Invalid date %(value)r") % {"value": raw}) from None
     if lookup in ("icontains", "istartswith", "iexact"):
         return raw
     if lookup == "in":
@@ -322,7 +333,9 @@ def _convert(dfield: models.Field, lookup: str, raw: str) -> Any:
     try:
         return dfield.to_python(raw)
     except (ValidationError, ValueError, TypeError):
-        raise CrudError(400, f"Invalid value {raw!r} for {dfield.name}") from None
+        raise CrudError(
+            400, _("Invalid value %(value)r for %(field)s") % {"value": raw, "field": dfield.name}
+        ) from None
 
 
 def apply_filters(options: ModelOptions, qs: models.QuerySet, params: dict[str, str]):
@@ -402,7 +415,7 @@ def apply_ordering(options: ModelOptions, qs: models.QuerySet, ordering: str | N
             if not part:
                 continue
             if part.lstrip("-") not in sortable:
-                raise CrudError(400, f"Ordering by {part!r} is not allowed")
+                raise CrudError(400, _("Ordering by %(field)r is not allowed") % {"field": part})
             order.append(part)
     order = order or options.get_ordering()
     pk = options.info.pk_name
@@ -442,13 +455,13 @@ def list_objects(options: ModelOptions, request, params: dict[str, str]) -> dict
         page_size = int(params.get("page_size") or options.list_per_page)
         page_number = int(params.get("page") or 1)
     except ValueError:
-        raise CrudError(400, "page and page_size must be integers") from None
+        raise CrudError(400, _("page and page_size must be integers")) from None
     page_size = max(1, min(page_size, options.list_max_page_size))
     paginator = Paginator(qs, page_size)
     try:
         page = paginator.page(page_number)
     except EmptyPage:
-        raise CrudError(404, f"Page {page_number} does not exist") from None
+        raise CrudError(404, _("Page %(page)s does not exist") % {"page": page_number}) from None
     if params.get("q") or any(k not in RESERVED_PARAMS for k in params):
         total_unfiltered = options.get_queryset(request).count()
 
@@ -480,10 +493,10 @@ def get_object(options: ModelOptions, request, pk: str) -> models.Model:
     try:
         value = pk_field.to_python(pk)
     except (ValidationError, ValueError):
-        raise CrudError(404, "Not found") from None
+        raise CrudError(404, _("Not found")) from None
     obj = options.get_queryset(request).filter(pk=value).first()
     if obj is None:
-        raise CrudError(404, "Not found")
+        raise CrudError(404, _("Not found"))
     return obj
 
 
@@ -565,15 +578,15 @@ def save_object(
     change = obj is not None
     require(options, request, "change" if change else "add")
     if not isinstance(payload, dict):
-        raise CrudError(400, "Request body must be a JSON object")
+        raise CrudError(400, _("Request body must be a JSON object"))
     payload = _normalize_payload(options, payload)
     allowed = set(options.get_form_fields()) | set(options.password_fields)
     unknown = sorted(set(payload) - allowed)
     if unknown:
         raise CrudError(
             400,
-            "Unknown or read-only fields",
-            errors={k: ["این فیلد قابل ویرایش نیست."] for k in unknown},
+            _("Unknown or read-only fields"),
+            errors={k: [_("This field cannot be edited.")] for k in unknown},
         )
 
     passwords = {p: payload.pop(p) for p in options.password_fields if p in payload}
@@ -592,7 +605,7 @@ def save_object(
         except ValidationError as exc:
             errors.setdefault(name, []).extend(force_str(m) for m in exc.messages)
     if errors:
-        raise CrudError(400, "Validation failed", errors=errors)
+        raise CrudError(400, _("Validation failed"), errors=errors)
 
     with transaction.atomic(using=router.db_for_write(options.model)):
         instance = form.save(commit=False)
@@ -680,7 +693,7 @@ def delete_objects(options: ModelOptions, request, objs: list[models.Model]) -> 
         return {"deleted": 0}
     plan = deletion_plan(request, objs, options.model)
     if not plan["deletable"]:
-        raise CrudError(409, "Cannot delete", plan=plan)
+        raise CrudError(409, _("Cannot delete"), plan=plan)
     with transaction.atomic(using=router.db_for_write(options.model)):
         for obj in objs:
             log_change(request, obj, ChangeLog.Action.DELETE, {})
@@ -699,16 +712,16 @@ def delete_queryset(request, queryset: models.QuerySet) -> dict[str, Any]:
 def run_action(options: ModelOptions, request, name: str, pks: list[Any]) -> dict[str, Any]:
     actions = options.get_actions()
     if name not in actions:
-        raise CrudError(404, f"Unknown action {name!r}")
+        raise CrudError(404, _("Unknown action %(name)r") % {"name": name})
     act = actions[name]
     require(options, request, act.permission)
     if not isinstance(pks, list) or not pks:
-        raise CrudError(400, "Select at least one row")
+        raise CrudError(400, _("Select at least one row"))
     pk_field = options.model._meta.pk
     try:
         values = [pk_field.to_python(pk) for pk in pks]
     except (ValidationError, ValueError, TypeError):
-        raise CrudError(400, "Invalid primary key in selection") from None
+        raise CrudError(400, _("Invalid primary key in selection")) from None
     qs = options.get_queryset(request).filter(pk__in=values)
     result = act.handler(request, qs) or {}
     return {"action": name, **result}
@@ -720,7 +733,7 @@ def action_plan(options: ModelOptions, request, pks: list[Any]) -> dict[str, Any
     try:
         values = [pk_field.to_python(pk) for pk in pks]
     except (ValidationError, ValueError, TypeError):
-        raise CrudError(400, "Invalid primary key in selection") from None
+        raise CrudError(400, _("Invalid primary key in selection")) from None
     objs = list(options.get_queryset(request).filter(pk__in=values))
     return deletion_plan(request, objs, options.model)
 
@@ -731,19 +744,23 @@ def action_plan(options: ModelOptions, request, pks: list[Any]) -> dict[str, Any
 def autocomplete(options: ModelOptions, request, field_name: str, query: str) -> dict[str, Any]:
     if not (options.has_add_permission(request) or options.has_change_permission(request)):
         if not options.has_view_permission(request):
-            raise CrudError(403, "Permission denied")
+            raise CrudError(403, _("Permission denied"))
     if field_name not in set(options.get_fields()) | set(options.get_list_filter()):
-        raise CrudError(400, f"{field_name!r} is not a relation field of {options.label}")
+        raise CrudError(
+            400,
+            _("%(field)r is not a relation field of %(model)s")
+            % {"field": field_name, "model": options.label},
+        )
     try:
         steps, finfo = get_registry().resolve_lookup(options.label, field_name)
     except LookupError:
-        raise CrudError(400, f"Unknown field {field_name!r}") from None
+        raise CrudError(400, _("Unknown field %(field)r") % {"field": field_name}) from None
     if finfo.is_relation:
         target_label = finfo.related_model
     elif ends_on_relation(steps, field_name):
         target_label = steps[-1].target
     else:
-        raise CrudError(400, f"{field_name!r} is not a relation field")
+        raise CrudError(400, _("%(field)r is not a relation field") % {"field": field_name})
     target = get_registry().get(target_label).model if target_label in get_registry() else None
     if target is None:
         from django.apps import apps as django_apps

@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from bi_admin.calendar import jalali
 
@@ -122,22 +123,26 @@ def parse(name: str) -> tuple[str, int, str]:
     key = aliases.get(key, key)
     m = _RE.match(key)
     if not m:
-        raise PeriodError(f"Unknown relative period {name!r}")
+        raise PeriodError(_("Unknown relative period %(name)r") % {"name": name})
     kind, raw_count, unit = m.groups()
     unit = {"quarter": "season"}.get(unit, unit)
     if unit not in UNITS:
-        raise PeriodError(f"Unknown unit {unit!r} in relative period {name!r}")
+        raise PeriodError(
+            _("Unknown unit %(unit)r in relative period %(name)r") % {"unit": unit, "name": name}
+        )
     if kind == "this" and raw_count is not None:
-        raise PeriodError(f"'this' takes no count: {name!r}")
+        raise PeriodError(_("'this' takes no count: %(name)r") % {"name": name})
     if kind == "past" and raw_count is None:
-        raise PeriodError(f"'past' needs a count, e.g. past_3_{unit}s")
+        raise PeriodError(_("'past' needs a count, e.g. past_3_%(unit)ss") % {"unit": unit})
     count = int(raw_count) if raw_count is not None else 1
     if not 1 <= count <= MAX_COUNT:
-        raise PeriodError(f"Count must be between 1 and {MAX_COUNT}: {name!r}")
+        raise PeriodError(
+            _("Count must be between 1 and %(max)s: %(name)r") % {"max": MAX_COUNT, "name": name}
+        )
     return kind, count, unit
 
 
-def resolve(name: str, calendar: Calendar = "jalali", on: dt.date | None = None) -> Period:
+def resolve(name: str, calendar: Calendar = "gregorian", on: dt.date | None = None) -> Period:
     """Resolve ``name`` to an inclusive date range relative to ``on`` (default today)."""
     kind, count, unit = parse(name)
     ref = on or today()

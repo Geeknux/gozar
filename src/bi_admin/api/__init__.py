@@ -6,6 +6,7 @@ import bi_admin
 from bi_admin.api.auth import router as auth_router
 from bi_admin.api.crud import router as crud_router
 from bi_admin.api.meta import router as meta_router
+from bi_admin.api.preferences import router as preferences_router
 from bi_admin.api.reports import router as reports_router
 from bi_admin.api.security import staff_auth
 from bi_admin.crud.service import CrudError
@@ -43,3 +44,4 @@ api.add_router("/auth", auth_router)
 api.add_router("/meta", meta_router)
 api.add_router("/crud", crud_router)
 api.add_router("/reports", reports_router)
+api.add_router("/preferences", preferences_router)

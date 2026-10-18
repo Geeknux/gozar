@@ -14,6 +14,7 @@ from typing import Any, Literal
 from django.apps import apps
 from django.conf import settings
 from django.db import models
+from django.utils import translation
 from django.utils.encoding import force_str
 
 FieldKind = Literal[
@@ -395,21 +396,25 @@ def discover() -> Registry:
 
 
 _lock = threading.Lock()
-_registry: Registry | None = None
+_registries: dict[str, Registry] = {}
 
 
 def get_registry() -> Registry:
-    """The process-wide registry, built lazily on first use."""
-    global _registry
-    if _registry is None:
+    """The process-wide registry for the active language, built lazily on first use.
+
+    Verbose names and choice labels are translated, so one registry is kept per
+    language (``translation.get_language()``)."""
+    lang = translation.get_language() or settings.LANGUAGE_CODE
+    registry = _registries.get(lang)
+    if registry is None:
         with _lock:
-            if _registry is None:
-                _registry = discover()
-    return _registry
+            registry = _registries.get(lang)
+            if registry is None:
+                registry = _registries[lang] = discover()
+    return registry
 
 
 def reset_registry() -> None:
-    """Drop the cached registry (tests, settings changes, app reloads)."""
-    global _registry
+    """Drop the cached registries (tests, settings changes, app reloads)."""
     with _lock:
-        _registry = None
+        _registries.clear()

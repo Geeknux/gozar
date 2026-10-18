@@ -4,14 +4,15 @@ import { Link, useLocation, useParams, useSearchParams } from "react-router-dom"
 import { ApiError, api, crudPath } from "../api";
 import DeleteDialog from "../components/DeleteDialog";
 import RelationSelect from "../components/RelationSelect";
-import { faDigits, formatCell, formatNumber } from "../format";
 import { useModelMeta } from "../hooks";
+import { useI18n } from "../i18n";
 import type { DeletePlan, FilterSpec, ListResponse, Ref } from "../types";
 
 const RESERVED = new Set(["q", "page", "ordering", "page_size"]);
 
 export default function ModelList() {
   const { app, model } = useParams();
+  const { t, fmt, cap } = useI18n();
   const label = `${app}.${model}`;
   const { meta, error: metaError } = useModelMeta(app, model);
   const [params, setParams] = useSearchParams();
@@ -66,7 +67,7 @@ export default function ModelList() {
   );
 
   if (metaError) return <p className="error">{metaError}</p>;
-  if (!meta) return <p className="muted">در حال بارگذاری…</p>;
+  if (!meta) return <p className="muted">{t("app.loading")}</p>;
 
   const allSelected = !!data?.rows.length && data.rows.every((r) => selected.has(String(r.pk)));
   const actions = meta.list.actions.filter((a) => a.allowed);
@@ -90,7 +91,7 @@ export default function ModelList() {
         body: { pks },
       });
       const count = (r.deleted ?? r.updated) as number | undefined;
-      setNotice(count !== undefined ? `عملیات انجام شد (${formatNumber(count)} مورد).` : "عملیات انجام شد.");
+      setNotice(count !== undefined ? t("list.doneCount", { count }) : t("list.done"));
       setPlan(null);
       load();
     } catch (err) {
@@ -103,10 +104,10 @@ export default function ModelList() {
   return (
     <div className="list-page">
       <div className="page-head">
-        <h1>{meta.verbose_name_plural}</h1>
+        <h1>{cap(meta.verbose_name_plural)}</h1>
         {meta.permissions.add && (
           <Link className="button primary" to={`/${app}/${model}/add`}>
-            + افزودن {meta.verbose_name}
+            {t("list.add", { model: meta.verbose_name })}
           </Link>
         )}
       </div>
@@ -127,17 +128,17 @@ export default function ModelList() {
                 <input
                   dir="auto"
                   type="search"
-                  placeholder="جستجو…"
+                  placeholder={t("common.searchPlaceholder")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
-                <button type="submit">جستجو</button>
+                <button type="submit">{t("common.search")}</button>
               </form>
             )}
             {actions.length > 0 && (
               <form className="actions" onSubmit={runAction}>
                 <select value={action} onChange={(e) => setAction(e.target.value)}>
-                  <option value="">— عملیات —</option>
+                  <option value="">{t("list.actionPlaceholder")}</option>
                   {actions.map((a) => (
                     <option key={a.name} value={a.name}>
                       {a.label}
@@ -145,10 +146,10 @@ export default function ModelList() {
                   ))}
                 </select>
                 <button type="submit" disabled={!action || !selected.size || busy}>
-                  اجرا
+                  {t("list.run")}
                 </button>
                 <span className="muted">
-                  {faDigits(selected.size)} از {faDigits(data?.rows.length ?? 0)} انتخاب شده
+                  {t("list.selected", { selected: selected.size, total: data?.rows.length ?? 0 })}
                 </span>
               </form>
             )}
@@ -207,7 +208,7 @@ export default function ModelList() {
                         )}
                         {row.cells.map((cell, i) => {
                           const col = data.columns[i];
-                          const text = formatCell(cell, col.kind);
+                          const text = fmt.cell(cell, col.kind);
                           const ref = cell && typeof cell === "object" && "model" in (cell as object) ? (cell as Ref) : null;
                           return (
                             <td key={col.name} className={`kind-${col.kind}`}>
@@ -229,7 +230,7 @@ export default function ModelList() {
                     ))}
                   </tbody>
                 </table>
-                {!data.rows.length && <p className="empty">موردی یافت نشد.</p>}
+                {!data.rows.length && <p className="empty">{t("list.empty")}</p>}
               </div>
               <Pagination data={data} onPage={(p) => update({ page: String(p) }, true)} />
             </>
@@ -238,14 +239,14 @@ export default function ModelList() {
 
         {meta.list.filters.length > 0 && (
           <aside className="filters card">
-            <h3>فیلترها</h3>
+            <h3>{t("list.filters")}</h3>
             {activeFilters.length > 0 && (
               <button
                 type="button"
                 className="link"
                 onClick={() => update(Object.fromEntries(activeFilters.map(([k]) => [k, null])))}
               >
-                پاک کردن همه
+                {t("list.clearFilters")}
               </button>
             )}
             {meta.list.filters.map((f) => (
@@ -258,7 +259,7 @@ export default function ModelList() {
       {plan && (
         <DeleteDialog
           plan={plan}
-          title={`حذف ${faDigits(selected.size)} ${meta.verbose_name}`}
+          title={t("list.deleteTitle", { count: selected.size, model: meta.verbose_name_plural })}
           busy={busy}
           onCancel={() => setPlan(null)}
           onConfirm={() => execute("delete_selected", [...selected])}
@@ -269,22 +270,23 @@ export default function ModelList() {
 }
 
 function Pagination({ data, onPage }: { data: ListResponse; onPage: (p: number) => void }) {
+  const { t } = useI18n();
   return (
     <div className="pagination">
       <span className="muted">
-        {formatNumber(data.count)} مورد
-        {data.count !== data.total && ` (از ${formatNumber(data.total)})`}
+        {t("list.count", { count: data.count })}
+        {data.count !== data.total && t("list.ofTotal", { total: data.total })}
       </span>
       {data.num_pages > 1 && (
         <span className="pages">
           <button type="button" disabled={data.page <= 1} onClick={() => onPage(data.page - 1)}>
-            قبلی
+            {t("list.previous")}
           </button>
           <span>
-            صفحه {faDigits(data.page)} از {faDigits(data.num_pages)}
+            {t("list.page", { page: data.page, pages: data.num_pages })}
           </span>
           <button type="button" disabled={data.page >= data.num_pages} onClick={() => onPage(data.page + 1)}>
-            بعدی
+            {t("list.next")}
           </button>
         </span>
       )}
@@ -300,6 +302,7 @@ type FilterProps = {
 };
 
 function FilterBox({ spec, model, params, update }: FilterProps) {
+  const { t, fmt } = useI18n();
   const name = spec.name;
   const nullKey = `${name}__isnull`;
   const current = params.get(name);
@@ -322,17 +325,17 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
       <div className="filter">
         <h4>{spec.label}</h4>
         <label>
-          از
+          {t("filter.from")}
           <input type="date" value={params.get(from) ?? ""} onChange={(e) => update({ [from]: e.target.value })} />
         </label>
         <label>
-          تا
+          {t("filter.to")}
           <input type="date" value={params.get(to) ?? ""} onChange={(e) => update({ [to]: e.target.value })} />
         </label>
         {spec.null && (
           <ul>
-            {option("بدون مقدار", isNull === "true", { [nullKey]: "true", [from]: null, [to]: null })}
-            {option("دارای مقدار", isNull === "false", { [nullKey]: "false" })}
+            {option(t("filter.noValue"), isNull === "true", { [nullKey]: "true", [from]: null, [to]: null })}
+            {option(t("filter.hasValue"), isNull === "false", { [nullKey]: "false" })}
           </ul>
         )}
       </div>
@@ -346,9 +349,9 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
         <RelationSelect
           model={model}
           field={name}
-          value={current ? { pk: current, label: `#${faDigits(current)}` } : null}
+          value={current ? { pk: current, label: `#${fmt.digits(current)}` } : null}
           onChange={(r) => update({ ...clearAll, [name]: r ? String(r.pk) : null })}
-          placeholder="همه"
+          placeholder={t("common.all")}
         />
       </div>
     );
@@ -358,17 +361,17 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
     spec.choices ??
     (spec.kind === "boolean"
       ? [
-          { value: "true", label: "بله" },
-          { value: "false", label: "خیر" },
+          { value: "true", label: t("common.yes") },
+          { value: "false", label: t("common.no") },
         ]
       : []);
   return (
     <div className="filter">
       <h4>{spec.label}</h4>
       <ul>
-        {option("همه", !current && !isNull, {})}
+        {option(t("common.all"), !current && !isNull, {})}
         {choices.map((c) => option(c.label, current === String(c.value), { [name]: String(c.value) }))}
-        {spec.null && option("خالی", isNull === "true", { [nullKey]: "true" })}
+        {spec.null && option(t("filter.empty"), isNull === "true", { [nullKey]: "true" })}
       </ul>
     </div>
   );

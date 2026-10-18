@@ -43,7 +43,9 @@ class ReportSpec(_Strict):
         None, description="time dimension for grain/period; defaults to the model's"
     )
     time_grain: TimeGrain | None = None
-    calendar: CalendarName = "jalali"
+    calendar: CalendarName | None = Field(
+        None, description="defaults to the user's calendar preference (Gregorian unless set)"
+    )
     relative_period: str | None = Field(
         None, description='e.g. "last_3_months", "last_year", "this_season" — resolved in code'
     )

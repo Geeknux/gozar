@@ -31,7 +31,11 @@ from typing import Any, Literal
 from django.core.exceptions import FieldError, ImproperlyConfigured
 from django.db import models
 from django.db.models.expressions import BaseExpression
+from django.utils import translation
 from django.utils.encoding import force_str
+from django.utils.functional import Promise
+from django.utils.text import capfirst
+from django.utils.translation import gettext
 
 from bi_admin.discovery import FieldInfo, PathStep, get_registry, model_label
 
@@ -53,20 +57,21 @@ _KIND_TO_TYPE = {
 }
 
 Text = dict[str, str]
-TextInput = str | dict[str, str] | None
+TextInput = str | Promise | dict[str, str] | None
 SynonymsInput = list[str] | tuple[str, ...] | dict[str, list[str]] | None
 
 
 def text(value: TextInput, fa: str = "", en: str = "") -> Text:
     """Normalise a label/description to ``{"fa": …, "en": …}``.
 
-    A bare string is taken as Persian. A missing language falls back to the
-    given default, then to the other language.
+    A bare string is English source text and goes through gettext, so
+    ``label=gettext_lazy("Revenue")`` picks up the Persian catalog. A missing
+    language falls back to the given default, then to the other language.
     """
     if value is None:
         value = {}
-    elif isinstance(value, str):
-        value = {"fa": value}
+    elif isinstance(value, str | Promise):
+        value = in_languages(lambda: gettext(force_str(value)))
     else:
         value = {k: force_str(v) for k, v in value.items()}
     out = {"fa": value.get("fa") or fa, "en": value.get("en") or en}
@@ -78,9 +83,23 @@ def text(value: TextInput, fa: str = "", en: str = "") -> Text:
 def synonyms(value: SynonymsInput) -> dict[str, list[str]]:
     if value is None:
         return {lang: [] for lang in LANGS}
-    if isinstance(value, list | tuple):
-        return {"fa": list(value), "en": []}
+    if isinstance(value, list | tuple):  # one list of source-language synonyms
+        return {lang: [force_str(v) for v in value] for lang in LANGS}
     return {lang: list(value.get(lang, [])) for lang in LANGS}
+
+
+def in_languages(fn) -> Text:
+    """``fn()`` evaluated (and stringified) with each supported language active."""
+    out = {}
+    for lang in LANGS:
+        with translation.override(lang):
+            out[lang] = force_str(fn())
+    return out
+
+
+def active_language() -> str:
+    lang = (translation.get_language() or "en").split("-")[0]
+    return lang if lang in LANGS else "en"
 
 
 def humanize(key: str) -> str:
@@ -91,7 +110,7 @@ def localize(value: dict, lang: str | None):
     """Pick one language from a ``{"fa":…, "en":…}`` mapping (all when ``lang`` is None)."""
     if lang is None:
         return value
-    return value.get(lang, value.get("fa"))
+    return value.get(lang, value.get("en"))
 
 
 class Dimension:
@@ -126,7 +145,7 @@ class Dimension:
         self.description: Text = {}
         self.steps: list[PathStep] = []
         self.field: FieldInfo | None = None
-        self.choices: list[tuple[Any, str]] | None = None
+        self.choices: list[tuple[Any, Text]] | None = None  # (value, {"fa", "en"})
         self.is_date = False  # True for DateField (no time-zone truncation needed)
 
     @property
@@ -141,7 +160,7 @@ class Dimension:
     def bind(self, semantic: Semantic, key: str) -> None:
         self.key = key
         model = semantic.model
-        default_fa = humanize(key)
+        defaults = {lang: humanize(key) for lang in LANGS}
         if self.path is not None:
             try:
                 self.steps, self.field = get_registry().resolve_lookup(
@@ -161,10 +180,15 @@ class Dimension:
                     f"{semantic.name}.{key}: time dimension {self.path!r} is not a date/datetime"
                 )
             self.is_date = kind == "date"
-            self.choices = self.field.choices if kind != "fk" else None
-            from bi_admin.crud.service import path_label
+            from bi_admin.crud.service import django_field, path_label
 
-            default_fa = path_label(model, self.path)
+            defaults = in_languages(lambda: path_label(model, self.path))
+            dfield = django_field(model, self.path)
+            if kind != "fk" and dfield.choices:
+                self.choices = [
+                    (value, in_languages(lambda label=label: label))
+                    for value, label in dfield.flatchoices
+                ]
         else:
             if self.type is None:
                 raise ImproperlyConfigured(f"{semantic.name}.{key}: expression needs a type=")
@@ -173,7 +197,7 @@ class Dimension:
                 self.is_date = isinstance(out, models.DateField) and not isinstance(
                     out, models.DateTimeField
                 )
-        self.label = text(self._label, fa=default_fa, en=humanize(key))
+        self.label = text(self._label, fa=defaults["fa"], en=defaults["en"])
         self.synonyms = synonyms(self._synonyms)
         self.description = text(self._description)
 
@@ -186,7 +210,7 @@ class Dimension:
             "description": localize(self.description, lang),
         }
         if self.choices:
-            out["choices"] = [{"value": v, "label": label} for v, label in self.choices]
+            out["choices"] = [{"value": v, "label": localize(t, lang)} for v, t in self.choices]
         if self.type == "time":
             out["grains"] = list(TIME_GRAINS)
         if self.fans_out:
@@ -269,9 +293,8 @@ class Semantic:
         self.name = cls.name or _snake(cls.__name__)
         self.model_label = model_label(cls.model)
         opts = cls.model._meta
-        self.label = text(
-            cls.label, fa=force_str(opts.verbose_name_plural), en=humanize(_snake(cls.__name__))
-        )
+        plural = in_languages(lambda: capfirst(opts.verbose_name_plural))
+        self.label = text(cls.label, fa=plural["fa"], en=plural["en"])
         self.synonyms = synonyms(cls.synonyms)
         self.description = text(cls.description)
         # Copy declarations so each bound instance owns its Dimension/Measure state.

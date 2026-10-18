@@ -25,6 +25,9 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Activates each user's Gozar language (browser language before login);
+    # it stands in for django.middleware.locale.LocaleMiddleware.
+    "bi_admin.middleware.PreferencesMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
 ]
 
@@ -79,10 +82,12 @@ AUTH_PASSWORD_VALIDATORS = [
 # Gozar settings (all optional). VITE_DEV_SERVER serves the SPA from `npm run dev`.
 GOZAR = {
     "VITE_DEV_SERVER": os.environ.get("GOZAR_VITE_DEV_SERVER") or None,
+    "DEFAULT_LANGUAGE": os.environ.get("GOZAR_DEFAULT_LANGUAGE", "en"),
+    "DEFAULT_CALENDAR": os.environ.get("GOZAR_DEFAULT_CALENDAR", "gregorian"),
 }
 
-LANGUAGE_CODE = "fa"
-LANGUAGES = [("fa", "فارسی"), ("en", "English")]
+LANGUAGE_CODE = "en"
+LANGUAGES = [("en", "English"), ("fa", "فارسی")]
 TIME_ZONE = "Asia/Tehran"
 USE_I18N = True
 USE_TZ = True

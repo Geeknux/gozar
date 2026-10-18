@@ -1,6 +1,7 @@
 """Gozar options for the demo shop (auto-discovered, like admin.py)."""
 
 from django.db.models import Avg, Count, Q, Sum
+from django.utils.translation import gettext_lazy as _
 
 from bi_admin import semantic
 from bi_admin.crud import ModelOptions, action, register
@@ -16,7 +17,7 @@ class OrderOptions(ModelOptions):
     readonly_fields = ["paid_at"]
     actions = ["mark_cancelled"]
 
-    @action("لغو سفارش‌های انتخاب‌شده", permission="change")
+    @action(_("Cancel selected orders"), permission="change")
     def mark_cancelled(self, request, queryset):
         updated = queryset.filter(status=Order.Status.PENDING).update(status=Order.Status.CANCELLED)
         return {"updated": updated}

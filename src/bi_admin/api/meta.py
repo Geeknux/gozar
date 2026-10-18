@@ -1,3 +1,4 @@
+from django.utils.translation import gettext as _
 from ninja import Router
 
 from bi_admin.crud import service
@@ -83,7 +84,7 @@ def path(request, source: str, target: str):
     """Shortest relation path between two models (e.g. order → city)."""
     visible = {o.label for o in service.visible_models(request)}
     if source.lower() not in visible or target.lower() not in visible:
-        raise service.CrudError(404, "Unknown model")
+        raise service.CrudError(404, _("Unknown model"))
     steps = get_registry().find_path(source, target)
     if steps is None:
         return {"path": None, "lookup": None}

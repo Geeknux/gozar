@@ -81,12 +81,12 @@ def test_unknown_model_is_404(admin_client):
 
 def test_model_meta_describes_list_and_form(admin_client, seeded):
     meta = admin_client.get(f"{API}/meta/models/shop/order").json()
-    assert meta["verbose_name"] == "سفارش"
+    assert meta["verbose_name"] == "order"
     cols = {c["name"]: c for c in meta["list"]["columns"]}
-    assert cols["customer__city__name"]["label"] == "مشتری / شهر / نام"
+    assert cols["customer__city__name"]["label"] == "Customer / City / Name"
     assert cols["status"]["sortable"] and not cols["__str__"]["sortable"]
     filters = {f["name"]: f for f in meta["list"]["filters"]}
-    assert filters["status"]["choices"][0] == {"value": "pending", "label": "در انتظار پرداخت"}
+    assert filters["status"]["choices"][0] == {"value": "pending", "label": "Awaiting payment"}
     assert filters["customer__city"]["kind"] == "relation"
     assert len(filters["customer__city"]["choices"]) == 10
     assert filters["created_at"]["kind"] == "datetime"
@@ -346,7 +346,7 @@ def test_delete_requires_perms_on_cascaded_models(client, make_staff, seeded):
     client.force_login(make_staff("shop.view_order", "shop.delete_order"))
     order = Order.objects.first()
     plan = client.get(crud("shop.order", f"{order.pk}/delete-plan")).json()
-    assert not plan["deletable"] and plan["perms_needed"] == ["اقلام سفارش"]
+    assert not plan["deletable"] and plan["perms_needed"] == ["order items"]
     assert client.delete(crud("shop.order", f"{order.pk}")).status_code == 409
 
 

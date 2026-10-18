@@ -1,9 +1,9 @@
-<!doctype html>
-<html lang="fa" dir="rtl">
+{% load i18n %}<!doctype html>
+<html lang="{{ config.language }}" dir="{{ dir }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>گذر</title>
+  <title>{% translate "Gozar" %}</title>
   {% if assets %}{% for css in assets.css %}<link rel="stylesheet" href="{{ css }}">{% endfor %}{% endif %}
   {{ config|json_script:"gozar-config" }}
 </head>
@@ -23,11 +23,11 @@
     <script type="module" src="{{ assets.js }}"></script>
   {% else %}
     <main style="font-family: system-ui, sans-serif; max-width: 40rem; margin: 4rem auto; line-height: 1.8">
-      <h1>گذر</h1>
-      <p>رابط کاربری هنوز ساخته نشده است. در پوشه frontend این دستورها را اجرا کنید:</p>
+      <h1>{% translate "Gozar" %}</h1>
+      <p>{% translate "The user interface has not been built yet. Run these commands in the frontend folder:" %}</p>
       <pre dir="ltr">npm ci
 npm run build</pre>
-      <p>API در این مسیر در دسترس است:</p>
+      <p>{% translate "The API is available at:" %}</p>
       <pre dir="ltr">{{ config.apiBase }}/docs</pre>
     </main>
   {% endif %}

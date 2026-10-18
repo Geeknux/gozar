@@ -95,3 +95,15 @@ export type HistoryEntry = {
   action_display: string;
   changes: { fields?: string[] };
 };
+
+export type Preferences = {
+  language: "en" | "fa";
+  calendar: "gregorian" | "jalali";
+  options: Record<string, unknown>;
+  stored: { language: string; calendar: string };
+  defaults: { language: "en" | "fa"; calendar: "gregorian" | "jalali" };
+  available: {
+    languages: { value: "en" | "fa"; label: string; dir: "ltr" | "rtl" }[];
+    calendars: { value: "gregorian" | "jalali"; label: string }[];
+  };
+};

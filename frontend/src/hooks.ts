@@ -3,7 +3,13 @@ import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { ModelMeta } from "./types";
 
+// Model metadata is translated server-side, so the cache is cleared when the
+// interface language changes (see clearMetaCache in App).
 const cache = new Map<string, ModelMeta>();
+
+export function clearMetaCache() {
+  cache.clear();
+}
 
 export function useModelMeta(app?: string, model?: string) {
   const key = `${app}.${model}`;

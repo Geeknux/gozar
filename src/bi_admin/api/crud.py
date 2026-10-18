@@ -1,5 +1,6 @@
 import json
 
+from django.utils.translation import gettext as _
 from ninja import Router, Status
 
 from bi_admin.crud import service
@@ -13,7 +14,7 @@ def _body(request):
     try:
         return json.loads(request.body)
     except ValueError:
-        raise service.CrudError(400, "Invalid JSON body") from None
+        raise service.CrudError(400, _("Invalid JSON body")) from None
 
 
 def _opts(app_label: str, model_name: str):

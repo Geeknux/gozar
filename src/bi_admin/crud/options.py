@@ -19,6 +19,7 @@ from typing import Any
 
 from django.apps import apps
 from django.db import models
+from django.utils.translation import gettext as _
 
 from bi_admin.discovery import ModelInfo, get_registry, model_label
 
@@ -143,7 +144,7 @@ class ModelOptions:
     def get_actions(self) -> dict[str, Action]:
         out = {
             "delete_selected": Action(
-                "delete_selected", "حذف موارد انتخاب‌شده", _delete_selected, "delete", True
+                "delete_selected", _("Delete selected"), _delete_selected, "delete", True
             )
         }
         for name in self.actions:

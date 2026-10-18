@@ -2,9 +2,11 @@
 
 from ninja import Router
 
+from bi_admin import preferences
 from bi_admin.engine import ReportSpec, SpecValidationError, run, validate
 from bi_admin.engine.runner import authorize
 from bi_admin.semantic import catalog
+from bi_admin.semantic.base import active_language
 
 router = Router(tags=["reports"])
 
@@ -12,8 +14,11 @@ router = Router(tags=["reports"])
 @router.get("/catalog")
 def report_catalog(request, lang: str | None = None):
     """Semantic models the user may report on, with dimensions and measures.
-    ``lang=fa|en`` picks one language for labels/synonyms/descriptions."""
-    return {"semantic_models": catalog(lang=lang, request=request)}
+    Labels/synonyms/descriptions are in the user's language; ``lang=fa|en``
+    picks another one and ``lang=all`` returns both."""
+    if lang is None:
+        lang = active_language()
+    return {"semantic_models": catalog(lang=None if lang == "all" else lang, request=request)}
 
 
 @router.post("/validate")
@@ -21,12 +26,13 @@ def validate_spec(request, spec: ReportSpec):
     """Check a spec without running it; returns ``valid`` plus structured errors."""
     try:
         authorize(spec, request)
-        report = validate(spec)
+        report = validate(spec, calendar=preferences.get(request).calendar)
     except SpecValidationError as exc:
         return {"valid": False, "errors": [e.as_dict() for e in exc.errors]}
     return {
         "valid": True,
         "errors": [],
+        "calendar": report.calendar,
         "period": report.period.as_dict() if report.period else None,
     }
 

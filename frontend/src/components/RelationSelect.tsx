@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { api, crudPath } from "../api";
+import { useI18n } from "../i18n";
 import type { Ref } from "../types";
 
 type Props = {
@@ -14,6 +15,7 @@ type Props = {
 
 /** Search-as-you-type picker for FK/O2O fields (admin's autocomplete_fields). */
 export default function RelationSelect({ model, field, value, onChange, disabled, placeholder }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Ref[]>([]);
@@ -51,7 +53,7 @@ export default function RelationSelect({ model, field, value, onChange, disabled
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
       >
-        <bdi>{value ? value.label : placeholder ?? "انتخاب کنید…"}</bdi>
+        <bdi>{value ? value.label : placeholder ?? t("relation.choose")}</bdi>
         <span aria-hidden>▾</span>
       </button>
       {open && (
@@ -59,7 +61,7 @@ export default function RelationSelect({ model, field, value, onChange, disabled
           <input
             dir="auto"
             autoFocus
-            placeholder="جستجو…"
+            placeholder={t("common.searchPlaceholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -67,7 +69,7 @@ export default function RelationSelect({ model, field, value, onChange, disabled
             {value && (
               <li>
                 <button type="button" className="muted" onClick={() => (onChange(null), setOpen(false))}>
-                  — پاک کردن —
+                  {t("relation.clear")}
                 </button>
               </li>
             )}
@@ -78,8 +80,8 @@ export default function RelationSelect({ model, field, value, onChange, disabled
                 </button>
               </li>
             ))}
-            {!results.length && <li className="muted">موردی یافت نشد</li>}
-            {more && <li className="muted">نتایج بیشتری هست؛ دقیق‌تر جستجو کنید.</li>}
+            {!results.length && <li className="muted">{t("relation.noResults")}</li>}
+            {more && <li className="muted">{t("relation.more")}</li>}
           </ul>
         </div>
       )}

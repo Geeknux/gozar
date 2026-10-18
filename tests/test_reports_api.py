@@ -54,17 +54,20 @@ def test_view_or_change_permission_allows_reports(client, make_staff, orders, pe
         "key": "revenue",
         "role": "measure",
         "format": "currency",
-        "label": {"fa": "درآمد", "en": "Revenue"},
+        "label": "Revenue",  # the user's language (English by default)
+        "labels": {"fa": "درآمد", "en": "Revenue"},
     }
     assert body["spec"]["semantic_model"] == "order_metrics"
 
 
 def test_catalog_endpoint(admin_client):
-    body = admin_client.get(f"{API}/catalog", {"lang": "en"}).json()
+    body = admin_client.get(f"{API}/catalog").json()  # user's language: English
     (entry,) = body["semantic_models"]
     assert entry["name"] == "order_metrics" and entry["label"] == "Orders"
     assert {"revenue", "orders", "aov"} <= {m["key"] for m in entry["measures"]}
-    both = admin_client.get(f"{API}/catalog").json()["semantic_models"][0]
+    fa = admin_client.get(f"{API}/catalog", {"lang": "fa"}).json()["semantic_models"][0]
+    assert fa["label"] == "سفارش‌ها"
+    both = admin_client.get(f"{API}/catalog", {"lang": "all"}).json()["semantic_models"][0]
     assert both["label"] == {"fa": "سفارش‌ها", "en": "Orders"}
 
 
@@ -94,7 +97,10 @@ def test_unknown_model_suggests_only_permitted_models(client, make_staff):
 
 def test_validate_endpoint(admin_client, frozen_today):
     ok = post(admin_client, "validate", {**SPEC, "relative_period": "last_season"}).json()
-    assert ok["valid"] is True and ok["errors"] == []
+    assert ok["valid"] is True and ok["errors"] == [] and ok["calendar"] == "gregorian"
+    assert (ok["period"]["start"], ok["period"]["end"]) == ("2026-07-01", "2026-09-30")
+    jalali = {**SPEC, "relative_period": "last_season", "calendar": "jalali"}
+    ok = post(admin_client, "validate", jalali).json()
     assert ok["period"]["start_jalali"] == "1405-04-01"
     assert ok["period"]["end_jalali"] == "1405-06-31"
     bad = post(admin_client, "validate", {**SPEC, "relative_period": "someday"}).json()
@@ -103,7 +109,8 @@ def test_validate_endpoint(admin_client, frozen_today):
     assert "last_3_months" in bad["errors"][0]["suggestions"]
 
 
-def test_run_with_frozen_today_and_jalali_grain(admin_client, orders, calendar_table, frozen_today):
+def test_run_uses_the_users_calendar(admin_client, orders, calendar_table, frozen_today):
+    admin_client.patch("/gozar/api/preferences", {"calendar": "jalali"}, "application/json")
     resp = post(
         admin_client,
         "run",
@@ -112,6 +119,7 @@ def test_run_with_frozen_today_and_jalali_grain(admin_client, orders, calendar_t
     assert resp.status_code == 200, resp.content
     body = resp.json()
     assert body["chart"] == "line" and body["time_grain"] == "month"
+    assert body["calendar"] == "jalali" and body["spec"]["calendar"] == "jalali"
     assert body["period"]["start"] == "2026-06-22" and body["period"]["end"] == "2026-09-22"
     assert [(r["created_at__label"], r["revenue"], r["orders"]) for r in body["rows"]] == [
         ("1405-05", None, 1),
@@ -120,7 +128,8 @@ def test_run_with_frozen_today_and_jalali_grain(admin_client, orders, calendar_t
 
 
 def test_missing_calendar_is_a_409(admin_client, orders):
-    resp = post(admin_client, "run", {**SPEC, "time_grain": "season"})
+    assert post(admin_client, "run", {**SPEC, "time_grain": "season"}).status_code == 200
+    resp = post(admin_client, "run", {**SPEC, "time_grain": "season", "calendar": "jalali"})
     assert resp.status_code == 409
     assert resp.json()["code"] == "calendar_not_populated"
 
@@ -132,3 +141,25 @@ def test_custom_permission_hook(client, make_staff, orders, monkeypatch):
     sem = semantic_site.get("order_metrics")
     monkeypatch.setattr(sem, "has_permission", lambda request: request.user.is_superuser)
     assert post(client, "run", SPEC).status_code == 403
+
+
+def test_run_defaults_to_gregorian(admin_client, orders, frozen_today):
+    resp = post(
+        admin_client, "run", {**SPEC, "time_grain": "month", "relative_period": "last_month"}
+    )
+    body = resp.json()
+    assert body["calendar"] == "gregorian" and body["spec"]["calendar"] == "gregorian"
+    assert (body["period"]["start"], body["period"]["end"]) == ("2026-09-01", "2026-09-30")
+    assert [(r["created_at__label"], r["orders"]) for r in body["rows"]] == [("2026-09", 3)]
+
+
+def test_report_labels_and_errors_follow_the_users_language(admin_client, orders):
+    admin_client.patch("/gozar/api/preferences", {"language": "fa"}, "application/json")
+    body = post(admin_client, "run", {**SPEC, "dimensions": ["status"]}).json()
+    assert [c["label"] for c in body["columns"]] == ["وضعیت", "درآمد", "تعداد سفارش"]
+    assert {"value": "paid", "label": "پرداخت‌شده"} in body["columns"][0]["choices"]
+    catalog = admin_client.get(f"{API}/catalog").json()["semantic_models"][0]
+    assert catalog["label"] == "سفارش‌ها"
+    err = post(admin_client, "run", {**SPEC, "measures": ["nope"]}).json()
+    assert err["detail"] == "مشخصات گزارش نامعتبر است"
+    assert err["errors"][0]["message"] == "سنجهٔ ناشناختهٔ 'nope' در order_metrics"

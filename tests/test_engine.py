@@ -44,7 +44,7 @@ def table(result_rows, *keys):
 def test_spec_defaults_and_strictness():
     s = ReportSpec(semantic_model=M, measures=["revenue"])
     assert (s.calendar, s.limit, s.chart, s.dimensions, s.filters) == (
-        "jalali",
+        None,  # resolved later: the user's calendar, else GOZAR["DEFAULT_CALENDAR"]
         1000,
         "table",
         [],
@@ -70,6 +70,7 @@ def test_valid_spec_is_normalised():
             dimensions=["city"],
             time_grain="month",
             relative_period="last_3_months",
+            calendar="jalali",
             filters=[{"field": "status", "op": "eq", "value": "پرداخت‌شده"}],
             sort=[{"field": "orders", "direction": "asc"}],
             limit=20,
@@ -347,7 +348,7 @@ def test_filters_combine_with_and(orders):
 
 @pytest.mark.django_db
 def test_jalali_month_grain(orders, calendar_table):
-    got = rows(measures=["revenue", "orders"], time_grain="month")
+    got = rows(measures=["revenue", "orders"], time_grain="month", calendar="jalali")
     assert table(got, "created_at", "created_at__label", "revenue", "orders") == [
         ("2025-09-23", "1404-07", 1000, 1),
         ("2026-02-20", "1404-12", 500, 1),  # 1404/12/29, the last day of the year
@@ -372,7 +373,7 @@ def test_gregorian_month_grain(orders):
 
 @pytest.mark.django_db
 def test_jalali_season_grain(orders, calendar_table):
-    got = rows(measures=["revenue", "orders"], time_grain="season")
+    got = rows(measures=["revenue", "orders"], time_grain="season", calendar="jalali")
     assert table(got, "created_at", "created_at__label", "revenue", "orders") == [
         ("2025-09-23", "1404-S3", 1000, 1),
         ("2025-12-22", "1404-S4", 500, 1),
@@ -395,7 +396,7 @@ def test_gregorian_season_is_quarter(orders):
 
 @pytest.mark.django_db
 def test_year_grains(orders, calendar_table):
-    jalali = rows(measures=["revenue", "orders"], time_grain="year")
+    jalali = rows(measures=["revenue", "orders"], time_grain="year", calendar="jalali")
     assert table(jalali, "created_at", "created_at__label", "revenue", "orders") == [
         ("2025-03-21", "1404", 1500, 2),
         ("2026-03-21", "1405", 1200, 7),
@@ -410,7 +411,7 @@ def test_year_grains(orders, calendar_table):
 @pytest.mark.django_db
 def test_week_grains(orders, calendar_table):
     flt = [{"field": "created_at", "op": "between", "value": ["2026-09-19", "2026-10-02"]}]
-    jalali = rows(measures=["orders"], time_grain="week", filters=flt)
+    jalali = rows(measures=["orders"], time_grain="week", filters=flt, calendar="jalali")
     assert table(jalali, "created_at", "created_at__label", "orders") == [
         ("2026-09-19", "1405-06-28", 2),  # Saturday-start weeks
         ("2026-09-26", "1405-07-04", 2),
@@ -425,6 +426,7 @@ def test_week_grains(orders, calendar_table):
 @pytest.mark.django_db
 def test_day_grain_uses_local_time(orders):
     got = rows(
+        calendar="jalali",
         measures=["revenue"],
         time_grain="day",
         filters=[{"field": "created_at", "op": "between", "value": ["2026-09-22", "2026-09-23"]}],
@@ -440,6 +442,7 @@ def test_day_grain_uses_local_time(orders):
 @pytest.mark.django_db
 def test_time_grain_with_category_dimension(orders, calendar_table):
     got = rows(
+        calendar="jalali",
         measures=["orders"],
         dimensions=["city"],
         time_grain="season",
@@ -456,7 +459,7 @@ def test_time_grain_with_category_dimension(orders, calendar_table):
 
 @pytest.mark.django_db
 def test_grain_on_nullable_time_dimension(orders, calendar_table):
-    got = rows(measures=["orders"], time_dimension="paid_at", time_grain="year")
+    got = rows(measures=["orders"], time_dimension="paid_at", time_grain="year", calendar="jalali")
     # unpaid orders form their own (null) bucket, sorted last
     assert table(got, "paid_at", "paid_at__label", "orders") == [
         ("2025-03-21", "1404", 2),
@@ -464,6 +467,7 @@ def test_grain_on_nullable_time_dimension(orders, calendar_table):
         (None, None, 2),
     ]
     paid = rows(
+        calendar="jalali",
         measures=["orders"],
         dimensions=["paid_at"],
         time_grain="year",
@@ -475,11 +479,11 @@ def test_grain_on_nullable_time_dimension(orders, calendar_table):
 @pytest.mark.django_db
 def test_jalali_grain_requires_calendar_rows(orders):
     with pytest.raises(ReportError) as exc:
-        run(spec(time_grain="month"))
+        run(spec(time_grain="month", calendar="jalali"))
     assert exc.value.status == 409 and exc.value.payload["code"] == "calendar_not_populated"
     assert exc.value.payload["start"] == "2025-10-18"
     assert exc.value.payload["end"] == "2026-10-01"
-    run(spec(time_grain="day"))  # day buckets need no calendar rows
+    run(spec(time_grain="day", calendar="jalali"))  # day buckets need no calendar rows
     run(spec(time_grain="month", calendar="gregorian"))
 
 
@@ -511,7 +515,14 @@ def test_relative_periods(orders, frozen_today, period, calendar, revenue, order
 
 @pytest.mark.django_db
 def test_relative_period_with_grain_and_period_metadata(orders, calendar_table, frozen_today):
-    result = run(spec(measures=["orders"], time_grain="month", relative_period="last_3_months"))
+    result = run(
+        spec(
+            measures=["orders"],
+            time_grain="month",
+            relative_period="last_3_months",
+            calendar="jalali",
+        )
+    )
     assert table(result.rows, "created_at__label", "orders") == [("1405-05", 1), ("1405-06", 2)]
     payload = result.as_dict()
     assert payload["period"]["start"] == "2026-06-22" and payload["period"]["end"] == "2026-09-22"
@@ -523,7 +534,12 @@ def test_relative_period_with_grain_and_period_metadata(orders, calendar_table, 
 
 @pytest.mark.django_db
 def test_relative_period_on_another_time_dimension(orders, frozen_today):
-    got = rows(measures=["orders"], time_dimension="paid_at", relative_period="last_month")
+    got = rows(
+        measures=["orders"],
+        time_dimension="paid_at",
+        relative_period="last_month",
+        calendar="jalali",
+    )
     assert got == [{"orders": 1}]  # #1 was paid in Shahrivar; #5 was never paid
 
 
@@ -547,6 +563,7 @@ def test_expression_dimensions(orders, calendar_table):
                 "semantic_model": "order_days",
                 "measures": ["total"],
                 "time_grain": "season",
+                "calendar": "jalali",
                 "filters": [{"field": "day", "op": "gte", "value": "1405/04/01"}],
             }
         ).rows
@@ -588,3 +605,48 @@ def test_measure_sort_keeps_time_buckets_as_tie_breaker(orders):
         ("2025-10", 1),
         ("2026-10", 1),
     ]
+
+
+# --- calendar defaults (English/Gregorian by default since M2.1) -----------------------
+
+
+def test_calendar_defaults_to_gregorian(frozen_today):
+    report = validate_spec(spec(time_grain="month", relative_period="last_month"))
+    assert report.calendar == "gregorian" and report.spec.calendar == "gregorian"
+    assert (report.period.start, report.period.end) == (dt.date(2026, 9, 1), dt.date(2026, 9, 30))
+    # the caller's (user's) calendar applies when the spec names none …
+    report = validate_spec(spec(relative_period="last_month"), calendar="jalali")
+    assert (report.calendar, report.period.start) == ("jalali", dt.date(2026, 8, 23))
+    # … but an explicit calendar in the spec wins
+    report = validate_spec(spec(calendar="gregorian"), calendar="jalali")
+    assert report.calendar == "gregorian"
+
+
+def test_project_default_calendar_setting(settings, frozen_today):
+    settings.GOZAR = {"DEFAULT_CALENDAR": "jalali"}
+    assert validate_spec(spec()).calendar == "jalali"
+    settings.GOZAR = {"DEFAULT_CALENDAR": "lunar"}  # unknown values fall back to Gregorian
+    assert validate_spec(spec()).calendar == "gregorian"
+
+
+@pytest.mark.django_db
+def test_default_gregorian_grain_needs_no_calendar_table(orders):
+    got = rows(measures=["orders"], time_grain="season")
+    assert table(got, "created_at__label", "orders") == [
+        ("2025-Q4", 1),
+        ("2026-Q1", 2),
+        ("2026-Q3", 5),
+        ("2026-Q4", 1),
+    ]
+
+
+def test_validation_messages_follow_the_active_language():
+    from django.utils import translation
+
+    with pytest.raises(SpecValidationError) as exc:
+        validate_spec(spec(measures=["nope"]))
+    assert exc.value.errors[0].message == "Unknown measure 'nope' on order_metrics"
+    with translation.override("fa"), pytest.raises(SpecValidationError) as exc:
+        validate_spec(spec(measures=["nope"]))
+    assert exc.value.errors[0].message == "سنجهٔ ناشناختهٔ 'nope' در order_metrics"
+    assert exc.value.errors[0].code == "unknown_measure"  # codes never change

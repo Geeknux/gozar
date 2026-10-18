@@ -20,14 +20,14 @@ def test_registry_contains_demo_and_auth_models():
 
 def test_field_metadata_from_meta():
     order = get_registry().get("shop.order")
-    assert order.verbose_name == "سفارش"
-    assert order.verbose_name_plural == "سفارش‌ها"
-    assert order.app_verbose_name == "فروشگاه"
+    assert order.verbose_name == "order"
+    assert order.verbose_name_plural == "orders"
+    assert order.app_verbose_name == "Shop"
     assert order.pk_name == "id"
 
     status = order.fields["status"]
     assert status.kind == "string"
-    assert ("paid", "پرداخت‌شده") in status.choices
+    assert ("paid", "Paid") in status.choices
     assert status.has_default and not status.required
 
     amount = order.fields["amount"]
@@ -100,3 +100,14 @@ def test_include_exclude_settings():
     assert "shop.order" in reg
     assert "auth.user" not in reg
     assert "shop.orderitem" not in reg
+
+
+def test_registry_is_kept_per_language():
+    from django.utils import translation
+
+    en = get_registry().get("shop.order")
+    with translation.override("fa"):
+        fa = get_registry().get("shop.order")
+        assert (fa.verbose_name, fa.app_verbose_name) == ("سفارش", "فروشگاه")
+        assert ("paid", "پرداخت‌شده") in fa.fields["status"].choices
+    assert en.verbose_name == "order" and get_registry().get("shop.order") is en

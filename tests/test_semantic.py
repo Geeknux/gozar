@@ -4,6 +4,7 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.db.models import Count, F, Sum
 from django.db.models.functions import Upper
+from django.utils.translation import gettext_lazy
 
 from bi_admin.checks import check_semantic_models
 from bi_admin.semantic import Dimension, Measure, Semantic, catalog, register, semantic_site
@@ -40,7 +41,7 @@ def test_dimension_binding_resolves_paths_and_types():
     created = sem.dimensions["created_at"]
     assert created.type == "time" and not created.is_date
     status = sem.dimensions["status"]
-    assert ("paid", "پرداخت‌شده") in status.choices
+    assert ("paid", {"fa": "پرداخت‌شده", "en": "Paid"}) in status.choices
     assert sem.dimensions["amount"].type == "number"
 
 
@@ -66,11 +67,11 @@ def test_defaults_are_derived_from_meta(scratch):
         measures = {"customers": Measure(Count("id"))}
 
     sem = semantic_site.get("customer_stats")
-    assert sem.label == {"fa": "مشتریان", "en": "Customer stats"}
+    assert sem.label == {"fa": "مشتریان", "en": "Customers"}  # verbose_name_plural, both langs
     assert sem.time_dimension == "joined"  # first time dimension
     city = sem.dimensions["city"]
     assert city.type == "category"
-    assert city.label == {"fa": "شهر / نام", "en": "City"}
+    assert city.label == {"fa": "شهر / نام", "en": "City / Name"}
     assert sem.dimensions["joined"].type == "time"
     assert sem.dimensions["city_fk"].type == "category"
     assert sem.dimensions["city_fk"].choices is None
@@ -79,19 +80,21 @@ def test_defaults_are_derived_from_meta(scratch):
     assert sem.measures["customers"].label == {"fa": "Customers", "en": "Customers"}
 
 
-def test_string_label_is_persian_and_falls_back(scratch):
+def test_string_labels_are_source_text_through_gettext(scratch):
     @scratch
     class Labelled(Semantic):
         model = Order
         name = "labelled"
-        label = "سفارش"
-        synonyms = ["خرید"]
+        label = gettext_lazy("Shop")  # translated by the shop's catalog
+        description = "Plain text"  # no translation: same in both languages
+        synonyms = ["purchase"]
         dimensions = {"s": Dimension("status", label={"en": "State"})}
         measures = {"n": Measure(Count("id"), label={"fa": "تعداد"})}
 
     sem = semantic_site.get("labelled")
-    assert sem.label == {"fa": "سفارش", "en": "Labelled"}  # en default: class name
-    assert sem.synonyms == {"fa": ["خرید"], "en": []}
+    assert sem.label == {"fa": "فروشگاه", "en": "Shop"}
+    assert sem.description == {"fa": "Plain text", "en": "Plain text"}
+    assert sem.synonyms == {"fa": ["purchase"], "en": ["purchase"]}
     assert sem.dimensions["s"].label == {"fa": "وضعیت", "en": "State"}
     assert sem.measures["n"].label == {"fa": "تعداد", "en": "N"}
 
@@ -183,7 +186,9 @@ def test_catalog_languages():
     assert created_en["type"] == "time" and created_en["label"] == "Order date"
     assert created_en["grains"] == ["day", "week", "month", "season", "year"]
     status_en = next(d for d in en["dimensions"] if d["key"] == "status")
-    assert {"value": "paid", "label": "پرداخت‌شده"} in status_en["choices"]
+    assert {"value": "paid", "label": "Paid"} in status_en["choices"]
+    status_fa = next(d for d in fa["dimensions"] if d["key"] == "status")
+    assert {"value": "paid", "label": "پرداخت‌شده"} in status_fa["choices"]
 
 
 @pytest.mark.django_db

@@ -217,7 +217,15 @@ def test_year_boundary_rollover():
 
 
 def test_resolve_uses_frozen_today(frozen_today):
-    p = periods.resolve("this_month")
+    p = periods.resolve("this_month")  # Gregorian by default
+    assert (p.start, p.end, p.calendar) == (D(2026, 10, 1), frozen_today, "gregorian")
+    assert p.as_dict() == {
+        "name": "this_month",
+        "calendar": "gregorian",
+        "start": "2026-10-01",
+        "end": "2026-10-18",
+    }
+    p = periods.resolve("this_month", "jalali")
     assert (p.start, p.end, p.calendar) == (D(2026, 9, 23), frozen_today, "jalali")
     assert p.as_dict() == {
         "name": "this_month",

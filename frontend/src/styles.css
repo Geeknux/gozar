@@ -9,7 +9,7 @@
   --danger: #c93636;
   --ok: #1f8a4c;
   --radius: 8px;
-  font-family: Vazirmatn, "Vazir", Tahoma, system-ui, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--bg);
@@ -53,7 +53,7 @@ div.error { background: #fdeeee; border-radius: 6px; padding: 0.25rem 0.75rem; }
 .shell { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; flex-shrink: 0; background: #1d1b2e; color: #d8d6ea; padding: 1rem 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
 .sidebar .brand { display: block; color: #fff; font-size: 1.3rem; font-weight: bold; padding: 0 1rem 1rem; }
-.sidebar .brand small { display: block; font-size: 0.7rem; font-weight: normal; color: #9c98bb; text-align: right; }
+.sidebar .brand small { display: block; font-size: 0.7rem; font-weight: normal; color: #9c98bb; text-align: start; }
 .sidebar section { margin-bottom: 1rem; }
 .sidebar h3 { color: #9c98bb; font-size: 0.75rem; padding: 0 1rem; margin-bottom: 0.25rem; }
 .sidebar nav a { display: block; color: #d8d6ea; padding: 0.35rem 1rem; }
@@ -73,7 +73,7 @@ div.error { background: #fdeeee; border-radius: 6px; padding: 0.25rem 0.75rem; }
 
 /* home */
 .home { display: flex; flex-direction: column; gap: 1rem; max-width: 640px; }
-.actions-cell { text-align: left; }
+.actions-cell { text-align: end; }
 
 /* tables */
 .table-wrap { overflow-x: auto; background: #fff; border: 1px solid var(--border); border-radius: var(--radius); }
@@ -142,3 +142,22 @@ table.grid { width: 100%; border-collapse: collapse; }
   .filters { width: 100%; position: static; }
   .form-row { grid-template-columns: 1fr; gap: 0.3rem; }
 }
+
+/* Persian: Vazirmatn when installed, Persian-friendly fallbacks otherwise. */
+:root:lang(fa), [lang="fa"] { font-family: Vazirmatn, "Vazir", Tahoma, system-ui, sans-serif; }
+
+.topbar-actions { display: flex; gap: 1rem; align-items: center; }
+.topbar-actions a.active { font-weight: bold; }
+
+.segmented { display: flex; gap: 0.25rem; justify-content: center; }
+.segmented button { flex: 1; }
+.segmented button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
+.settings-page { display: flex; flex-direction: column; gap: 0.75rem; max-width: 560px; }
+.settings { display: flex; flex-direction: column; gap: 1.25rem; }
+.settings fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.settings legend { font-weight: 600; margin-bottom: 0.4rem; }
+.settings .choice { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.settings .preview { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0; padding-top: 0.75rem; border-top: 1px solid var(--border); }
+.settings .preview dt { color: var(--muted); }
+.settings .preview dd { margin: 0; }
