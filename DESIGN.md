@@ -4,7 +4,7 @@
 
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
-> Status: M0 (skeleton) done — see §10 for decisions.
+> Status: M0 (skeleton) and M1 (discovery + CRUD) done — see §10 for decisions.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -394,10 +394,44 @@ Decided (M0, 2026-10-18):
   (`GOZAR_DB=postgres`). Jalali/DB-function work in M2 targets PostgreSQL.
 - Distribution name `gozar`, import package `bi_admin`.
 
+Decided (M1, 2026-10-18):
+
+- License: **MIT**.
+- Discovery (`bi_admin.discovery`): lazily built, process-wide `Registry` of
+  `ModelInfo`/`FieldInfo`/`RelationInfo` read from `_meta`; relations are
+  stored in both directions with a `many` flag; `find_path` (BFS, to-one hops
+  first) and `resolve_lookup` (validates `a__b__c` paths) are the building
+  blocks M2's validator will reuse. Hidden by default: contenttypes, sessions,
+  admin, bi_admin, `auth.permission`; tune with `GOZAR["INCLUDE_APPS"|
+  "EXCLUDE_APPS"|"EXCLUDE_MODELS"]`.
+- CRUD (`bi_admin.crud`): `ModelOptions` mirrors the core of `ModelAdmin`
+  (`list_display` incl. lookup paths and callables, `search_fields` with
+  `^ = @`, `list_filter`, `ordering`, `fields`/`exclude`/`readonly_fields`,
+  `list_per_page`, actions, permission and save/delete hooks), registered via
+  `@register(Model)` in an app's auto-discovered `gozar.py`. Defaults are
+  derived from `_meta`. Validation goes through a generated `ModelForm`.
+- Permissions: staff session + CSRF on every endpoint; Django `view/add/
+  change/delete` perms (change implies view); deletion also requires delete
+  permission on every cascaded registered model, and PROTECT/RESTRICT returns a
+  409 with the blocking objects. Filters/ordering accept only declared paths, so
+  a filter can't be used as an oracle on hidden fields (e.g. password hashes).
+  Password fields are write-only and hashed with `set_password`.
+- History: `bi_admin.ChangeLog` (add/change/delete with changed field names),
+  the counterpart of admin's `LogEntry`. M4's audit log may extend it.
+- Search normalises Arabic ي/ك to Persian ی/ک (and back) per term.
+- UI: React SPA built by Vite into `bi_admin/static/bi_admin/spa/` (git-ignored,
+  shipped as a wheel artifact); Django serves the shell (`bi_admin.views.spa`)
+  via the Vite manifest. Dates are shown in Jalali via `Intl`
+  (`fa-IR-u-ca-persian`), numbers with Persian digits. Date inputs are still
+  Gregorian browser pickers — Jalali pickers come with M3.
+
+Not yet at contrib.admin parity (deliberately deferred): inlines, file
+uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object
+tools, permission/user "change password" special forms.
+
 Still open:
 
 - Support databases other than PostgreSQL in v1?
-- License (MIT / Apache-2.0 / AGPL for the BI part?).
 - How semantic models are declared for third-party apps without editing them.
 - Default LLM provider and whether a local model is the default.
 

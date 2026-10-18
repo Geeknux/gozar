@@ -8,5 +8,5 @@ dist/
 build/
 *.sqlite3
 node_modules/
-src/bi_admin/frontend/
+src/bi_admin/static/bi_admin/spa/
 .env

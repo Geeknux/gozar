@@ -1,12 +1,32 @@
-"""JSON API (django-ninja)."""
+"""JSON API (django-ninja), mounted at ``<prefix>/api/``."""
 
 from ninja import NinjaAPI
 
 import bi_admin
+from bi_admin.api.auth import router as auth_router
+from bi_admin.api.crud import router as crud_router
+from bi_admin.api.meta import router as meta_router
+from bi_admin.api.security import staff_auth
+from bi_admin.crud.service import CrudError
 
-api = NinjaAPI(title="Gozar", version=bi_admin.__version__, urls_namespace="bi_admin_api")
+api = NinjaAPI(
+    title="Gozar",
+    version=bi_admin.__version__,
+    urls_namespace="bi_admin_api",
+    auth=staff_auth,
+)
 
 
-@api.get("/health")
+@api.exception_handler(CrudError)
+def crud_error(request, exc: CrudError):
+    return api.create_response(request, exc.payload, status=exc.status)
+
+
+@api.get("/health", auth=None)
 def health(request):
     return {"status": "ok", "version": bi_admin.__version__}
+
+
+api.add_router("/auth", auth_router)
+api.add_router("/meta", meta_router)
+api.add_router("/crud", crud_router)

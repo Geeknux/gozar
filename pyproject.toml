@@ -30,6 +30,8 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/bi_admin"]
+# The built SPA is git-ignored; ship it when present (run scripts/build-frontend.sh first).
+artifacts = ["src/bi_admin/static/bi_admin/spa/**"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "example_project.settings"
