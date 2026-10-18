@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { api, setUnauthorizedHandler } from "./api";
@@ -12,6 +12,9 @@ import ModelList from "./pages/ModelList";
 import ObjectForm from "./pages/ObjectForm";
 import Settings from "./pages/Settings";
 import type { AppEntry, Preferences } from "./types";
+
+// ECharts is large: load the Reports area on demand.
+const ReportsPage = lazy(() => import("./reports/ReportsPage"));
 
 export type User = { username: string; full_name: string; is_superuser: boolean };
 
@@ -106,6 +109,14 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
         <Route path="/" element={<Home apps={apps} />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/settings" element={<Settings onSaved={onPrefs} />} />
+        <Route
+          path="/reports"
+          element={
+            <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>
+              <ReportsPage />
+            </Suspense>
+          }
+        />
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />
         <Route path="/:app/:model/:pk" element={<ObjectForm />} />

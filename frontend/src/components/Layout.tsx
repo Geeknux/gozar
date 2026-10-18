@@ -16,6 +16,9 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
           {t("app.brand")} <small dir="ltr">Django-Bi-Admin</small>
         </Link>
         <nav>
+          <section>
+            <NavLink to="/reports">{t("nav.reports")}</NavLink>
+          </section>
           {apps.map((app) => (
             <section key={app.app_label}>
               <h3>{cap(app.verbose_name)}</h3>

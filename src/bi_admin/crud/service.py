@@ -367,7 +367,7 @@ def _multiplies(options: ModelOptions, params) -> bool:
 # --- search ------------------------------------------------------------------------
 
 
-def _search_variants(term: str) -> set[str]:
+def search_variants(term: str) -> set[str]:
     return {term, term.translate(_ARABIC_TO_PERSIAN), term.translate(_PERSIAN_TO_ARABIC)}
 
 
@@ -392,7 +392,7 @@ def apply_search(options: ModelOptions, qs: models.QuerySet, query: str) -> mode
     )
     for term in query.split():
         term_q = Q()
-        for variant in _search_variants(term):
+        for variant in search_variants(term):
             for lookup in lookups:
                 term_q |= Q(**{lookup: variant})
         qs = qs.filter(term_q)
@@ -424,7 +424,7 @@ def apply_ordering(options: ModelOptions, qs: models.QuerySet, ordering: str | N
     return qs.order_by(*order)
 
 
-def _select_related(options: ModelOptions, cols: list[Column]) -> list[str]:
+def select_related_paths(options: ModelOptions, cols: list[Column]) -> list[str]:
     reg = get_registry()
     paths = set()
     for c in cols:
@@ -447,7 +447,7 @@ def list_objects(options: ModelOptions, request, params: dict[str, str]) -> dict
     qs = apply_filters(options, qs, params)
     qs = apply_search(options, qs, params.get("q", ""))
     qs = apply_ordering(options, qs, params.get("ordering"))
-    related = _select_related(options, cols)
+    related = select_related_paths(options, cols)
     if related:
         qs = qs.select_related(*related)
 

@@ -10,6 +10,8 @@ export default defineConfig({
     outDir: "../src/bi_admin/static/bi_admin/spa",
     emptyOutDir: true,
     manifest: true,
+    // The Reports chunk (ECharts) is ~580 kB but only loaded on /reports.
+    chunkSizeWarningLimit: 700,
   },
   server: {
     port: 5173,

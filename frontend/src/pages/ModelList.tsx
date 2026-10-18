@@ -2,6 +2,7 @@ import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import { ApiError, api, crudPath } from "../api";
+import DatePicker from "../components/DatePicker";
 import DeleteDialog from "../components/DeleteDialog";
 import RelationSelect from "../components/RelationSelect";
 import { useModelMeta } from "../hooks";
@@ -326,11 +327,11 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
         <h4>{spec.label}</h4>
         <label>
           {t("filter.from")}
-          <input type="date" value={params.get(from) ?? ""} onChange={(e) => update({ [from]: e.target.value })} />
+          <DatePicker value={params.get(from) ?? ""} onChange={(v) => update({ [from]: v })} />
         </label>
         <label>
           {t("filter.to")}
-          <input type="date" value={params.get(to) ?? ""} onChange={(e) => update({ [to]: e.target.value })} />
+          <DatePicker value={params.get(to) ?? ""} onChange={(v) => update({ [to]: v })} />
         </label>
         {spec.null && (
           <ul>

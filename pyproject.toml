@@ -11,6 +11,7 @@ dependencies = [
     "django-ninja>=1.4",
     "pydantic>=2.7",
     "jdatetime>=5.0",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]

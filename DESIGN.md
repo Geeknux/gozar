@@ -4,8 +4,8 @@
 
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
-> Status: M0 (skeleton), M1 (discovery + CRUD) and M2 (semantic layer + query
-> engine) done, plus i18n + per-user preferences — see §10 for decisions.
+> Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
+> engine), i18n + per-user preferences, and M3 (report UI) done — see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -576,6 +576,75 @@ Decided (i18n + preferences, 2026-10-18):
   pages refetch server-translated metadata. Before login the page follows the
   server's choice (browser / project default) and offers an English/فارسی
   switch that sets the `django_language` cookie.
+
+Decided (M3 — report UI, 2026-10-19):
+
+- Reports area at `/reports` (sidebar), lazy-loaded so ECharts (~580 kB) only
+  loads there. Builder on the side, results beside it; on narrow screens they
+  stack. Everything is driven by `GET /reports/catalog` (in the user's
+  language).
+- **The URL is the state**: the builder edits a `ReportSpec` serialised as
+  `?spec=<json>` (empty/default keys dropped), so reports are shareable and
+  reloadable; "Copy link" copies it. Saved reports in the database are left
+  for M6 (dashboards), where they are needed anyway.
+- Live editing: every change is validated (`POST /reports/validate`, 350 ms
+  debounce) and, when valid, run. Half-filled filters are left out of the
+  request (and error paths are mapped back to the original filter rows), so
+  adding a filter doesn't flash errors. Errors render next to their section by
+  `path` (`measures[0]`, `filters[2].value`, `limit`, …), with suggestions
+  shown by label. Changing only the chart type never re-queries.
+- Time controls: date field, grain, calendar ("my calendar" = the user's
+  preference, or force Gregorian/Jalali), and a period that is either a
+  relative period preset or a custom range. The custom range is stored as a
+  `between` filter on the time dimension (no new spec field) and shown in the
+  time section instead of the filter list.
+- Filter value pickers: `GET /reports/values` returns a dimension's values —
+  its choices (labels in the user's language), related objects searched with
+  the target's `search_fields` (the CRUD autocomplete rules, Arabic/Persian
+  letters included) when the path ends on a relation, otherwise distinct
+  values from the semantic queryset (`icontains`, limit 50). Time dimensions
+  use the date picker; numbers a text input (Persian digits accepted).
+- Results: a client-side sortable table (dimension values formatted —
+  time buckets as "Oct 2026" / "مهر ۱۴۰۵", "Q4 2026" / "پاییز ۱۴۰۵", choices by
+  label; measures by their `format`: currency/integer without decimals,
+  percent as %, decimal with 2), bar/line/area/pie (ECharts), pivot (exactly
+  two group-by fields; rows × columns of one measure) and KPI cards (no
+  group-by). Charts plot one measure at a time (a selector appears when there
+  are several, so scales don't clash); a second group-by field becomes the
+  series. ECharts gets the user's digits and compact number format on axes,
+  bucket labels in the report's calendar, the page font, and in RTL a
+  reversed category axis, the value axis on the right and right-aligned
+  legends. Unsuitable chart/shape combinations show a hint instead of a broken
+  chart. The pivot has no totals column: totals of non-additive measures
+  (averages, distinct counts) can't be derived client-side; M6 may add server
+  totals.
+- Drill-down (`POST /reports/drilldown` → `bi_admin.engine.drilldown`): the
+  clicked group values become extra filters on the spec — a time bucket becomes
+  a `between` covering the bucket (it must start a bucket of that grain in the
+  report's calendar), `null` becomes `is_null` — and the narrowed spec goes
+  through the normal validator and compiler, so lookups, coercion, choice
+  labels, the semantic `get_queryset` and permissions are identical to the
+  report. Clicking a measure also applies that aggregate's own `filter=Q(...)`
+  (revenue → paid orders), so record counts match the cell for count-like
+  measures (tests assert this for every cell of a report). Errors point at
+  `cell.<key>` / `measure`. Rows are serialised like the CRUD list (its
+  `list_display`, ordering, `select_related`), paginated (25, max 200), and
+  link to the CRUD detail pages; `.distinct()` when a filter crosses a
+  to-many relation.
+- Export (`POST /reports/export?format=csv|xlsx`): runs the spec through the
+  same `run()` (permissions, limits) and writes the result with headers in the
+  user's language, bucket labels for time columns and choice labels for
+  choices. CSV is UTF-8 with a BOM (spreadsheet apps detect Persian text);
+  XLSX (openpyxl, new dependency) has a bold frozen header, number formats per
+  measure format and a right-to-left sheet for Persian users. The SPA
+  downloads via `fetch` + blob (POST with CSRF).
+- Date picker (`components/DatePicker.tsx`): a dependency-free month grid in
+  the user's calendar (Jalali weeks start Saturday, Gregorian Monday), values
+  always Gregorian ISO dates. Gregorian→Jalali uses `Intl`'s Persian calendar;
+  Jalali→Gregorian starts from an estimate and corrects with `Intl`
+  (round-trip verified for every day 1990–2040). Used in the report builder,
+  the CRUD list date filters and the CRUD form (date fields, and date + time
+  for datetime fields), replacing the native Gregorian inputs.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

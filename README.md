@@ -4,8 +4,8 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M2 (semantic layer + query engine) done; English/Persian UI with
-per-user language and calendar preferences.
+**Status:** M3 (report UI) done — report builder, charts, pivot, drill-down,
+CSV/XLSX export; English/Persian UI with per-user language and calendar.
 
 ## Development
 
@@ -113,6 +113,26 @@ suggestions, and `GET /gozar/api/reports/catalog` (user's language; `?lang=fa|en
 models the user may report on. Reports need the same staff session and model
 view permission as the CRUD API.
 
+### Report UI
+
+**Reports** in the sidebar opens the report builder: pick the data (semantic
+model), measures, group-by fields, date field, grain, calendar, a relative
+period or a custom date range, filters (value pickers search the dimension's
+values), sort and row limit. The spec is validated as you edit — problems show
+next to the field — and the report re-runs automatically. Results show as a
+sortable table, bar/line/area/pie charts (Apache ECharts), a pivot table (two
+group-by fields) or KPI cards (no group-by). Click any value, bar, slice or
+pivot cell to open the records behind it, linked to their edit pages. Export
+the result as CSV or Excel. The whole report lives in the URL
+(`/gozar/reports?spec=…`), so **Copy link** shares it.
+
+Endpoints behind it (all staff session + the model's view permission):
+`GET /api/reports/values?semantic_model=&dimension=&q=` (filter values),
+`POST /api/reports/drilldown` (`{"spec": …, "cell": {"city": "Tehran",
+"created_at": "2026-09-01"}, "measure": "revenue", "page": 1}` → paginated
+records) and `POST /api/reports/export?format=csv|xlsx` (body: the spec;
+headers in the user's language).
+
 ### Language and calendar
 
 English and Gregorian are the defaults; Persian (RTL, Persian digits) and the
@@ -153,14 +173,17 @@ The JSON API (django-ninja, staff session + CSRF) is documented at
   - `discovery/` — registry built from `_meta`, relation graph, lookup-path validation;
   - `crud/` — `ModelOptions` (the `ModelAdmin` counterpart) and the CRUD service;
   - `semantic/` — `Semantic`, `Dimension`, `Measure`, `@register`, the catalog;
-  - `engine/` — `ReportSpec`, validator, ORM compiler, runner;
+  - `engine/` — `ReportSpec`, validator, ORM compiler, runner, drill-down,
+    export (CSV/XLSX), dimension values;
   - `calendar/` — Jalali helpers, `CalendarDay` table builder, relative periods;
   - `api/` — auth, metadata, CRUD, report and preferences endpoints;
   - `preferences.py`, `middleware.py` — per-user language/calendar;
   - `locale/fa/` — Persian gettext catalog;
   - `execution`, `access`, `nl` — later milestones.
 - `frontend/` — React + TypeScript SPA (Vite); `src/i18n/` holds the en/fa
-  dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates).
+  dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates),
+  `src/reports/` the report builder, results, ECharts charts and drill-down,
+  `src/components/DatePicker.tsx` the Gregorian/Jalali date picker.
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
   and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,

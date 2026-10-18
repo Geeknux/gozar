@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { ApiError, api, crudPath } from "../api";
+import DatePicker, { DateTimePicker } from "../components/DatePicker";
 import DeleteDialog from "../components/DeleteDialog";
 import RelationSelect from "../components/RelationSelect";
 import { useModelMeta } from "../hooks";
@@ -12,18 +13,6 @@ type Values = Record<string, unknown>;
 type Errors = Record<string, string[]>;
 
 const NUMERIC = new Set(["integer", "decimal", "float"]);
-
-function pad(n: number) {
-  return String(n).padStart(2, "0");
-}
-
-/** ISO datetime (any offset) → value for <input type="datetime-local"> in browser time. */
-function toLocalInput(iso: unknown): string {
-  if (typeof iso !== "string" || !iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 /** Convert form state to the JSON the API expects. */
 function toPayload(field: FieldMeta, value: unknown): unknown {
@@ -325,16 +314,9 @@ function FieldInput({ field, model, value, onChange, isNew }: InputProps) {
     case "float":
       return <input id={id} dir="ltr" inputMode="decimal" value={str} onChange={(e) => onChange(e.target.value)} />;
     case "date":
-      return <input id={id} type="date" value={str.slice(0, 10)} onChange={(e) => onChange(e.target.value)} />;
+      return <DatePicker id={id} value={str.slice(0, 10)} onChange={onChange} clearable={field.null} />;
     case "datetime":
-      return (
-        <input
-          id={id}
-          type="datetime-local"
-          value={str.includes("T") && /[zZ+]|-\d\d:\d\d$/.test(str) ? toLocalInput(str) : str}
-          onChange={(e) => onChange(e.target.value)}
-        />
-      );
+      return <DateTimePicker id={id} value={str} onChange={onChange} />;
     case "time":
       return <input id={id} type="time" value={str.slice(0, 5)} onChange={(e) => onChange(e.target.value)} />;
     case "email":

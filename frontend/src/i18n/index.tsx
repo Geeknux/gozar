@@ -64,7 +64,55 @@ export function makeFormat(lang: Lang, calendar: CalendarName) {
     return digits(String(value));
   };
 
-  return { digits, number: formatNumber, date: formatDate, cell, list: (items: string[]) => items.join(sep) };
+  const numberLocale = `${base}-u-nu-${numbering}`;
+  const measureFormats: Record<string, Intl.NumberFormat> = {
+    currency: new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 0 }),
+    integer: new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 0 }),
+    percent: new Intl.NumberFormat(numberLocale, { style: "percent", maximumFractionDigits: 1 }),
+    decimal: new Intl.NumberFormat(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+    number: new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 2 }),
+  };
+  const compactFormat = new Intl.NumberFormat(numberLocale, { notation: "compact", maximumFractionDigits: 1 });
+
+  /** A report measure value by its semantic ``format`` (currency, integer, percent…). */
+  const measure = (value: unknown, format = "number") => {
+    if (value === null || value === undefined || value === "") return "—";
+    const n = Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    return (measureFormats[format] ?? measureFormats.number).format(n);
+  };
+
+  const dateFormats = new Map<string, Intl.DateTimeFormat>();
+  /** Format an ISO date in a given calendar (dropping the era, e.g. "AP"). */
+  const dateIn = (iso: string, cal: CalendarName, options: Intl.DateTimeFormatOptions) => {
+    const key = cal + JSON.stringify(options);
+    let f = dateFormats.get(key);
+    if (!f) {
+      const tag = `${base}-u-ca-${cal === "jalali" ? "persian" : "gregory"}-nu-${numbering}`;
+      f = new Intl.DateTimeFormat(tag, { ...options, timeZone: "UTC" });
+      dateFormats.set(key, f);
+    }
+    const [y, m, d] = iso.split("-").map(Number);
+    return f
+      .formatToParts(new Date(Date.UTC(y, m - 1, d)))
+      .filter((p) => p.type !== "era")
+      .map((p) => p.value)
+      .join("")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  return {
+    digits,
+    number: formatNumber,
+    compact: (value: number) => compactFormat.format(value),
+    measure,
+    date: formatDate,
+    dateIn,
+    cell,
+    list: (items: string[]) => items.join(sep),
+    numberLocale,
+  };
 }
 
 export type Format = ReturnType<typeof makeFormat>;
