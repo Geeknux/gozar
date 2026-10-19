@@ -27,7 +27,17 @@ class Command(BaseCommand):
     def handle(self, *args, burst, sleep, max_jobs, keep_days, **options):
         done = 0
         last_purge: float | None = None
+        last_recovery: float | None = None
         while True:
+            # Requeue (or fail) jobs whose worker died, about once per lease period.
+            if last_recovery is None or time.monotonic() - last_recovery > jobs.lease_seconds():
+                recovered = jobs.recover_stale()
+                if any(recovered.values()):
+                    self.stdout.write(
+                        f"Stale jobs: {recovered['requeued']} requeued, "
+                        f"{recovered['failed']} failed."
+                    )
+                last_recovery = time.monotonic()
             if keep_days and (last_purge is None or time.monotonic() - last_purge > 3600):
                 purged = jobs.purge(dt.timedelta(days=keep_days))
                 if purged:

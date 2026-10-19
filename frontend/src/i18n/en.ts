@@ -62,6 +62,7 @@ export const en = {
   "form.deleteTitle": "Delete “{label}”",
   "form.passwordPlaceholder": "Type to change; leave blank to keep",
   "form.addItem": "+ Add…",
+  "form.hiddenLinks": "+ {count} linked records you can't see (kept when you save)",
 
   "relation.choose": "Choose…",
   "relation.clear": "— Clear —",

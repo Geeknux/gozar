@@ -35,6 +35,12 @@ export default function Login({ onLogin, onLanguage }: Props) {
       await api("/auth/csrf");
       await api("/auth/login", { method: "POST", body: { username, password } });
       await onLogin();
+      // ?next= comes from server pages outside the SPA (e.g. the API docs): a full load.
+      const next = new URLSearchParams(location.search).get("next");
+      if (next && next.startsWith("/") && !next.startsWith("//")) {
+        window.location.assign(next);
+        return;
+      }
       const from = (location.state as { from?: string } | null)?.from;
       navigate(from && from !== "/login" ? from : "/", { replace: true });
     } catch (err) {

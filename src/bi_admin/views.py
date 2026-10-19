@@ -37,7 +37,8 @@ def spa_assets() -> dict | None:
 
 @ensure_csrf_cookie
 def spa(request, path: str = ""):
-    base = reverse("bi_admin:spa")
+    match = request.resolver_match  # the instance namespace this mount resolved under
+    base = reverse(f"{match.namespace}:spa" if match and match.namespace else "bi_admin:spa")
     prefs = preferences.get(request)
     language = getattr(request, "LANGUAGE_CODE", None) or prefs.language
     if language not in preferences.LANGUAGES:

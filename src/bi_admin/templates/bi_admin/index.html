@@ -1,9 +1,10 @@
-{% load i18n %}<!doctype html>
+{% load i18n static %}<!doctype html>
 <html lang="{{ config.language }}" dir="{{ dir }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% translate "Gozar" %}</title>
+  <link rel="icon" type="image/svg+xml" href="{% static 'bi_admin/favicon.svg' %}">
   {% if assets %}{% for css in assets.css %}<link rel="stylesheet" href="{{ css }}">{% endfor %}{% endif %}
   {{ config|json_script:"gozar-config" }}
 </head>

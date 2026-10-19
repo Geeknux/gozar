@@ -1,3 +1,5 @@
+from django.utils.encoding import force_str
+from django.utils.text import capfirst
 from django.utils.translation import gettext as _
 from ninja import Router
 
@@ -37,6 +39,26 @@ def model_detail(request, app_label: str, model_name: str):
     info = opts.info.as_dict()
     hidden = set(opts.exclude)
     info["fields"] = [f for f in info["fields"] if f["name"] not in hidden]
+    for name in opts.reverse_relations():  # read-only lists of related rows
+        rel = opts.model._meta.get_field(name)
+        target = rel.related_model._meta
+        info["fields"].append(
+            {
+                "name": name,
+                "verbose_name": capfirst(force_str(target.verbose_name_plural)),
+                "kind": "o2o" if rel.one_to_one else "m2m",
+                "primary_key": False,
+                "editable": False,
+                "null": True,
+                "blank": True,
+                "required": False,
+                "max_length": None,
+                "decimal_places": None,
+                "help_text": "",
+                "choices": None,
+                "related_model": f"{target.app_label}.{target.model_name}",
+            }
+        )
     for f in info["fields"]:
         if f["name"] in opts.password_fields:
             f["kind"] = "password"

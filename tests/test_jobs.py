@@ -202,3 +202,97 @@ def test_custom_backends(admin_client, orders, report_api, gozar):
     gozar(JOB_BACKEND="bi_admin.execution.jobs.JobBackend")
     with pytest.raises(NotImplementedError):
         report_api(admin_client, "run", SPEC, mode="async")
+
+
+# --- leases: a dead worker's job is requeued, then failed ----------------------------
+
+
+def stale(job_id, seconds=3600):
+    """Pretend the worker running ``job_id`` stopped heart-beating ``seconds`` ago."""
+    ReportJob.objects.filter(pk=job_id).update(
+        heartbeat_at=timezone.now() - dt.timedelta(seconds=seconds)
+    )
+
+
+def test_claim_takes_a_lease(admin_client, orders, report_api):
+    job_id = submit(admin_client, report_api)["id"]
+    job = jobs.claim(job_id)
+    assert job.lease and job.heartbeat_at and job.attempts == 1
+    assert jobs.beat(job) is True
+
+
+def test_a_dead_workers_job_is_requeued_and_rerun(admin_client, orders, report_api):
+    job_id = submit(admin_client, report_api, cache="false")["id"]
+    dead = jobs.claim(job_id)  # this worker "dies": the job stays running
+    assert jobs.recover_stale() == {"requeued": 0, "failed": 0}  # the lease is fresh
+    stale(job_id)
+    assert jobs.recover_stale() == {"requeued": 1, "failed": 0}
+    status = admin_client.get(f"{API}/jobs/{job_id}").json()
+    assert (status["status"], status["attempts"]) == ("queued", 1)
+    out = worker()
+    assert "Processed 1 job(s)." in out
+    status = admin_client.get(f"{API}/jobs/{job_id}").json()
+    assert (status["status"], status["attempts"]) == ("done", 2)
+    # the presumed-dead worker comes back: its lease is gone, it can't touch the job
+    assert jobs.beat(dead) is False
+    revived = jobs.run_job(dead, heartbeat=False)
+    assert revived.status == "done" and revived.attempts == 2
+
+
+def test_the_worker_recovers_stale_jobs_itself(admin_client, orders, report_api):
+    job_id = submit(admin_client, report_api)["id"]
+    jobs.claim(job_id)
+    stale(job_id)
+    out = worker()
+    assert "Stale jobs: 1 requeued, 0 failed." in out and "Processed 1 job(s)." in out
+    assert ReportJob.objects.get(pk=job_id).status == "done"
+
+
+def test_jobs_fail_after_the_last_attempt(admin_client, orders, report_api, gozar):
+    gozar(JOB_MAX_ATTEMPTS=2)
+    job_id = submit(admin_client, report_api)["id"]
+    for _attempt in range(2):
+        jobs.claim(job_id)
+        stale(job_id)
+        counts = jobs.recover_stale()
+    assert counts == {"requeued": 0, "failed": 1}
+    status = admin_client.get(f"{API}/jobs/{job_id}").json()
+    assert (status["status"], status["attempts"], status["error"]["code"]) == (
+        "failed",
+        2,
+        "worker_lost",
+    )
+    resp = admin_client.get(f"{API}/jobs/{job_id}/result")
+    assert resp.status_code == 500 and resp.json()["code"] == "worker_lost"
+    assert "Processed 0 job(s)." in worker()
+
+
+def test_lease_length_is_configurable(admin_client, orders, report_api, gozar):
+    job_id = submit(admin_client, report_api)["id"]
+    jobs.claim(job_id)
+    stale(job_id, seconds=30)
+    assert jobs.recover_stale()["requeued"] == 0  # default lease: 60 s
+    gozar(JOB_LEASE_SECONDS=10)
+    assert jobs.recover_stale()["requeued"] == 1
+
+
+def test_heartbeat_thread_beats_until_stopped():
+    import time
+
+    calls = []
+    job = ReportJob(lease="x")
+    with jobs.Heartbeat(job, 0.01, beat=lambda j: calls.append(j) or True):
+        time.sleep(0.1)
+    count = len(calls)
+    assert count >= 3
+    time.sleep(0.05)
+    assert len(calls) == count  # stopped
+
+
+def test_heartbeat_stops_when_the_lease_is_lost():
+    import time
+
+    calls = []
+    with jobs.Heartbeat(ReportJob(lease="x"), 0.01, beat=lambda j: calls.append(j) and False):
+        time.sleep(0.1)
+    assert len(calls) == 1

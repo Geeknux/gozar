@@ -138,7 +138,20 @@ class ModelOptions:
             for n in self.get_fields()
             if n in info.fields and (not info.fields[n].editable or info.fields[n].kind == "file")
         ]
+        auto += self.reverse_relations()  # listed for reading only
         return list(dict.fromkeys([*self.readonly_fields, *auto]))
+
+    def reverse_relations(self) -> list[str]:
+        """Names in ``fields`` that are reverse relations (``orders`` on Customer)."""
+        out = []
+        for name in self.fields or []:
+            try:
+                f = self.model._meta.get_field(name)
+            except Exception:
+                continue
+            if f.is_relation and f.auto_created and not f.concrete:
+                out.append(name)
+        return out
 
     def get_form_fields(self) -> list[str]:
         ro = set(self.get_readonly_fields()) | set(self.password_fields)

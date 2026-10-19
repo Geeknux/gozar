@@ -677,8 +677,8 @@ Decided (M4 — access control & execution, 2026-10-19):
   the scope is rolled back with `403 out_of_scope`. A delete whose cascade would
   reach rows outside the user's scope is refused (`out_of_scope` in the plan,
   `409` on delete); protected-object samples never name hidden rows. `validate`
-  touches no rows, so only visibility applies there. Known gap: M2M values on a
-  detail page still list every linked object.
+  touches no rows, so only visibility applies there. *(The M2M gap noted here
+  was closed in the bug-fix round below.)*
 - **Semantic visibility**: `Dimension`/`Measure` take `permission=` — a
   permission name, a list (all required) or a predicate on the user (a failing
   predicate hides the item). `Semantic.is_visible(item, request)` is the hook;
@@ -777,8 +777,8 @@ Decided (M4 — access control & execution, 2026-10-19):
   (`JobRequest`) in their language, so permissions, visibility and rules are
   re-checked at execution time (a user who lost access gets a failed job with
   403). A job cancelled while running stays cancelled. Finished jobs older
-  than `--keep-days` are purged. Not handled yet: requeueing jobs of a worker
-  that died mid-run.
+  than `--keep-days` are purged. *(Leases for jobs of a dead worker: see the
+  bug-fix round below.)*
 - SPA: the report page handles `202` by showing the job state with **Cancel**
   and polling (0.5 s backing off to 3 s, stopped when the spec changes); the
   finished result shows "Background job" and exports from the job. The results
@@ -793,6 +793,58 @@ Decided (M4 — access control & execution, 2026-10-19):
   everything plus *Refunds* and the audit log. `seed_demo` always (re)creates
   the groups and their permissions; `--users [--password]` creates `admin`,
   `manager`, `tehran` and `east`.
+
+Decided (bug-fix round before manual testing, 2026-10-19):
+
+- **API docs** (`bi_admin.api.docs`): django-ninja reverses
+  `"<urls_namespace>:openapi-json"` / `":api-root"`, which don't exist once
+  `bi_admin.urls` (`app_name = "bi_admin"`) nests the API as
+  `bi_admin:bi_admin_api` — `/api/docs` was a 500. `GozarAPI.get_root_path`
+  and `GozarSwagger.get_openapi_url` now reverse through the namespace the
+  request actually resolved under (`resolver_match.namespace`, held in a
+  context variable by the docs decorator), so the docs work under the default
+  mount, a custom instance namespace and nested project namespaces; the SPA
+  shell's `basePath`/`apiBase` use the resolved namespace the same way. Access:
+  `GOZAR["API_DOCS"] = "staff"` (default; like the rest of the API — anonymous
+  visitors of the page are redirected to the SPA login with `?next=`, which the
+  login page follows for same-origin paths; `openapi.json` answers 401, non-staff
+  403) or `"public"`. The Swagger page is Gozar's own template
+  (`bi_admin/api_docs.html`: ninja's CDN page with Gozar's favicon — ninja's
+  favicon is hot-linked from its website and blocked by browsers) and always
+  sends the CSRF token, so "Try it out" works with the session.
+- **Related rows in serialized objects**: detail payloads (and create/update
+  responses) list only M2M links the user may see — the target model's
+  `get_queryset` + row rules — and report the rest as `hidden_links: {field:
+  count}` (the form says "+N linked records you can't see (kept when you
+  save)"); the count is the one thing revealed, as with delete plans. Saving
+  keeps hidden links: a submitted M2M list replaces the visible ones and the
+  hidden ones are added back, so the SPA (which sends every field) never drops
+  them; a hidden row that isn't linked yet still can't be added. A forward FK
+  to a hidden row is a `restricted` ref (`{"pk", "model", "label":
+  "Restricted", "restricted": true}`) that round-trips unchanged on save. List
+  and drill-down cells read through a hidden related row (`customer`,
+  `customer__city__name`, …) are restricted too, checked per to-one hop with one
+  query per (column, ruled model) per page (`service.serialize_rows`). Reverse
+  relations can now be listed in `ModelOptions.fields` (e.g. `"orders"` on
+  Customer): read-only, scoped the same way, at most 100 shown, described in the
+  model metadata as a read-only `m2m` field.
+- **Job leases**: `ReportJob` gained `lease` (a random token per claim),
+  `heartbeat_at` and `attempts`. `claim()` stamps all three; while a job runs, a
+  daemon thread (`jobs.Heartbeat`, every third of `JOB_LEASE_SECONDS` = 60)
+  refreshes the heartbeat and stops once the lease is no longer its own.
+  `jobs.recover_stale()` — run by `gozar_worker` at start and then once per
+  lease period — requeues running jobs whose heartbeat is older than the lease,
+  until `JOB_MAX_ATTEMPTS` (3), then marks them failed with `500 worker_lost`
+  (and `attempts`). Every update (heartbeat, outcome, recovery) is conditional
+  on the lease token, so a worker presumed dead that comes back can't overwrite
+  a later attempt. `ImmediateBackend` runs without a heartbeat (it's inside the
+  request); `execute(job_id)` — what a custom Celery/RQ backend calls — keeps it.
+  The job payload includes `attempts`.
+- **Favicon**: `bi_admin/static/bi_admin/favicon.svg`, linked from the SPA shell
+  and the docs page. A browser smoke test (all pages, every CRUD list and a
+  detail page, the reports page with a drill-down, the docs, settings and the
+  audit page, for `admin`, `manager`, `tehran` and `east`) finished without
+  console errors, failed requests or HTTP errors.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

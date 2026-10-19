@@ -182,14 +182,13 @@ def _drilldown(entry, spec, cell, measure, request, page, page_size, today) -> d
             raise ReportError(
                 404, "page_not_found", _("Page %(page)s does not exist") % {"page": page}
             ) from None
-        rows = [
-            {
-                "pk": service.json_value(obj.pk),
-                "label": force_str(obj),
-                "cells": [service.cell_value(options, c, obj) for c in cols] if options else [],
-            }
-            for obj in current.object_list
-        ]
+        if options is not None:
+            rows = service.serialize_rows(options, request, cols, current.object_list)
+        else:
+            rows = [
+                {"pk": service.json_value(o.pk), "label": force_str(o), "cells": []}
+                for o in current.object_list
+            ]
     entry.row_count = paginator.count
     return {
         "model": label,

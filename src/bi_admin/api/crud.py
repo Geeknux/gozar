@@ -33,7 +33,7 @@ def list_objects(request, app_label: str, model_name: str):
 def create_object(request, app_label: str, model_name: str):
     opts = _opts(app_label, model_name)
     obj = service.save_object(opts, request, _body(request))
-    return Status(201, service.serialize_object(opts, obj))
+    return Status(201, service.serialize_object(opts, obj, request))
 
 
 @router.get("/{app_label}/{model_name}/new")
@@ -41,7 +41,7 @@ def new_object(request, app_label: str, model_name: str):
     """Default values for an empty create form."""
     opts = _opts(app_label, model_name)
     service.require(opts, request, "add")
-    return service.serialize_object(opts, opts.model())
+    return service.serialize_object(opts, opts.model(), request)
 
 
 @router.get("/{app_label}/{model_name}/autocomplete")
@@ -67,7 +67,7 @@ def bulk_delete_plan(request, app_label: str, model_name: str):
 def get_object(request, app_label: str, model_name: str, pk: str):
     opts = _opts(app_label, model_name)
     service.require(opts, request, "view")
-    return service.serialize_object(opts, service.get_object(opts, request, pk))
+    return service.serialize_object(opts, service.get_object(opts, request, pk), request)
 
 
 @router.patch("/{app_label}/{model_name}/{pk}")
@@ -76,7 +76,7 @@ def update_object(request, app_label: str, model_name: str, pk: str):
     service.require(opts, request, "change")
     obj = service.get_object(opts, request, pk)
     obj = service.save_object(opts, request, _body(request), obj, partial=True)
-    return service.serialize_object(opts, obj)
+    return service.serialize_object(opts, obj, request)
 
 
 @router.put("/{app_label}/{model_name}/{pk}")
@@ -85,7 +85,7 @@ def replace_object(request, app_label: str, model_name: str, pk: str):
     service.require(opts, request, "change")
     obj = service.get_object(opts, request, pk)
     obj = service.save_object(opts, request, _body(request), obj, partial=False)
-    return service.serialize_object(opts, obj)
+    return service.serialize_object(opts, obj, request)
 
 
 @router.get("/{app_label}/{model_name}/{pk}/delete-plan")

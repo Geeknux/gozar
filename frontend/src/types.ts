@@ -79,7 +79,12 @@ export type ListResponse = {
   num_pages: number;
 };
 
-export type ObjectData = { pk: string | number | null; label: string; values: Record<string, unknown> };
+export type ObjectData = {
+  pk: string | number | null;
+  label: string;
+  values: Record<string, unknown>;
+  hidden_links?: Record<string, number>; // linked rows outside the user's scope (kept on save)
+};
 
 export type DeletePlan = {
   deletable: boolean;

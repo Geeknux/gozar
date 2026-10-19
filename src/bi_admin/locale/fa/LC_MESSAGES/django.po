@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Gozar (bi_admin)\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 18:14+0330\n"
+"POT-Creation-Date: 2026-10-19 18:45+0330\n"
 "PO-Revision-Date: 2026-10-18 23:40+0330\n"
 "Last-Translator: Gozar contributors\n"
 "Language-Team: Persian\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Permission denied: view the report audit log"
 msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش ممیزی اجرای گزارش‌ها"
 
-#: api/audit.py:80 crud/service.py:466 engine/drilldown.py:183
+#: api/audit.py:80 crud/service.py:518 engine/drilldown.py:183
 #, python-format
 msgid "Page %(page)s does not exist"
 msgstr "صفحهٔ %(page)s وجود ندارد"
@@ -36,15 +36,19 @@ msgstr "نام کاربری یا گذرواژه نادرست است، یا حس�
 msgid "Invalid JSON body"
 msgstr "بدنهٔ JSON نامعتبر است"
 
-#: api/meta.py:87
+#: api/docs.py:63
+msgid "Staff access is required."
+msgstr "دسترسی کارمندی لازم است."
+
+#: api/meta.py:109
 msgid "Unknown model"
 msgstr "مدل ناشناخته"
 
-#: api/preferences.py:29 crud/service.py:603
+#: api/preferences.py:29 crud/service.py:712
 msgid "Request body must be a JSON object"
 msgstr "بدنهٔ درخواست باید یک شیء JSON باشد"
 
-#: api/preferences.py:33 crud/service.py:631
+#: api/preferences.py:33 crud/service.py:742
 msgid "Validation failed"
 msgstr "اعتبارسنجی ناموفق بود"
 
@@ -52,7 +56,7 @@ msgstr "اعتبارسنجی ناموفق بود"
 msgid "Report job not found"
 msgstr "کار گزارش پیدا نشد"
 
-#: api/reports.py:147 execution/jobs.py:144
+#: api/reports.py:147 execution/jobs.py:245
 msgid "The report failed."
 msgstr "اجرای گزارش ناموفق بود."
 
@@ -89,7 +93,7 @@ msgstr "«past» به عدد نیاز دارد، مثلاً past_3_%(unit)ss"
 msgid "Count must be between 1 and %(max)s: %(name)r"
 msgstr "عدد باید بین ۱ و %(max)s باشد: %(name)r"
 
-#: crud/options.py:150
+#: crud/options.py:163
 msgid "Delete selected"
 msgstr "حذف موارد انتخاب‌شده"
 
@@ -108,88 +112,92 @@ msgstr "دسترسی مجاز نیست: %(perm)s %(model)s"
 msgid "list_display entry %(name)r is not a field or callable"
 msgstr "مورد %(name)r در list_display نه فیلد است نه تابع"
 
-#: crud/service.py:304
+#: crud/service.py:356
 #, python-format
 msgid "Filtering on %(key)r is not allowed"
 msgstr "فیلتر روی %(key)r مجاز نیست"
 
-#: crud/service.py:313
+#: crud/service.py:365
 #, python-format
 msgid "Invalid boolean %(value)r"
 msgstr "مقدار بولی نامعتبر: %(value)r"
 
-#: crud/service.py:323
+#: crud/service.py:375
 #, python-format
 msgid "Invalid number %(value)r"
 msgstr "عدد نامعتبر: %(value)r"
 
-#: crud/service.py:328
+#: crud/service.py:380
 #, python-format
 msgid "Invalid date %(value)r"
 msgstr "تاریخ نامعتبر: %(value)r"
 
-#: crud/service.py:339
+#: crud/service.py:391
 #, python-format
 msgid "Invalid value %(value)r for %(field)s"
 msgstr "مقدار %(value)r برای %(field)s نامعتبر است"
 
-#: crud/service.py:420
+#: crud/service.py:472
 #, python-format
 msgid "Ordering by %(field)r is not allowed"
 msgstr "مرتب‌سازی بر اساس %(field)r مجاز نیست"
 
-#: crud/service.py:460
+#: crud/service.py:512
 msgid "page and page_size must be integers"
 msgstr "page و page_size باید عدد صحیح باشند"
 
-#: crud/service.py:498 crud/service.py:501
+#: crud/service.py:543 crud/service.py:546
 msgid "Not found"
 msgstr "پیدا نشد"
 
-#: crud/service.py:610
+#: crud/service.py:556
+msgid "Restricted"
+msgstr "محدود شده"
+
+#: crud/service.py:719
 msgid "Unknown or read-only fields"
 msgstr "فیلدهای ناشناخته یا فقط‌خواندنی"
 
-#: crud/service.py:611
+#: crud/service.py:720
 msgid "This field cannot be edited."
 msgstr "این فیلد قابل ویرایش نیست."
 
-#: crud/service.py:648
+#: crud/service.py:759
 msgid "You can't save a record outside your access scope."
 msgstr "نمی‌توانید رکوردی خارج از محدودهٔ دسترسی خود ذخیره کنید."
 
-#: crud/service.py:756
+#: crud/service.py:867
 msgid "Cannot delete"
 msgstr "حذف ممکن نیست"
 
-#: crud/service.py:775
+#: crud/service.py:886
 #, python-format
 msgid "Unknown action %(name)r"
 msgstr "عملیات ناشناخته: %(name)r"
 
-#: crud/service.py:779
+#: crud/service.py:890
 msgid "Select at least one row"
 msgstr "دست‌کم یک ردیف انتخاب کنید"
 
-#: crud/service.py:784 crud/service.py:797
+#: crud/service.py:895 crud/service.py:908
 msgid "Invalid primary key in selection"
 msgstr "کلید اصلی نامعتبر در موارد انتخاب‌شده"
 
-#: crud/service.py:808
+#: crud/service.py:919
 msgid "Permission denied"
 msgstr "دسترسی مجاز نیست"
 
-#: crud/service.py:812
+#: crud/service.py:923
 #, python-format
 msgid "%(field)r is not a relation field of %(model)s"
 msgstr "%(field)r فیلد رابطه‌ای %(model)s نیست"
 
-#: crud/service.py:818
+#: crud/service.py:929
 #, python-format
 msgid "Unknown field %(field)r"
 msgstr "فیلد ناشناخته: %(field)r"
 
-#: crud/service.py:824
+#: crud/service.py:935
 #, python-format
 msgid "%(field)r is not a relation field"
 msgstr "%(field)r فیلد رابطه‌ای نیست"
@@ -362,6 +370,10 @@ msgstr "limit باید دست‌کم ۱ باشد"
 msgid "limit may not exceed %(max)s"
 msgstr "limit نمی‌تواند از %(max)s بیشتر باشد"
 
+#: execution/jobs.py:202
+msgid "The report job was lost: its worker stopped responding."
+msgstr "کار گزارش از دست رفت: پردازشگر آن دیگر پاسخ نمی‌دهد."
+
 #: execution/limits.py:34
 #, python-format
 msgid "The report took longer than %(seconds)s seconds and was stopped."
@@ -379,11 +391,11 @@ msgstr "ویرایش"
 msgid "Deletion"
 msgstr "حذف"
 
-#: models.py:16 models.py:186
+#: models.py:16 models.py:191
 msgid "time"
 msgstr "زمان"
 
-#: models.py:23 models.py:106 models.py:142 models.py:193
+#: models.py:23 models.py:106 models.py:142 models.py:198
 msgid "user"
 msgstr "کاربر"
 
@@ -559,7 +571,7 @@ msgstr "در حال اجرا"
 msgid "Done"
 msgstr "انجام شد"
 
-#: models.py:132 models.py:184
+#: models.py:132 models.py:189
 msgid "Failed"
 msgstr "ناموفق"
 
@@ -567,11 +579,11 @@ msgstr "ناموفق"
 msgid "Cancelled"
 msgstr "لغو شده"
 
-#: models.py:144 models.py:197
+#: models.py:144 models.py:202
 msgid "semantic model"
 msgstr "مدل معنایی"
 
-#: models.py:145 models.py:198
+#: models.py:145 models.py:203
 msgid "report spec"
 msgstr "مشخصات گزارش"
 
@@ -579,7 +591,7 @@ msgstr "مشخصات گزارش"
 msgid "options"
 msgstr "گزینه‌ها"
 
-#: models.py:148 models.py:200
+#: models.py:148 models.py:205
 msgid "status"
 msgstr "وضعیت"
 
@@ -595,91 +607,103 @@ msgstr "زمان شروع"
 msgid "finished at"
 msgstr "زمان پایان"
 
-#: models.py:153
+#: models.py:155
+msgid "lease"
+msgstr "اجاره"
+
+#: models.py:156
+msgid "heartbeat"
+msgstr "آخرین نشانهٔ حیات"
+
+#: models.py:157
+msgid "attempts"
+msgstr "تعداد تلاش"
+
+#: models.py:158
 msgid "result"
 msgstr "نتیجه"
 
-#: models.py:154 models.py:202
+#: models.py:159 models.py:207
 msgid "error"
 msgstr "خطا"
 
-#: models.py:155
+#: models.py:160
 msgid "error status"
 msgstr "کد وضعیت خطا"
 
-#: models.py:158
+#: models.py:163
 msgid "report job"
 msgstr "کار گزارش"
 
-#: models.py:159
+#: models.py:164
 msgid "report jobs"
 msgstr "کارهای گزارش"
 
-#: models.py:176
+#: models.py:181
 msgid "Run"
 msgstr "اجرا"
 
-#: models.py:177
+#: models.py:182
 msgid "Export"
 msgstr "خروجی"
 
-#: models.py:178
+#: models.py:183
 msgid "Drill-down"
 msgstr "جزئیات"
 
-#: models.py:181
+#: models.py:186
 msgid "Succeeded"
 msgstr "موفق"
 
-#: models.py:182
+#: models.py:187
 msgid "Invalid spec"
 msgstr "مشخصات نامعتبر"
 
-#: models.py:183
+#: models.py:188
 msgid "Denied"
 msgstr "رد شده"
 
-#: models.py:195
+#: models.py:200
 msgid "username"
 msgstr "نام کاربری"
 
-#: models.py:196
+#: models.py:201
 msgid "kind"
 msgstr "نوع"
 
-#: models.py:199
+#: models.py:204
 msgid "row-level scope"
 msgstr "محدودهٔ سطرها"
 
-#: models.py:201
+#: models.py:206
 msgid "error code"
 msgstr "کد خطا"
 
-#: models.py:203
+#: models.py:208
 msgid "duration (ms)"
 msgstr "مدت (میلی‌ثانیه)"
 
-#: models.py:204
+#: models.py:209
 msgid "rows"
 msgstr "تعداد سطر"
 
-#: models.py:205
+#: models.py:210
 msgid "served from cache"
 msgstr "از حافظهٔ نهان"
 
-#: models.py:206
+#: models.py:211
 msgid "database"
 msgstr "پایگاه داده"
 
-#: models.py:213
+#: models.py:218
 msgid "job"
 msgstr "کار"
 
-#: models.py:217
+#: models.py:222
 msgid "report log entry"
 msgstr "رکورد ممیزی گزارش"
 
-#: models.py:218
+#: models.py:223
 msgid "report log entries"
 msgstr "رکوردهای ممیزی گزارش"
 
@@ -696,17 +720,17 @@ msgstr "یکی از این‌ها را انتخاب کنید: %(choices)s."
 msgid "Must be an object."
 msgstr "باید یک شیء باشد."
 
-#: templates/bi_admin/index.html:6 templates/bi_admin/index.html:26
+#: templates/bi_admin/index.html:6 templates/bi_admin/index.html:27
 msgid "Gozar"
 msgstr "گذر"
 
-#: templates/bi_admin/index.html:27
+#: templates/bi_admin/index.html:28
 msgid ""
 "The user interface has not been built yet. Run these commands in the "
 "frontend folder:"
 msgstr ""
 "رابط کاربری هنوز ساخته نشده است. در پوشهٔ frontend این دستورها را اجرا کنید:"
 
-#: templates/bi_admin/index.html:30
+#: templates/bi_admin/index.html:31
 msgid "The API is available at:"
 msgstr "API در این مسیر در دسترس است:"

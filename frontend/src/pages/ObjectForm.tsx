@@ -219,6 +219,9 @@ export default function ObjectForm() {
                 ) : (
                   <FieldInput field={field} model={label} value={values[name]} onChange={(v) => set(name, v)} isNew={isNew} />
                 )}
+                {obj.hidden_links?.[name] ? (
+                  <small className="help">{t("form.hiddenLinks", { count: obj.hidden_links[name] })}</small>
+                ) : null}
                 {field.help_text && <small className="help">{field.help_text}</small>}
                 {errors[name]?.map((m) => (
                   <small key={m} className="field-error">

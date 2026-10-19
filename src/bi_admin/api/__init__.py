@@ -1,11 +1,10 @@
 """JSON API (django-ninja), mounted at ``<prefix>/api/``."""
 
-from ninja import NinjaAPI
-
 import bi_admin
 from bi_admin.api.audit import router as audit_router
 from bi_admin.api.auth import router as auth_router
 from bi_admin.api.crud import router as crud_router
+from bi_admin.api.docs import GozarAPI, GozarSwagger, docs_access
 from bi_admin.api.meta import router as meta_router
 from bi_admin.api.preferences import router as preferences_router
 from bi_admin.api.reports import router as reports_router
@@ -13,11 +12,13 @@ from bi_admin.api.security import staff_auth
 from bi_admin.crud.service import CrudError
 from bi_admin.engine import ReportError, SpecValidationError
 
-api = NinjaAPI(
+api = GozarAPI(
     title="Gozar",
     version=bi_admin.__version__,
     urls_namespace="bi_admin_api",
     auth=staff_auth,
+    docs=GozarSwagger(),
+    docs_decorator=docs_access,  # staff only unless GOZAR["API_DOCS"] = "public"
 )
 
 

@@ -189,7 +189,9 @@ class CustomerOptions(ModelOptions):
 Rules are AND-ed and applied in the engine and the CRUD service, so every path
 honours them: report run, drill-down, export, filter value pickers, background
 jobs, CRUD list/filters/detail/history, autocomplete and relation fields,
-actions and delete plans. Saving a row so it would fall outside the user's scope
+actions and delete plans. Related rows outside the scope never show either: M2M
+lists leave them out (saving keeps those hidden links), a hidden FK target and
+list cells read through one show as *Restricted*. Saving a row so it would fall outside the user's scope
 is refused (`403 out_of_scope`), and a delete that would cascade into rows they
 can't see is blocked. Superusers bypass rules (`ROW_RULES_BYPASS_SUPERUSER`). A
 rule that raises denies every row. The demo (`shop/gozar.py`) limits the
@@ -231,7 +233,10 @@ status, error code and cache hit. Users with `bi_admin.view_reportlog` get
   /api/reports/run?mode=async`, the API answers `202 {"job": …}` and the SPA
   polls `GET /api/reports/jobs/<id>` (then `/result`, `/export`, `/cancel`).
   The default `DatabaseBackend` stores jobs in `bi_admin.ReportJob`; run
-  `manage.py gozar_worker` (`--burst` to drain the queue and exit). Plug in
+  `manage.py gozar_worker` (`--burst` to drain the queue and exit). Running jobs
+  hold a lease kept alive by a heartbeat; if a worker dies, its job is requeued
+  after `JOB_LEASE_SECONDS` (60) and failed (`worker_lost`) after
+  `JOB_MAX_ATTEMPTS` (3). Plug in
   another `JOB_BACKEND` (e.g. one that enqueues a Celery task calling
   `bi_admin.execution.jobs.execute(job_id)`).
 
@@ -241,10 +246,15 @@ Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [.
 "ROW_RULES_BYPASS_SUPERUSER": True, "AUDIT_REPORTS": True, "REPORT_MAX_ROWS": 10000,
 "REPORT_MAX_DIMENSIONS": 6, "REPORT_MAX_FILTERS": 20, "REPORT_STATEMENT_TIMEOUT_MS": 30000,
 "REPORTS_DATABASE": None, "REPORT_CACHE": "default", "REPORT_CACHE_TIMEOUT": 300,
-"REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend"}`.
+"REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend",
+"JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff"}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
-`/gozar/api/docs`.
+`/gozar/api/docs` (Swagger UI; schema at `/gozar/api/openapi.json`). The docs are
+for staff only by default — anonymous visitors are sent to the login first; set
+`GOZAR["API_DOCS"] = "public"` to open them. They work wherever you mount
+`bi_admin.urls`, including under your own instance namespace
+(`include("bi_admin.urls", namespace="reports")`).
 
 ## Layout
 

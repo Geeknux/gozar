@@ -64,6 +64,7 @@ export const fa: Record<MessageKey, string> = {
   "form.deleteTitle": "حذف «{label}»",
   "form.passwordPlaceholder": "برای تغییر وارد کنید؛ خالی یعنی بدون تغییر",
   "form.addItem": "+ افزودن…",
+  "form.hiddenLinks": "+ {count} رکورد مرتبط که به آن دسترسی ندارید (هنگام ذخیره حفظ می‌شود)",
 
   "relation.choose": "انتخاب کنید…",
   "relation.clear": "— پاک کردن —",

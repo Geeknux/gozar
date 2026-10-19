@@ -26,7 +26,7 @@ from django.utils.translation import gettext as _
 
 from bi_admin.access.rules import model_filter, model_queryset, target_queryset
 from bi_admin.crud.options import ModelOptions, site
-from bi_admin.discovery import get_registry, model_label
+from bi_admin.discovery import PathStep, get_registry, model_label
 from bi_admin.execution import cache
 from bi_admin.models import ChangeLog
 
@@ -251,6 +251,58 @@ def cell_value(options: ModelOptions, col: Column, obj: models.Model) -> Any:
     return json_value(value)
 
 
+def _hop_objects(obj: models.Model, steps) -> list[models.Model | None]:
+    """The related object reached after each to-one hop of a column path."""
+    out, current = [], obj
+    for step in steps:
+        current = getattr(current, step.relation, None) if current is not None else None
+        out.append(current)
+    return out
+
+
+def serialize_rows(options: ModelOptions, request, cols: list[Column], objs) -> list[dict]:
+    """List/drill-down rows. A cell read through a related row outside the user's
+    row-level scope (``customer``, ``customer__city__name`` …) is ``restricted``."""
+    objs = list(objs)
+    reg = get_registry()
+    hidden: dict[int, set] = {}  # column index → pks of rows whose cell is hidden
+    for i, col in enumerate(cols):
+        if not col.path:
+            continue
+        steps, finfo = reg.resolve_lookup(options.label, col.path)
+        if finfo.is_relation and finfo.kind in ("fk", "o2o"):  # the column shows that row
+            source = steps[-1].target if steps else options.label
+            steps = [*steps, PathStep(finfo.name, source, finfo.related_model, False)]
+        if not steps or any(s.many for s in steps):
+            continue
+        hops = {o.pk: _hop_objects(o, steps) for o in objs}
+        for depth, step in enumerate(steps):
+            if model_filter(step.target, request) is None:
+                continue
+            pks = {h[depth].pk for h in hops.values() if h[depth] is not None}
+            if not pks:
+                continue
+            allowed = set(
+                target_queryset(step.target, request)
+                .filter(pk__in=pks)
+                .values_list("pk", flat=True)
+            )
+            for row_pk, h in hops.items():
+                if h[depth] is not None and h[depth].pk not in allowed:
+                    hidden.setdefault(i, set()).add(row_pk)
+    return [
+        {
+            "pk": json_value(obj.pk),
+            "label": force_str(obj),
+            "cells": [
+                restricted_ref() if obj.pk in hidden.get(i, ()) else cell_value(options, c, obj)
+                for i, c in enumerate(cols)
+            ],
+        }
+        for obj in objs
+    ]
+
+
 # --- filters -----------------------------------------------------------------------
 
 
@@ -467,14 +519,7 @@ def list_objects(options: ModelOptions, request, params: dict[str, str]) -> dict
     if params.get("q") or any(k not in RESERVED_PARAMS for k in params):
         total_unfiltered = model_queryset(options, request).count()
 
-    rows = [
-        {
-            "pk": json_value(obj.pk),
-            "label": force_str(obj),
-            "cells": [cell_value(options, c, obj) for c in cols],
-        }
-        for obj in page.object_list
-    ]
+    rows = serialize_rows(options, request, cols, page.object_list)
     return {
         "model": options.label,
         "columns": [c.as_dict() for c in cols],
@@ -502,8 +547,30 @@ def get_object(options: ModelOptions, request, pk: str) -> models.Model:
     return obj
 
 
-def serialize_object(options: ModelOptions, obj: models.Model) -> dict[str, Any]:
+REVERSE_LIMIT = 100  # linked objects listed for a reverse relation in ``fields``
+
+
+def restricted_ref(obj: models.Model | None = None) -> dict[str, Any]:
+    """Stands in for a related row outside the user's row-level scope: its pk (so a
+    form can send it back unchanged) but never its label."""
+    out: dict[str, Any] = {"pk": None, "label": _("Restricted"), "restricted": True}
+    if obj is not None:
+        out.update(pk=json_value(obj.pk), model=model_label(type(obj)))
+    return out
+
+
+def _scoped_related(request, manager) -> models.QuerySet:
+    """``manager``'s rows that the user may see (the target's rules and get_queryset)."""
+    visible = target_queryset(model_label(manager.model), request).values("pk")
+    return manager.filter(pk__in=visible)
+
+
+def serialize_object(options: ModelOptions, obj: models.Model, request=None) -> dict[str, Any]:
+    """The detail payload. Related rows outside the user's scope never show:
+    M2M/reverse lists leave them out (``hidden_links`` counts them; saving keeps
+    them), a hidden FK target becomes a ``restricted`` ref without its label."""
     values: dict[str, Any] = {}
+    hidden_links: dict[str, int] = {}
     for name in options.get_fields():
         if name in options.password_fields:
             values[name] = None
@@ -514,14 +581,41 @@ def serialize_object(options: ModelOptions, obj: models.Model) -> dict[str, Any]
             value = getattr(obj, name, None)
             values[name] = json_value(value() if callable(value) else value)
             continue
-        if f.many_to_many:
-            values[name] = [obj_ref(o) for o in getattr(obj, name).all()] if obj.pk else []
-        elif f.is_relation:
-            has_value = getattr(obj, f.attname, None) is not None
-            values[name] = json_value(getattr(obj, name)) if has_value else None
+        if f.many_to_many or f.one_to_many:  # forward M2M, or a reverse relation
+            if obj.pk is None:
+                values[name] = []
+                continue
+            manager = getattr(obj, f.name if f.concrete else f.get_accessor_name())
+            linked = manager.all()
+            shown = _scoped_related(request, linked)
+            if f.concrete:
+                values[name] = [obj_ref(o) for o in shown]
+            else:
+                values[name] = [obj_ref(o) for o in shown[:REVERSE_LIMIT]]
+            hidden = linked.count() - shown.count()
+            if hidden:
+                hidden_links[name] = hidden
+        elif f.is_relation and f.concrete:
+            if getattr(obj, f.attname, None) is None:
+                values[name] = None
+                continue
+            target = getattr(obj, name)
+            visible = _scoped_related(request, type(target)._base_manager).filter(pk=target.pk)
+            values[name] = json_value(target) if visible.exists() else restricted_ref(target)
+        elif f.is_relation:  # reverse one-to-one
+            target = getattr(obj, f.get_accessor_name(), None) if obj.pk else None
+            if target is None:
+                values[name] = None
+            else:
+                visible = _scoped_related(request, type(target)._base_manager)
+                ok = visible.filter(pk=target.pk).exists()
+                values[name] = json_value(target) if ok else restricted_ref(target)
         else:
             values[name] = json_value(f.value_from_object(obj))
-    return {"pk": json_value(obj.pk), "label": force_str(obj), "values": values}
+    out = {"pk": json_value(obj.pk), "label": force_str(obj), "values": values}
+    if hidden_links:
+        out["hidden_links"] = hidden_links
+    return out
 
 
 # --- create / update ---------------------------------------------------------------
@@ -561,6 +655,21 @@ def _snapshot(options: ModelOptions, obj: models.Model) -> dict[str, Any]:
         else:
             out[name] = f.value_from_object(obj)
     return out
+
+
+def _keep_hidden_links(options: ModelOptions, request, obj: models.Model, payload) -> None:
+    """The form only shows the M2M links the user may see; a submitted list
+    replaces those, and the hidden ones are added back so they're never lost."""
+    for name in options.get_form_fields():
+        f = options.model._meta.get_field(name)
+        if not f.many_to_many or name not in payload or not isinstance(payload[name], list):
+            continue
+        linked = getattr(obj, name).all()
+        hidden_pks = set(linked.values_list("pk", flat=True)) - set(
+            _scoped_related(request, linked).values_list("pk", flat=True)
+        )
+        submitted = [str(v) for v in payload[name]]
+        payload[name] = payload[name] + [pk for pk in hidden_pks if str(pk) not in submitted]
 
 
 def _scope_relation_fields(form, request, obj: models.Model | None) -> None:
@@ -612,6 +721,8 @@ def save_object(
         )
 
     passwords = {p: payload.pop(p) for p in options.password_fields if p in payload}
+    if change:
+        _keep_hidden_links(options, request, obj, payload)
     before = _snapshot(options, obj) if change else {}
     data = _initial_data(options, obj) if (change and partial) else {}
     data.update(payload)

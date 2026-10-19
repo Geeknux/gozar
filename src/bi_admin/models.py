@@ -150,6 +150,11 @@ class ReportJob(models.Model):
     created_at = models.DateTimeField(_("created at"), auto_now_add=True, db_index=True)
     started_at = models.DateTimeField(_("started at"), null=True, blank=True)
     finished_at = models.DateTimeField(_("finished at"), null=True, blank=True)
+    # Lease: the claiming worker's token and its last heartbeat. A running job whose
+    # heartbeat is older than GOZAR["JOB_LEASE_SECONDS"] is requeued (or failed).
+    lease = models.CharField(_("lease"), max_length=64, blank=True)
+    heartbeat_at = models.DateTimeField(_("heartbeat"), null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(_("attempts"), default=0)
     result = models.JSONField(_("result"), null=True, blank=True)
     error = models.JSONField(_("error"), null=True, blank=True)
     error_status = models.PositiveSmallIntegerField(_("error status"), null=True, blank=True)

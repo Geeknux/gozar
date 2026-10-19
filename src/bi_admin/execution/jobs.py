@@ -17,15 +17,27 @@ API stores a job and returns ``202`` with its id; the SPA polls
 A job runs as the submitting user, with the language and calendar they had at
 submission: permissions, visibility and row rules are evaluated for them when
 the job executes, and the run is audited with a link to the job.
+
+Leases: claiming a job stamps a random lease token, ``attempts + 1`` and a
+heartbeat, which a background thread refreshes every third of
+``GOZAR["JOB_LEASE_SECONDS"]`` while the job runs. ``recover_stale()`` (run by
+``gozar_worker``) requeues running jobs whose heartbeat is older than the lease
+— their worker died — until ``GOZAR["JOB_MAX_ATTEMPTS"]``, then fails them with
+``worker_lost``. Every update is conditional on the lease token, so a worker
+presumed dead can never overwrite the outcome of a later attempt.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import logging
+import threading
+import uuid
+from collections.abc import Callable
 from typing import Any
 
-from django.db import DEFAULT_DB_ALIAS
+from django.db import DEFAULT_DB_ALIAS, connections
+from django.db.models import F
 from django.utils import timezone, translation
 from django.utils.module_loading import import_string
 from django.utils.translation import gettext as _
@@ -69,7 +81,9 @@ class ImmediateBackend(JobBackend):
     """Execute the job at once, in the submitting process."""
 
     def submit(self, job: ReportJob) -> None:
-        execute(job.pk)
+        claimed = claim(job.pk)
+        if claimed is not None:  # inside the request: no heartbeat thread needed
+            run_job(claimed, heartbeat=False)
 
 
 def get_backend() -> JobBackend:
@@ -101,6 +115,10 @@ def submit(spec, request, *, use_cache: bool = True) -> ReportJob:
     return job
 
 
+def lease_seconds() -> float:
+    return float(setting("JOB_LEASE_SECONDS") or 60)
+
+
 def claim(job_id=None) -> ReportJob | None:
     """Atomically move a queued job (the given one, else the oldest) to running.
     A conditional UPDATE, so concurrent workers never run a job twice."""
@@ -110,18 +128,98 @@ def claim(job_id=None) -> ReportJob | None:
     else:
         candidates = list(queued.order_by("created_at").values_list("pk", flat=True)[:20])
     for pk in candidates:
-        if queued.filter(pk=pk).update(status=Status.RUNNING, started_at=timezone.now()):
+        now = timezone.now()
+        claimed = queued.filter(pk=pk).update(
+            status=Status.RUNNING,
+            started_at=now,
+            heartbeat_at=now,
+            lease=uuid.uuid4().hex,
+            attempts=F("attempts") + 1,
+        )
+        if claimed:
             return ReportJob.objects.using(DEFAULT_DB_ALIAS).get(pk=pk)
     return None
 
 
+def beat(job: ReportJob) -> bool:
+    """Refresh the job's heartbeat; ``False`` once the lease is no longer ours."""
+    return bool(
+        ReportJob.objects.using(DEFAULT_DB_ALIAS)
+        .filter(pk=job.pk, status=Status.RUNNING, lease=job.lease)
+        .update(heartbeat_at=timezone.now())
+    )
+
+
+class Heartbeat:
+    """Calls ``beat()`` every ``interval`` seconds in a daemon thread until stopped."""
+
+    def __init__(self, job: ReportJob, interval: float, beat: Callable[[ReportJob], bool] = beat):
+        self.job, self.interval, self._beat = job, interval, beat
+        self._stop = threading.Event()
+        self._thread = threading.Thread(target=self._run, name=f"gozar-job-{job.pk}", daemon=True)
+
+    def _run(self) -> None:
+        try:
+            while not self._stop.wait(self.interval):
+                if not self._beat(self.job):
+                    break
+        except Exception:
+            logger.exception("Heartbeat for report job %s failed", self.job.pk)
+        finally:
+            connections.close_all()  # this thread's own connections
+
+    def __enter__(self):
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self._stop.set()
+        self._thread.join(timeout=self.interval)
+
+
+def recover_stale(now: dt.datetime | None = None) -> dict[str, int]:
+    """Requeue running jobs whose heartbeat is older than the lease (their worker
+    died), or fail them with ``worker_lost`` once they used up their attempts."""
+    now = now or timezone.now()
+    cutoff = now - dt.timedelta(seconds=lease_seconds())
+    max_attempts = int(setting("JOB_MAX_ATTEMPTS") or 1)
+    stale = ReportJob.objects.using(DEFAULT_DB_ALIAS).filter(
+        status=Status.RUNNING, heartbeat_at__lt=cutoff
+    )
+    counts = {"requeued": 0, "failed": 0}
+    for job in stale.only("pk", "lease", "attempts", "options"):
+        same = ReportJob.objects.using(DEFAULT_DB_ALIAS).filter(
+            pk=job.pk, status=Status.RUNNING, lease=job.lease
+        )
+        if job.attempts < max_attempts:
+            if same.update(status=Status.QUEUED, started_at=None, heartbeat_at=None, lease=""):
+                counts["requeued"] += 1
+                logger.warning("Requeued stale report job %s (attempt %s)", job.pk, job.attempts)
+            continue
+        language = (job.options or {}).get("language") or preferences.default_language()
+        with translation.override(language):
+            error = {
+                "detail": _("The report job was lost: its worker stopped responding."),
+                "code": "worker_lost",
+                "attempts": job.attempts,
+            }
+        if same.update(
+            status=Status.FAILED, finished_at=now, error=error, error_status=500, lease=""
+        ):
+            counts["failed"] += 1
+            logger.error("Report job %s failed after %s lost attempts", job.pk, job.attempts)
+    return counts
+
+
 def execute(job_id) -> ReportJob | None:
-    """Claim and run one job; ``None`` when it is no longer queued."""
+    """Claim and run one job; ``None`` when it is no longer queued. This is what a
+    custom backend's task runner (Celery, RQ…) calls."""
     job = claim(job_id)
     return run_job(job) if job is not None else None
 
 
-def run_job(job: ReportJob) -> ReportJob:
+def run_job(job: ReportJob, *, heartbeat: bool = True) -> ReportJob:
+    """Run a claimed job; with ``heartbeat`` its lease is kept fresh meanwhile."""
     from bi_admin.engine import ReportError, SpecValidationError, run
 
     options = job.options or {}
@@ -129,7 +227,10 @@ def run_job(job: ReportJob) -> ReportJob:
     calendar = options.get("calendar") or preferences.default_calendar()
     request = JobRequest(job.user, language, calendar)
     outcome: dict[str, Any] = {"status": Status.DONE}
+    pulse = Heartbeat(job, lease_seconds() / 3) if heartbeat else None
     with translation.override(language):
+        if pulse is not None:
+            pulse.__enter__()
         try:
             result = run(job.spec, request, use_cache=options.get("cache", True), job=job)
             outcome["result"] = result.as_dict()
@@ -144,8 +245,12 @@ def run_job(job: ReportJob) -> ReportJob:
                 error={"detail": _("The report failed."), "code": "internal_error"},
                 error_status=500,
             )
-    # A job cancelled while it ran stays cancelled.
-    ReportJob.objects.filter(pk=job.pk, status=Status.RUNNING).update(
+        finally:
+            if pulse is not None:
+                pulse.__exit__(None, None, None)
+    # Only while the lease is ours: a job cancelled meanwhile stays cancelled, and one
+    # requeued as stale belongs to its next attempt.
+    ReportJob.objects.filter(pk=job.pk, status=Status.RUNNING, lease=job.lease).update(
         finished_at=timezone.now(), **outcome
     )
     job.refresh_from_db()
@@ -184,4 +289,5 @@ def payload(job: ReportJob) -> dict[str, Any]:
         "finished_at": iso(job.finished_at),
         "error": job.error,
         "error_status": job.error_status,
+        "attempts": job.attempts,
     }
