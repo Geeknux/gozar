@@ -130,8 +130,12 @@ def person(user) -> dict[str, Any] | None:
 def sharing_payload(obj: Shared) -> dict[str, Any]:
     return {
         "visibility": obj.visibility,
-        "users": [person(u) for u in obj.shared_users.all()],
-        "groups": [{"id": g.pk, "name": g.name} for g in obj.shared_groups.all()],
+        # sorted in Python so a prefetch_related() cache is used
+        "users": [person(u) for u in sorted(obj.shared_users.all(), key=lambda u: u.username)],
+        "groups": [
+            {"id": g.pk, "name": g.name}
+            for g in sorted(obj.shared_groups.all(), key=lambda g: g.name)
+        ],
     }
 
 

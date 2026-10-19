@@ -87,7 +87,7 @@ def payload(s: Schedule, deliveries: bool = False) -> dict:
         "day_of_month": s.day_of_month,
         "calendar": s.calendar,
         "timezone": s.timezone,
-        "recipients": [sharing.person(u) for u in s.recipients.all()],
+        "recipients": [sharing.person(u) for u in s.recipients.order_by("username")],
         "attachment": s.attachment,
         "enabled": s.enabled,
         "next_run_at": s.next_run_at.isoformat() if s.next_run_at else None,

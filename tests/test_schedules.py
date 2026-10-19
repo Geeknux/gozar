@@ -379,7 +379,7 @@ def test_create_schedule_api(people, report):
     assert data["target"] == {"kind": "saved_report", "id": report.pk, "name": "Revenue by city"}
     assert data["timezone"] == "Asia/Tehran" and data["calendar"] == "gregorian"
     assert data["attachment"] == "xlsx" and data["next_run_at"]
-    assert [r["username"] for r in data["recipients"]] == ["tehran", "east"]
+    assert [r["username"] for r in data["recipients"]] == ["east", "tehran"]  # by name
     nxt = dt.datetime.fromisoformat(data["next_run_at"])
     assert nxt.astimezone(scheduling.zone("Asia/Tehran")).weekday() == 5
     # the owner's time-zone preference is the default
