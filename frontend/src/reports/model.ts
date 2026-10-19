@@ -76,6 +76,23 @@ export type Result = {
   rows: Row[];
   row_count: number;
   truncated: boolean;
+  duration_ms: number;
+  cache: { enabled: boolean; hit: boolean; stored_at: string | null };
+};
+
+export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+
+/** A background report job (POST /reports/run answers 202 with one). */
+export type Job = {
+  id: string;
+  status: JobStatus;
+  status_display: string;
+  semantic_model: string;
+  created_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error: { detail?: string; code?: string } | null;
+  error_status: number | null;
 };
 
 export type SpecError = {

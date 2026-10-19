@@ -14,31 +14,29 @@ from dataclasses import asdict, dataclass, field
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from django.conf import settings
 from django.utils.translation import gettext as _
 
 from bi_admin.calendar import jalali, periods
+from bi_admin.conf import setting
 from bi_admin.discovery import get_registry
 from bi_admin.engine.spec import ReportSpec
 from bi_admin.semantic import Dimension, Measure, Semantic, semantic_site
 
-DEFAULT_MAX_ROWS = 10_000
-DEFAULT_MAX_DIMENSIONS = 6
 DEFAULT_GRAIN = "day"
 
 _ARABIC_TO_PERSIAN = str.maketrans({"ي": "ی", "ك": "ک", "ى": "ی", "‌": " "})
 
 
-def _setting(name: str, default: int) -> int:
-    return int((getattr(settings, "GOZAR", {}) or {}).get(name, default))
-
-
 def max_rows() -> int:
-    return _setting("REPORT_MAX_ROWS", DEFAULT_MAX_ROWS)
+    return int(setting("REPORT_MAX_ROWS"))
 
 
 def max_dimensions() -> int:
-    return _setting("REPORT_MAX_DIMENSIONS", DEFAULT_MAX_DIMENSIONS)
+    return int(setting("REPORT_MAX_DIMENSIONS"))
+
+
+def max_filters() -> int:
+    return int(setting("REPORT_MAX_FILTERS"))
 
 
 @dataclass
@@ -127,9 +125,10 @@ def _suggest(value: str, items: dict[str, Dimension] | dict[str, Measure]) -> li
 
 
 class _Validator:
-    def __init__(self, spec: ReportSpec, today: dt.date | None, calendar: str | None):
+    def __init__(self, spec: ReportSpec, today: dt.date | None, calendar: str | None, request=None):
         from bi_admin import preferences
 
+        self.request = request
         self.calendar = spec.calendar or calendar or preferences.default_calendar()
         self.spec = spec.model_copy(update={"calendar": self.calendar})
         self.today = today
@@ -161,8 +160,9 @@ class _Validator:
             raise SpecValidationError(self.errors)
         sem = semantic_site.get(spec.semantic_model)
         self.sem = sem
-        self.dims = sem.visible_dimensions()
-        self.meas = sem.visible_measures()
+        # Items the user may not see are treated exactly like unknown keys.
+        self.dims = sem.visible_dimensions(self.request)
+        self.meas = sem.visible_measures(self.request)
 
         measures = self.measures()
         time_dim = self.time_dimension()
@@ -267,7 +267,7 @@ class _Validator:
         spec = self.spec
         key = spec.time_dimension
         if key is None:
-            key = self.sem.time_dimension
+            key = self.sem.default_time_dimension(self.request)
             if key is None:
                 if spec.time_grain or spec.relative_period:
                     self.error(
@@ -335,6 +335,13 @@ class _Validator:
 
     def filters(self) -> list[ResolvedFilter]:
         out = []
+        if len(self.spec.filters) > max_filters():
+            self.error(
+                "too_many_filters",
+                _("At most %(count)s filters per report") % {"count": max_filters()},
+                "filters",
+                len(self.spec.filters),
+            )
         for i, f in enumerate(self.spec.filters):
             path = f"filters[{i}]"
             if f.field in self.meas and f.field not in self.dims:
@@ -495,12 +502,16 @@ _INVALID = object()
 
 
 def validate(
-    spec: ReportSpec | dict, today: dt.date | None = None, calendar: str | None = None
+    spec: ReportSpec | dict,
+    today: dt.date | None = None,
+    calendar: str | None = None,
+    request=None,
 ) -> ValidatedReport:
     """Validate ``spec``; raises ``SpecValidationError`` listing every problem.
 
     ``calendar`` is used when the spec names none (the user's preference);
-    otherwise ``GOZAR["DEFAULT_CALENDAR"]`` (Gregorian) applies."""
+    otherwise ``GOZAR["DEFAULT_CALENDAR"]`` (Gregorian) applies. With ``request``,
+    dimensions and measures the user may not see are rejected as unknown."""
     if isinstance(spec, dict):
         spec = ReportSpec.model_validate(spec)
-    return _Validator(spec, today, calendar).run()
+    return _Validator(spec, today, calendar, request).run()

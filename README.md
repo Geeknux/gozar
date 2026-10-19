@@ -4,21 +4,32 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M3 (report UI) done — report builder, charts, pivot, drill-down,
-CSV/XLSX export; English/Persian UI with per-user language and calendar.
+**Status:** M4 (access control & execution) done — row-level rules, semantic
+visibility, a report audit log, limits with a statement timeout, a result cache,
+read-replica routing and background report jobs; on top of M3's report builder,
+charts, pivot, drill-down and CSV/XLSX export, in English or Persian.
 
 ## Development
 
 ```sh
 uv sync                                          # install deps + dev tools
 uv run python example_project/manage.py migrate
-uv run python example_project/manage.py seed_demo       # English names; --locale fa for Persian
+uv run python example_project/manage.py seed_demo --users  # English data + demo accounts
 uv run python example_project/manage.py gozar_calendar  # calendar table (Jalali reports)
-uv run python example_project/manage.py createsuperuser
 ./scripts/build-frontend.sh                      # React SPA → src/bi_admin/static/bi_admin/spa
 uv run python example_project/manage.py runserver  # open http://127.0.0.1:8000/gozar/
 uv run pytest
 ```
+
+`seed_demo --users` creates the accounts below, all with the password
+`gozar-demo` (`--password` changes it), to try the access rules:
+
+| user      | sees                                                                 |
+|-----------|----------------------------------------------------------------------|
+| `admin`   | superuser: everything                                                |
+| `manager` | all shop data, the finance-only *Refunds* measure, the report audit log |
+| `tehran`  | only Tehran, Karaj and Qom (row rules), no *Refunds*                 |
+| `east`    | only Mashhad and Kerman                                               |
 
 Frontend hot reload: run `npm run dev` in `frontend/` and start Django with
 `GOZAR_VITE_DEV_SERVER=http://localhost:5173`.
@@ -159,10 +170,78 @@ included). After changing strings, run `django-admin makemessages -l fa` and
 `django-admin compilemessages` in `src/bi_admin` (and `example_project/shop`);
 SPA strings live in `frontend/src/i18n/en.ts` and `fa.ts`.
 
-Optional settings: `GOZAR = {"INCLUDE_APPS": [...], "EXCLUDE_APPS": [...],
-"EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None, "REPORT_MAX_ROWS": 10000,
-"REPORT_MAX_DIMENSIONS": 6, "WEEKEND_DAYS": [4], "DEFAULT_LANGUAGE": "en",
-"DEFAULT_CALENDAR": "gregorian"}`.
+### Access control
+
+**Row-level rules** decide which rows a user may see and touch. A rule takes the
+user and returns a `Q`, `True`/`None` (no restriction) or `False` (no rows):
+
+```python
+from bi_admin.access import rule
+
+rule(Order, lambda user: Q(customer__city__in=user.profile.cities.all()))  # a model
+rule(OrderMetrics, lambda user: Q(status="paid"))  # reports on one semantic model only
+
+@register(Customer)
+class CustomerOptions(ModelOptions):
+    row_rules = [lambda user: Q(city__in=user.profile.cities.all())]  # same, on the options
+```
+
+Rules are AND-ed and applied in the engine and the CRUD service, so every path
+honours them: report run, drill-down, export, filter value pickers, background
+jobs, CRUD list/filters/detail/history, autocomplete and relation fields,
+actions and delete plans. Saving a row so it would fall outside the user's scope
+is refused (`403 out_of_scope`), and a delete that would cascade into rows they
+can't see is blocked. Superusers bypass rules (`ROW_RULES_BYPASS_SUPERUSER`). A
+rule that raises denies every row. The demo (`shop/gozar.py`) limits the
+"Sales: … region" groups to their cities.
+
+**Semantic visibility**: `Dimension(..., permission="shop.view_margin")` or
+`Measure(..., permission=lambda user: ...)` (a permission, a list of them, or a
+predicate). What a user may not see is left out of their catalog and rejected
+exactly like an unknown key — in validation, sort, filters, drill-down, export
+and value lookups — and list columns only such items expose don't appear in
+drill-down rows. The demo's *Refunds* measure needs `shop.change_order`.
+
+**Audit log**: every run, export and drill-down (also refused and failed ones,
+and background jobs) is stored in `bi_admin.ReportLog` with the user, the
+normalised spec, the row-level scope (the WHERE clause), duration, row count,
+status, error code and cache hit. Users with `bi_admin.view_reportlog` get
+**Audit log** in the sidebar (`GET /api/audit/reports`, filterable).
+
+### Execution: limits, cache, replica, background jobs
+
+- **Limits**: `REPORT_MAX_ROWS`, `REPORT_MAX_DIMENSIONS`, `REPORT_MAX_FILTERS`
+  (`422` with `limit_exceeded`, `too_many_dimensions`, `too_many_filters`) and
+  `REPORT_STATEMENT_TIMEOUT_MS` (PostgreSQL `SET LOCAL statement_timeout`; an
+  interrupting progress handler on SQLite) → `504 statement_timeout`.
+- **Result cache** (Django's cache framework, `REPORT_CACHE` alias,
+  `REPORT_CACHE_TIMEOUT` seconds, `0` = off): keyed by the normalised spec, the
+  user's scope, the language and a data version per model the report reads,
+  which changes on every save/delete (signals) — call
+  `bi_admin.execution.cache.bump(Model)` after bulk writes. The response's
+  `cache` says `{"hit", "stored_at"}`; `?cache=false` (the SPA's **Refresh**)
+  bypasses it. Use a cache shared by all processes (Redis, Memcached, files —
+  not `LocMemCache`) when you run several workers or the job worker.
+- **Read replica**: `GOZAR["REPORTS_DATABASE"] = "replica"` plus
+  `DATABASE_ROUTERS = ["bi_admin.execution.router.ReportsRouter"]` sends report,
+  drill-down, export and value-lookup reads there; CRUD, all writes, the audit
+  log and jobs stay on `default`.
+- **Background jobs**: reports run synchronously by default. With
+  `REPORT_ASYNC = True`, `Semantic.run_async = True` or `POST
+  /api/reports/run?mode=async`, the API answers `202 {"job": …}` and the SPA
+  polls `GET /api/reports/jobs/<id>` (then `/result`, `/export`, `/cancel`).
+  The default `DatabaseBackend` stores jobs in `bi_admin.ReportJob`; run
+  `manage.py gozar_worker` (`--burst` to drain the queue and exit). Plug in
+  another `JOB_BACKEND` (e.g. one that enqueues a Celery task calling
+  `bi_admin.execution.jobs.execute(job_id)`).
+
+Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [...],
+"EXCLUDE_APPS": [...], "EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None,
+"WEEKEND_DAYS": [4], "DEFAULT_LANGUAGE": "en", "DEFAULT_CALENDAR": "gregorian",
+"ROW_RULES_BYPASS_SUPERUSER": True, "AUDIT_REPORTS": True, "REPORT_MAX_ROWS": 10000,
+"REPORT_MAX_DIMENSIONS": 6, "REPORT_MAX_FILTERS": 20, "REPORT_STATEMENT_TIMEOUT_MS": 30000,
+"REPORTS_DATABASE": None, "REPORT_CACHE": "default", "REPORT_CACHE_TIMEOUT": 300,
+"REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend"}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs`.
@@ -176,10 +255,12 @@ The JSON API (django-ninja, staff session + CSRF) is documented at
   - `engine/` — `ReportSpec`, validator, ORM compiler, runner, drill-down,
     export (CSV/XLSX), dimension values;
   - `calendar/` — Jalali helpers, `CalendarDay` table builder, relative periods;
-  - `api/` — auth, metadata, CRUD, report and preferences endpoints;
+  - `access/` — row-level rules and the report audit log;
+  - `execution/` — statement timeout, result cache, replica router, background jobs;
+  - `api/` — auth, metadata, CRUD, report, job, audit and preferences endpoints;
   - `preferences.py`, `middleware.py` — per-user language/calendar;
   - `locale/fa/` — Persian gettext catalog;
-  - `execution`, `access`, `nl` — later milestones.
+  - `nl` — the NL interface (M5).
 - `frontend/` — React + TypeScript SPA (Vite); `src/i18n/` holds the en/fa
   dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates),
   `src/reports/` the report builder, results, ECharts charts and drill-down,
@@ -187,7 +268,7 @@ The JSON API (django-ninja, staff session + CSRF) is documented at
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
   and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,
-  `--flush`, `--locale en|fa`). The default English data set uses real Iranian
+  `--flush`, `--locale en|fa`, `--users`, `--password`). The default English data set uses real Iranian
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search
   (`seed_demo --flush --locale fa`).

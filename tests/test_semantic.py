@@ -25,7 +25,7 @@ def test_order_metrics_is_autodiscovered_from_gozar_py():
     sem = semantic_site.get("order_metrics")
     assert sem.model is Order and sem.model_label == "shop.order"
     assert sem.time_dimension == "created_at"
-    assert set(sem.measures) == {"revenue", "orders", "paid_orders", "aov", "customers"}
+    assert set(sem.measures) == {"revenue", "orders", "paid_orders", "aov", "refunds", "customers"}
     assert {"created_at", "paid_at", "city", "province", "status"} <= set(sem.dimensions)
     assert sem.label == {"fa": "سفارش‌ها", "en": "Orders"}
 

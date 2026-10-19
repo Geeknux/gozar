@@ -20,6 +20,17 @@ def _fast_hashing(settings):
 
 
 @pytest.fixture(autouse=True)
+def _fresh_cache(settings):
+    """Report results and data versions must not leak between tests."""
+    from django.core.cache import cache
+
+    settings.CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+    cache.clear()
+    yield
+    cache.clear()
+
+
+@pytest.fixture(autouse=True)
 def _fresh_registry():
     reset_registry()
     site.clear_cache()
@@ -140,3 +151,34 @@ def orders(db):
         )
         for c, status, amount, created in rows
     ]
+
+
+# --- access control fixtures (M4) ----------------------------------------------------
+
+SHOP_VIEW = [f"shop.view_{m}" for m in ("city", "customer", "product", "order", "orderitem")]
+TEHRAN_REGION = ["Tehran", "Karaj", "Qom"]  # shop.gozar.REGIONS["Sales: Tehran region"]
+
+
+@pytest.fixture
+def regional(make_staff):
+    """A staff user in a sales-region group (row rules limit them to its cities)."""
+    from django.contrib.auth.models import Group
+
+    def make(region="Sales: Tehran region", *perms, username="tehran"):
+        user = make_staff(*(perms or SHOP_VIEW), username=username)
+        user.groups.add(Group.objects.get_or_create(name=region)[0])
+        return user
+
+    return make
+
+
+@pytest.fixture
+def report_api():
+    """``report_api(client, "run", spec, cache="false")`` → POST /reports/<path>."""
+
+    def post(client, path, body, **params):
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        url = f"{API}/reports/{path}{'?' + query if query else ''}"
+        return client.post(url, body, "application/json")
+
+    return post

@@ -18,6 +18,7 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
         <nav>
           <section>
             <NavLink to="/reports">{t("nav.reports")}</NavLink>
+            {user.permissions?.audit && <NavLink to="/audit">{t("nav.audit")}</NavLink>}
           </section>
           {apps.map((app) => (
             <section key={app.app_label}>

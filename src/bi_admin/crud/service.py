@@ -24,8 +24,10 @@ from django.utils.encoding import force_str
 from django.utils.text import capfirst
 from django.utils.translation import gettext as _
 
+from bi_admin.access.rules import model_filter, model_queryset, target_queryset
 from bi_admin.crud.options import ModelOptions, site
 from bi_admin.discovery import get_registry, model_label
+from bi_admin.execution import cache
 from bi_admin.models import ChangeLog
 
 RESERVED_PARAMS = {"q", "page", "page_size", "ordering"}
@@ -252,7 +254,7 @@ def cell_value(options: ModelOptions, col: Column, obj: models.Model) -> Any:
 # --- filters -----------------------------------------------------------------------
 
 
-def filter_specs(options: ModelOptions) -> list[dict[str, Any]]:
+def filter_specs(options: ModelOptions, request=None) -> list[dict[str, Any]]:
     reg = get_registry()
     specs = []
     for path in options.get_list_filter():
@@ -267,7 +269,7 @@ def filter_specs(options: ModelOptions) -> list[dict[str, Any]]:
         if relation:
             target = finfo.related_model if finfo.is_relation else steps[-1].target
             spec["related_model"] = target
-            qs = reg.get(target).model._default_manager.all()
+            qs = target_queryset(target, request)  # only rows the user may see
             options_ = list(qs[: FILTER_CHOICES_LIMIT + 1])
             if len(options_) <= FILTER_CHOICES_LIMIT:
                 spec["choices"] = [
@@ -442,7 +444,7 @@ def select_related_paths(options: ModelOptions, cols: list[Column]) -> list[str]
 def list_objects(options: ModelOptions, request, params: dict[str, str]) -> dict[str, Any]:
     require(options, request, "view")
     cols = list_columns(options)
-    qs = options.get_queryset(request)
+    qs = model_queryset(options, request)
     total_unfiltered = None
     qs = apply_filters(options, qs, params)
     qs = apply_search(options, qs, params.get("q", ""))
@@ -463,7 +465,7 @@ def list_objects(options: ModelOptions, request, params: dict[str, str]) -> dict
     except EmptyPage:
         raise CrudError(404, _("Page %(page)s does not exist") % {"page": page_number}) from None
     if params.get("q") or any(k not in RESERVED_PARAMS for k in params):
-        total_unfiltered = options.get_queryset(request).count()
+        total_unfiltered = model_queryset(options, request).count()
 
     rows = [
         {
@@ -494,7 +496,7 @@ def get_object(options: ModelOptions, request, pk: str) -> models.Model:
         value = pk_field.to_python(pk)
     except (ValidationError, ValueError):
         raise CrudError(404, _("Not found")) from None
-    obj = options.get_queryset(request).filter(pk=value).first()
+    obj = model_queryset(options, request).filter(pk=value).first()
     if obj is None:
         raise CrudError(404, _("Not found"))
     return obj
@@ -561,6 +563,26 @@ def _snapshot(options: ModelOptions, obj: models.Model) -> dict[str, Any]:
     return out
 
 
+def _scope_relation_fields(form, request, obj: models.Model | None) -> None:
+    """Relation fields may only point at rows the user may see — or keep the ones
+    already linked, so editing other fields never fails on a hidden link."""
+    for name, field in form.fields.items():
+        qs = getattr(field, "queryset", None)
+        if qs is None:
+            continue
+        q = model_filter(qs.model, request)
+        if q is None:
+            continue
+        current: list[Any] = []
+        if obj is not None and obj.pk is not None:
+            mfield = obj._meta.get_field(name)
+            if mfield.many_to_many:
+                current = list(getattr(obj, name).values_list("pk", flat=True))
+            elif getattr(obj, mfield.attname, None) is not None:
+                current = [getattr(obj, name).pk]
+        field.queryset = qs.filter(q | Q(pk__in=current))
+
+
 def _form_errors(form) -> dict[str, list[str]]:
     return {
         (field if field != "__all__" else "__all__"): [force_str(e) for e in errs]
@@ -594,6 +616,7 @@ def save_object(
     data = _initial_data(options, obj) if (change and partial) else {}
     data.update(payload)
     form = _form_class(options)(data=data, instance=obj)
+    _scope_relation_fields(form, request, obj)
     valid = form.is_valid()
     errors = _form_errors(form) if not valid else {}
 
@@ -618,6 +641,13 @@ def save_object(
                     instance.set_unusable_password()
         options.save_model(request, instance, form, change)
         form.save_m2m()
+        if not model_queryset(options, request).filter(pk=instance.pk).exists():
+            # rolls the save back: users can't create rows (or move them) out of scope
+            raise CrudError(
+                403,
+                _("You can't save a record outside your access scope."),
+                code="out_of_scope",
+            )
         after = _snapshot(options, instance)
         changed = [n for n in after if before.get(n) != after[n]]
         changed += [n for n, raw in passwords.items() if raw]
@@ -655,7 +685,7 @@ def deletion_plan(request, objs: list[models.Model], model: type[models.Model]) 
     for qs in collector.fast_deletes:
         counts[qs.model] = counts.get(qs.model, 0) + qs.count()
     reg = get_registry()
-    summary, perms_needed = [], []
+    summary, perms_needed, out_of_scope = [], [], []
     for m, n in counts.items():
         if not n:
             continue
@@ -665,6 +695,15 @@ def deletion_plan(request, objs: list[models.Model], model: type[models.Model]) 
         )
         if label in reg and not site.options_for(label).has_delete_permission(request):
             perms_needed.append(force_str(m._meta.verbose_name_plural))
+        hidden = _out_of_scope(request, m, collector)
+        if hidden:
+            out_of_scope.append(
+                {
+                    "model": label,
+                    "verbose_name": force_str(m._meta.verbose_name_plural),
+                    "count": hidden,
+                }
+            )
     by_model: dict[str, dict[str, Any]] = {}
     for p in protected:
         entry = by_model.setdefault(
@@ -677,14 +716,35 @@ def deletion_plan(request, objs: list[models.Model], model: type[models.Model]) 
             },
         )
         entry["count"] += 1
-        if len(entry["sample"]) < 5:
-            entry["sample"].append(obj_ref(p))
+        if len(entry["sample"]) < 5 and _in_scope(request, p):
+            entry["sample"].append(obj_ref(p))  # never name rows the user can't see
     return {
-        "deletable": not protected and not perms_needed,
+        "deletable": not protected and not perms_needed and not out_of_scope,
         "summary": sorted(summary, key=lambda s: -s["count"]),
         "protected": list(by_model.values()),
         "perms_needed": perms_needed,
+        "out_of_scope": out_of_scope,
     }
+
+
+def _out_of_scope(request, model: type[models.Model], collector: Collector) -> int:
+    """How many rows of ``model`` the deletion would cascade to outside the user's
+    row-level scope (such a deletion is refused)."""
+    q = model_filter(model, request)
+    if q is None:
+        return 0
+    visible = model._base_manager.filter(q).values("pk")
+    pks = {obj.pk for obj in collector.data.get(model, ())}
+    hidden = len(pks) - model._base_manager.filter(q, pk__in=pks).count() if pks else 0
+    for qs in collector.fast_deletes:
+        if qs.model is model:
+            hidden += qs.exclude(pk__in=visible).count()
+    return hidden
+
+
+def _in_scope(request, obj: models.Model) -> bool:
+    q = model_filter(type(obj), request)
+    return q is None or type(obj)._base_manager.filter(q, pk=obj.pk).exists()
 
 
 def delete_objects(options: ModelOptions, request, objs: list[models.Model]) -> dict[str, Any]:
@@ -722,8 +782,9 @@ def run_action(options: ModelOptions, request, name: str, pks: list[Any]) -> dic
         values = [pk_field.to_python(pk) for pk in pks]
     except (ValidationError, ValueError, TypeError):
         raise CrudError(400, _("Invalid primary key in selection")) from None
-    qs = options.get_queryset(request).filter(pk__in=values)
+    qs = model_queryset(options, request).filter(pk__in=values)
     result = act.handler(request, qs) or {}
+    cache.bump(options.model)  # actions often use QuerySet.update(), which sends no signals
     return {"action": name, **result}
 
 
@@ -734,7 +795,7 @@ def action_plan(options: ModelOptions, request, pks: list[Any]) -> dict[str, Any
         values = [pk_field.to_python(pk) for pk in pks]
     except (ValidationError, ValueError, TypeError):
         raise CrudError(400, _("Invalid primary key in selection")) from None
-    objs = list(options.get_queryset(request).filter(pk__in=values))
+    objs = list(model_queryset(options, request).filter(pk__in=values))
     return deletion_plan(request, objs, options.model)
 
 
@@ -761,18 +822,11 @@ def autocomplete(options: ModelOptions, request, field_name: str, query: str) ->
         target_label = steps[-1].target
     else:
         raise CrudError(400, _("%(field)r is not a relation field") % {"field": field_name})
-    target = get_registry().get(target_label).model if target_label in get_registry() else None
-    if target is None:
-        from django.apps import apps as django_apps
-
-        target = django_apps.get_model(target_label)
+    qs = target_queryset(target_label, request)
     if target_label in get_registry():
         target_opts = site.options_for(target_label)
-        qs = target_opts.get_queryset(request)
         qs = apply_search(target_opts, qs, query)
         qs = apply_ordering(target_opts, qs, None)
-    else:
-        qs = target._default_manager.all()
     results = [
         {"pk": json_value(o.pk), "label": force_str(o)} for o in qs[: AUTOCOMPLETE_LIMIT + 1]
     ]

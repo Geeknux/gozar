@@ -22,15 +22,21 @@ XLSX_NUMBER_FORMATS = {
 }
 
 
-def table(result: ReportResult) -> tuple[list[str], list[list[Any]], list[dict]]:
+def _data(result: ReportResult | dict) -> dict[str, Any]:
+    """A run result or its stored ``as_dict()`` form (background jobs)."""
+    return result.as_dict() if isinstance(result, ReportResult) else result
+
+
+def table(result: ReportResult | dict) -> tuple[list[str], list[list[Any]], list[dict]]:
     """Header labels, row values and column metadata for an export.
 
     Time buckets export their label (``2026-10``, ``1405-S3``…) and choice
     values their display label, both as shown in the UI."""
-    columns = result.columns
+    data = _data(result)
+    columns = data["columns"]
     headers = [c["label"] for c in columns]
     rows = []
-    for row in result.rows:
+    for row in data["rows"]:
         values = []
         for c in columns:
             value = row.get(c["key"])
@@ -43,7 +49,7 @@ def table(result: ReportResult) -> tuple[list[str], list[list[Any]], list[dict]]
     return headers, rows, columns
 
 
-def to_csv(result: ReportResult) -> bytes:
+def to_csv(result: ReportResult | dict) -> bytes:
     headers, rows, _ = table(result)
     buf = io.StringIO()
     writer = csv.writer(buf)
@@ -53,7 +59,7 @@ def to_csv(result: ReportResult) -> bytes:
     return ("﻿" + buf.getvalue()).encode("utf-8")
 
 
-def to_xlsx(result: ReportResult) -> bytes:
+def to_xlsx(result: ReportResult | dict) -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import Font
     from openpyxl.utils import get_column_letter
@@ -61,7 +67,7 @@ def to_xlsx(result: ReportResult) -> bytes:
     headers, rows, columns = table(result)
     wb = Workbook()
     ws = wb.active
-    ws.title = result.report.semantic.name[:31]
+    ws.title = _data(result)["semantic_model"][:31]
     ws.sheet_view.rightToLeft = active_language() == "fa"
     ws.append(headers)
     for cell in ws[1]:
@@ -82,9 +88,10 @@ def to_xlsx(result: ReportResult) -> bytes:
     return out.getvalue()
 
 
-def export(result: ReportResult, fmt: str) -> tuple[bytes, str, str]:
+def export(result: ReportResult | dict, fmt: str) -> tuple[bytes, str, str]:
     """``(content, content_type, filename)`` for ``fmt`` in ``FORMATS``."""
+    data = _data(result)
     content_type, ext = FORMATS[fmt]
-    body = to_csv(result) if fmt == "csv" else to_xlsx(result)
-    filename = f"{result.report.semantic.name}.{ext}"
+    body = to_csv(data) if fmt == "csv" else to_xlsx(data)
+    filename = f"{data['semantic_model']}.{ext}"
     return body, content_type, filename

@@ -204,7 +204,7 @@ table.grid { width: 100%; border-collapse: collapse; }
 .results-meta { margin: 0; font-size: 0.85rem; }
 .chart-switch button { flex: 0 0 auto; padding: 0.3rem 0.6rem; }
 .chart { width: 100%; height: 420px; }
-.report-table th.num, .report-table td.num, .pivot .num { text-align: end; font-variant-numeric: tabular-nums; }
+.report-table th.num, .report-table td.num, .pivot .num, .audit-table .num { text-align: end; font-variant-numeric: tabular-nums; }
 .report-table th button.link { color: var(--text); font-weight: 600; }
 .cell-link { border: 0; background: none; padding: 0; color: inherit; text-align: inherit; }
 .cell-link:hover { color: var(--accent); text-decoration: underline; }
@@ -222,3 +222,20 @@ table.grid { width: 100%; border-collapse: collapse; }
   .builder { width: 100%; position: static; max-height: none; }
 }
 .builder-section > button.link { align-self: flex-start; }
+
+/* M4: background jobs and the report audit log */
+.job-status { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+.audit-page { display: flex; flex-direction: column; gap: 0.75rem; }
+.audit-page .page-head { margin-bottom: 0; }
+.audit-filters { justify-content: flex-start; }
+.audit-filters select { max-width: 220px; }
+.chip { background: var(--accent-soft); border-radius: 999px; padding: 0.15rem 0.6rem; }
+.badge { display: inline-block; border-radius: 999px; padding: 0.05rem 0.55rem; font-size: 0.8rem; background: var(--accent-soft); }
+.badge.status-ok { background: #e8f6ee; color: var(--ok); }
+.badge.status-invalid { background: #fff4e0; color: #8a5a00; }
+.badge.status-denied, .badge.status-failed { background: #fdecec; color: var(--danger); }
+.audit-detail td { background: #fafbfc; white-space: normal; }
+.audit-detail dl { display: grid; grid-template-columns: 160px 1fr; gap: 0.4rem 1rem; margin: 0; }
+.audit-detail dt { font-weight: 600; }
+.audit-detail dd { margin: 0; min-width: 0; }
+.audit-detail pre { margin: 0 0 0.3rem; white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; max-height: 280px; overflow: auto; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; text-align: left; }

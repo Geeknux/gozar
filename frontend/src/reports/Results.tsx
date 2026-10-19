@@ -23,6 +23,7 @@ import {
 type Props = {
   result: Result;
   spec: Spec; // the spec that produced ``result`` (for drill-down and export)
+  jobId?: string; // set when a background job produced it: export its stored result
   chart: ChartType;
   onChart: (chart: ChartType) => void;
 };
@@ -34,7 +35,7 @@ function csrfToken(): string {
   return m ? decodeURIComponent(m[1]) : "";
 }
 
-export default function Results({ result, spec, chart, onChart }: Props) {
+export default function Results({ result, spec, jobId, chart, onChart }: Props) {
   const { t, fmt } = useI18n();
   const dims = dimensionColumns(result);
   const measures = measureColumns(result);
@@ -54,12 +55,14 @@ export default function Results({ result, spec, chart, onChart }: Props) {
   async function download(format: "csv" | "xlsx") {
     setExportError("");
     try {
-      const resp = await fetch(`${config.apiBase}/reports/export?format=${format}`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
-        body: JSON.stringify(spec),
-      });
+      const resp = jobId
+        ? await fetch(`${config.apiBase}/reports/jobs/${jobId}/export?format=${format}`, { credentials: "same-origin" })
+        : await fetch(`${config.apiBase}/reports/export?format=${format}`, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+            body: JSON.stringify(spec),
+          });
       if (!resp.ok) throw new ApiError(resp.status, await resp.json().catch(() => ({})));
       const name = /filename="([^"]+)"/.exec(resp.headers.get("Content-Disposition") ?? "")?.[1] ?? `report.${format}`;
       const url = URL.createObjectURL(await resp.blob());
@@ -126,6 +129,11 @@ export default function Results({ result, spec, chart, onChart }: Props) {
             })}
           </>
         )}
+        {" · "}
+        {result.cache?.hit && result.cache.stored_at
+          ? t("report.cached", { time: fmt.date(result.cache.stored_at) })
+          : t("report.duration", { ms: result.duration_ms })}
+        {jobId && <> · {t("job.fromJob")}</>}
         {" · "}
         {t("report.clickToDrill")}
       </p>

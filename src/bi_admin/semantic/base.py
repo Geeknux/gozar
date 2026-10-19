@@ -24,12 +24,15 @@ interface works from; the report engine validates every spec against them.
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
+from collections.abc import Callable
 from typing import Any, Literal
 
 from django.core.exceptions import FieldError, ImproperlyConfigured
 from django.db import models
+from django.db.models import F
 from django.db.models.expressions import BaseExpression
 from django.utils import translation
 from django.utils.encoding import force_str
@@ -57,6 +60,9 @@ _KIND_TO_TYPE = {
 }
 
 Text = dict[str, str]
+# Who may see a dimension/measure: a permission name ("shop.view_margin"), several
+# (all required), or a predicate on the user. ``None``: whoever sees the model.
+Permission = str | list[str] | tuple[str, ...] | Callable[[Any], bool] | None
 TextInput = str | Promise | dict[str, str] | None
 SynonymsInput = list[str] | tuple[str, ...] | dict[str, list[str]] | None
 
@@ -113,6 +119,43 @@ def localize(value: dict, lang: str | None):
     return value.get(lang, value.get("en"))
 
 
+logger = logging.getLogger("bi_admin.semantic")
+
+
+def permitted(permission: Permission, user) -> bool:
+    """Whether ``user`` passes a dimension/measure ``permission``."""
+    if permission is None:
+        return True
+    if user is None:
+        return False
+    if isinstance(permission, str):
+        permission = [permission]
+    if isinstance(permission, list | tuple):
+        return bool(user.has_perms(permission))
+    try:
+        return bool(permission(user))
+    except Exception:
+        logger.exception("Visibility predicate %r failed; hiding the item", permission)
+        return False
+
+
+def field_refs(expr) -> set[str]:
+    """Lookup paths an expression reads (its ``F()``s and plain field names), ignoring
+    aggregate ``filter=`` conditions."""
+    if isinstance(expr, str):
+        return {expr}
+    if isinstance(expr, F):
+        return {expr.name}
+    refs: set[str] = set()
+    sources = getattr(expr, "source_expressions", None)
+    if sources is None:
+        sources = expr.get_source_expressions() if hasattr(expr, "get_source_expressions") else []
+    for source in sources:
+        if source is not None:
+            refs |= field_refs(source)
+    return refs
+
+
 class Dimension:
     """A groupable/filterable attribute: a lookup path or an ORM expression."""
 
@@ -126,6 +169,7 @@ class Dimension:
         description: TextInput = None,
         format: str | None = None,
         hidden: bool = False,
+        permission: Permission = None,
     ):
         if not isinstance(expr, str | BaseExpression):
             raise ImproperlyConfigured(f"Dimension needs a lookup path or expression, not {expr!r}")
@@ -138,6 +182,7 @@ class Dimension:
         self._description = description
         self.format = format
         self.hidden = hidden
+        self.permission = permission
         # filled by bind()
         self.key = ""
         self.label: Text = {}
@@ -232,6 +277,7 @@ class Measure:
         description: TextInput = None,
         format: MeasureFormat = "number",
         hidden: bool = False,
+        permission: Permission = None,
     ):
         if not isinstance(expr, BaseExpression) or not expr.contains_aggregate:
             raise ImproperlyConfigured(f"Measure needs an aggregate expression, not {expr!r}")
@@ -240,6 +286,7 @@ class Measure:
         self.expr = expr
         self.format = format
         self.hidden = hidden
+        self.permission = permission
         self._label = label
         self._synonyms = synonyms
         self._description = description
@@ -283,6 +330,11 @@ class Semantic:
     time_dimension: str | None = None
     dimensions: dict[str, Dimension] = {}
     measures: dict[str, Measure] = {}
+    # Row rules for reports on this model, on top of the model's own (see
+    # bi_admin.access.rules): callables taking the user, returning Q/True/False/None.
+    row_rules: list = []
+    # Run reports as background jobs (None: GOZAR["REPORT_ASYNC"]).
+    run_async: bool | None = None
 
     def __init__(self):
         cls = type(self)
@@ -351,22 +403,46 @@ class Semantic:
 
     # -- catalog ------------------------------------------------------------------
 
-    def visible_dimensions(self) -> dict[str, Dimension]:
-        return {k: d for k, d in self.dimensions.items() if not d.hidden}
+    def is_visible(self, item: Dimension | Measure, request) -> bool:
+        """Whether the user behind ``request`` may see ``item`` (hook). Items they
+        can't see behave exactly like unknown keys everywhere."""
+        if item.hidden:
+            return False
+        if request is None:  # trusted code
+            return True
+        return permitted(item.permission, getattr(request, "user", None))
 
-    def visible_measures(self) -> dict[str, Measure]:
-        return {k: m for k, m in self.measures.items() if not m.hidden}
+    def visible_dimensions(self, request=None) -> dict[str, Dimension]:
+        return {k: d for k, d in self.dimensions.items() if self.is_visible(d, request)}
 
-    def catalog(self, lang: str | None = None) -> dict[str, Any]:
+    def visible_measures(self, request=None) -> dict[str, Measure]:
+        return {k: m for k, m in self.measures.items() if self.is_visible(m, request)}
+
+    def default_time_dimension(self, request=None) -> str | None:
+        key = self.time_dimension
+        return key if key in self.visible_dimensions(request) else None
+
+    def hidden_fields(self, request=None) -> set[str]:
+        """Lookup paths only invisible items expose — kept out of drill-down rows."""
+        hidden: set[str] = set()
+        shown: set[str] = set()
+        for item in [*self.dimensions.values(), *self.measures.values()]:
+            if item.hidden:
+                continue
+            refs = field_refs(item.expr)
+            (shown if self.is_visible(item, request) else hidden).update(refs)
+        return hidden - shown
+
+    def catalog(self, lang: str | None = None, request=None) -> dict[str, Any]:
         return {
             "name": self.name,
             "model": self.model_label,
             "label": localize(self.label, lang),
             "synonyms": localize(self.synonyms, lang),
             "description": localize(self.description, lang),
-            "time_dimension": self.time_dimension,
-            "dimensions": [d.catalog(lang) for d in self.visible_dimensions().values()],
-            "measures": [m.catalog(lang) for m in self.visible_measures().values()],
+            "time_dimension": self.default_time_dimension(request),
+            "dimensions": [d.catalog(lang) for d in self.visible_dimensions(request).values()],
+            "measures": [m.catalog(lang) for m in self.visible_measures(request).values()],
         }
 
 
@@ -440,5 +516,5 @@ def catalog(lang: str | None = None, request=None) -> list[dict[str, Any]]:
     for semantic in semantic_site.all():
         if request is not None and not semantic.has_permission(request):
             continue
-        out.append(semantic.catalog(lang))
+        out.append(semantic.catalog(lang, request))
     return out

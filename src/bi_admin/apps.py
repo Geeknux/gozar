@@ -14,3 +14,6 @@ class BiAdminConfig(AppConfig):
         autodiscover_modules("gozar")
 
         from bi_admin import checks  # noqa: F401  (registers system checks)
+        from bi_admin.execution import cache
+
+        cache.connect_signals()  # result-cache data versions

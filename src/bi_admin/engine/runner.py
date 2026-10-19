@@ -1,4 +1,8 @@
-"""Run a ``ReportSpec``: permission check → validate → compile → execute → serialise."""
+"""Run a ``ReportSpec``: permission check → validate → compile → cache → execute.
+
+Execution happens on the reports database (``GOZAR["REPORTS_DATABASE"]``) under
+the statement timeout, and every run is written to the audit log.
+"""
 
 from __future__ import annotations
 
@@ -9,11 +13,15 @@ from dataclasses import dataclass
 from typing import Any
 
 from django.db.models import Max, Min
+from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bi_admin import preferences
+from bi_admin.access import audit
+from bi_admin.access.rules import scope_key, scope_text
 from bi_admin.calendar import jalali, table
-from bi_admin.engine.compiler import compile_report, local_date
+from bi_admin.engine.compiler import CompiledReport, compile_report, local_date
+from bi_admin.engine.errors import ReportError
 from bi_admin.engine.spec import ReportSpec
 from bi_admin.engine.validator import (
     SpecError,
@@ -21,19 +29,15 @@ from bi_admin.engine.validator import (
     ValidatedReport,
     validate,
 )
+from bi_admin.execution import cache
+from bi_admin.execution.limits import statement_timeout
+from bi_admin.execution.router import reporting, reports_database
 from bi_admin.semantic import semantic_site
 from bi_admin.semantic.base import active_language
 
+__all__ = ["ReportError", "ReportResult", "authorize", "run"]
+
 MAX_SAFE_INT = 2**53
-
-
-class ReportError(Exception):
-    """A report that is valid but cannot run (permissions, missing calendar data)."""
-
-    def __init__(self, status: int, code: str, message: str, **extra: Any):
-        super().__init__(message)
-        self.status = status
-        self.payload = {"detail": message, "code": code, **extra}
 
 
 @dataclass
@@ -43,6 +47,8 @@ class ReportResult:
     rows: list[dict[str, Any]]
     truncated: bool
     duration_ms: int
+    cache: dict[str, Any] | None = None  # {"enabled", "hit", "stored_at"}
+    scope: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         r = self.report
@@ -59,6 +65,7 @@ class ReportResult:
             "row_count": len(self.rows),
             "truncated": self.truncated,
             "duration_ms": self.duration_ms,
+            "cache": self.cache or {"enabled": False, "hit": False, "stored_at": None},
         }
 
 
@@ -110,7 +117,7 @@ def columns(report: ValidatedReport) -> list[dict[str, Any]]:
     return out
 
 
-def check_calendar(compiled) -> None:
+def check_calendar(compiled: CompiledReport, alias: str) -> None:
     """Jalali buckets come from ``CalendarDay``; refuse to return silently-null
     buckets when the table doesn't cover the dates in the report."""
     report = compiled.report
@@ -121,7 +128,7 @@ def check_calendar(compiled) -> None:
             continue
         dim = g.dimension
         expr = local_date(dim.path or dim.expr, dim.is_date)  # aggregate() can't see alias()
-        span = compiled.base.aggregate(lo=Min(expr), hi=Max(expr))
+        span = compiled.base.using(alias).aggregate(lo=Min(expr), hi=Max(expr))
         lo, hi = span["lo"], span["hi"]
         if lo is None:
             continue
@@ -167,27 +174,105 @@ def authorize(spec: ReportSpec, request) -> None:
         )
 
 
-def run(spec: ReportSpec | dict, request=None, today: dt.date | None = None) -> ReportResult:
-    """Validate and execute ``spec``. ``request`` (when given) drives permissions and
-    the semantic model's ``get_queryset``; ``today`` pins relative periods."""
-    if isinstance(spec, dict):
-        spec = ReportSpec.model_validate(spec)
+def prepare(spec: ReportSpec, request=None, today: dt.date | None = None) -> ValidatedReport:
+    """Authorise and validate ``spec`` for the user behind ``request``."""
     authorize(spec, request)
     calendar = preferences.get(request).calendar if request is not None else None
-    report = validate(spec, today=today, calendar=calendar)
-    started = time.monotonic()
-    compiled = compile_report(report, request)
-    check_calendar(compiled)
-    if compiled.aggregate:
-        values = compiled.queryset.aggregate(**compiled.measures)
-        rows = [{m.key: number(values[compiled.aliases[m.key]]) for m in report.measures}]
-        truncated = False
-    else:
-        fetched = list(compiled.queryset[: report.limit + 1])
-        truncated = len(fetched) > report.limit
-        rows = [serialise_row(report, compiled.aliases, raw) for raw in fetched[: report.limit]]
-    duration = int((time.monotonic() - started) * 1000)
-    return ReportResult(report, columns(report), rows, truncated, duration)
+    return validate(spec, today=today, calendar=calendar, request=request)
+
+
+def cache_key(compiled: CompiledReport, alias: str) -> str:
+    report = compiled.report
+    try:
+        sql = str(compiled.queryset.query)
+    except Exception:  # EmptyResultSet & co: the report reads only its own model
+        sql = ""
+    deps = cache.dependencies(sql, alias, [report.semantic.model_label])
+    return cache.report_key(
+        {
+            "spec": report.spec.model_dump(mode="json", exclude={"chart"}),
+            "period": report.period.as_dict() if report.period else None,
+            "scope": scope_key(compiled.source),
+            "language": active_language(),
+            "database": alias,
+            "data": cache.versions(deps),
+        }
+    )
+
+
+def run(
+    spec: ReportSpec | dict,
+    request=None,
+    today: dt.date | None = None,
+    *,
+    use_cache: bool = True,
+    kind: str = "run",
+    job=None,
+    cache_only: bool = False,
+) -> ReportResult | None:
+    """Validate and execute ``spec``. ``request`` (when given) drives permissions,
+    visibility, row rules and the semantic model's ``get_queryset``; ``None``
+    means trusted code (no restrictions). ``today`` pins relative periods;
+    ``use_cache=False`` bypasses (but refreshes) the result cache;
+    ``cache_only=True`` returns ``None`` instead of executing on a cache miss."""
+    if isinstance(spec, dict):
+        spec = ReportSpec.model_validate(spec)
+    with audit.record(kind, spec, request, job=job) as entry:
+        report = prepare(spec, request, today)
+        entry.spec = report.spec.model_dump(mode="json")
+        compiled = compile_report(report, request)
+        scope = scope_text(compiled.source)
+        alias = reports_database()
+        entry.scope, entry.database = scope, alias
+
+        key = cache_key(compiled, alias) if cache.enabled() else None
+        if key is not None and use_cache:
+            hit = cache.get(key)
+            if hit is not None:
+                entry.cache_hit, entry.row_count = True, len(hit["rows"])
+                info = {"enabled": True, "hit": True, "stored_at": hit["stored_at"]}
+                return ReportResult(
+                    report,
+                    columns(report),
+                    hit["rows"],
+                    hit["truncated"],
+                    hit["duration_ms"],
+                    info,
+                    scope,
+                )
+        if cache_only:
+            entry.skip = True
+            return None
+
+        started = time.monotonic()
+        with reporting(alias), statement_timeout(alias):
+            check_calendar(compiled, alias)
+            if compiled.aggregate:
+                values = compiled.queryset.using(alias).aggregate(**compiled.measures)
+                aliases = compiled.aliases
+                rows = [{m.key: number(values[aliases[m.key]]) for m in report.measures}]
+                truncated = False
+            else:
+                fetched = list(compiled.queryset.using(alias)[: report.limit + 1])
+                truncated = len(fetched) > report.limit
+                rows = [
+                    serialise_row(report, compiled.aliases, raw) for raw in fetched[: report.limit]
+                ]
+        duration = int((time.monotonic() - started) * 1000)
+        entry.row_count = len(rows)
+        info = {"enabled": key is not None, "hit": False, "stored_at": None}
+        if key is not None:
+            info["stored_at"] = timezone.now().isoformat()
+            cache.put(
+                key,
+                {
+                    "rows": rows,
+                    "truncated": truncated,
+                    "duration_ms": duration,
+                    "stored_at": info["stored_at"],
+                },
+            )
+        return ReportResult(report, columns(report), rows, truncated, duration, info, scope)
 
 
 def serialise_row(report: ValidatedReport, aliases: dict[str, str], raw: dict) -> dict:

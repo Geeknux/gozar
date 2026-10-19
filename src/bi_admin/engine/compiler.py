@@ -2,7 +2,7 @@
 
 The ORM does all the work — filters become ``Q`` objects, dimensions become
 ``values()`` group keys, measures become aggregate annotations — so managers,
-the semantic model's ``get_queryset`` and (from M4) row-level rules always apply,
+the semantic model's ``get_queryset`` and the row-level rules always apply,
 and no user/LLM input ever reaches SQL as text.
 
 Time grains:
@@ -25,6 +25,7 @@ from django.db.models import F, OuterRef, Q, Subquery
 from django.db.models.functions import Trunc, TruncDate
 from django.utils import timezone
 
+from bi_admin.access.rules import semantic_queryset
 from bi_admin.engine.validator import GroupKey, ResolvedFilter, ValidatedReport
 from bi_admin.models import CalendarDay
 
@@ -47,6 +48,7 @@ class CompiledReport:
     measures: dict[str, Any]  # alias → aggregate expression
     base: models.QuerySet  # filtered rows before grouping
     lookups: dict[str, str]  # dimension key → ORM lookup/alias
+    source: models.QuerySet  # the user's scoped rows (get_queryset + row rules)
 
     @property
     def sql(self) -> str:
@@ -140,7 +142,7 @@ def filter_q(f: ResolvedFilter, lookup: str) -> Q:
 
 def compile_report(report: ValidatedReport, request=None) -> CompiledReport:
     sem = report.semantic
-    qs = sem.get_queryset(request)
+    qs = source = semantic_queryset(sem, request)
 
     # Expression dimensions get an alias so filters and buckets can address them.
     used = {f.dimension.key for f in report.filters} | {g.key for g in report.groups}
@@ -184,7 +186,7 @@ def compile_report(report: ValidatedReport, request=None) -> CompiledReport:
         measure_exprs[alias] = m.expr
 
     if not group_exprs:
-        return CompiledReport(qs, aliases, True, report, measure_exprs, qs, lookups)
+        return CompiledReport(qs, aliases, True, report, measure_exprs, qs, lookups, source)
 
     base = qs
     qs = qs.annotate(**group_exprs).values(*group_exprs).annotate(**measure_exprs)
@@ -202,4 +204,4 @@ def compile_report(report: ValidatedReport, request=None) -> CompiledReport:
     sort += [(g.key, "asc") for g in report.groups if g.key not in done]
     ordering = [order(aliases[key], direction) for key, direction in sort]
     qs = qs.order_by(*ordering)
-    return CompiledReport(qs, aliases, False, report, measure_exprs, base, lookups)
+    return CompiledReport(qs, aliases, False, report, measure_exprs, base, lookups, source)

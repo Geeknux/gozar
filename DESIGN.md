@@ -5,7 +5,8 @@
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
 > Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
-> engine), i18n + per-user preferences, and M3 (report UI) done — see §10.
+> engine), i18n + per-user preferences, M3 (report UI) and M4 (access control +
+> execution) done — see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -419,7 +420,8 @@ Decided (M1, 2026-10-18):
   a filter can't be used as an oracle on hidden fields (e.g. password hashes).
   Password fields are write-only and hashed with `set_password`.
 - History: `bi_admin.ChangeLog` (add/change/delete with changed field names),
-  the counterpart of admin's `LogEntry`. M4's audit log may extend it.
+  the counterpart of admin's `LogEntry`. *(M4 kept the report audit log in its
+  own model, `ReportLog`.)*
 - Search normalises Arabic ي/ك to Persian ی/ک (and back) per term.
 - UI: React SPA built by Vite into `bi_admin/static/bi_admin/spa/` (git-ignored,
   shipped as a wheel artifact); Django serves the shell (`bi_admin.views.spa`)
@@ -447,7 +449,7 @@ Decided (M2, 2026-10-18):
 - Permissions: `Semantic.has_permission` defaults to the CRUD view permission
   of the model (change implies view) and `get_queryset` to the CRUD options'
   queryset, so reports and CRUD see the same rows. M4 adds row-level rules on
-  top of `get_queryset`.
+  top of `get_queryset` (see the M4 decisions).
 - `ReportSpec` (`bi_admin.engine.spec`) is the §3.3 model with
   `extra="forbid"`. Filter values for time dimensions are dates, Gregorian
   (`2026-03-21`) or Jalali (`1405/01/01`, any year below 1700), Persian digits
@@ -645,6 +647,152 @@ Decided (M3 — report UI, 2026-10-19):
   (round-trip verified for every day 1990–2040). Used in the report builder,
   the CRUD list date filters and the CRUD form (date fields, and date + time
   for datetime fields), replacing the native Gregorian inputs.
+
+Decided (M4 — access control & execution, 2026-10-19):
+
+- Settings: every `GOZAR` key and its default lives in `bi_admin/conf.py`
+  (`setting(name)`); the validator's caps moved there too.
+- **Row-level rules** (`bi_admin.access.rules`): a rule is a callable taking the
+  *user* (not the request, so background jobs evaluate it identically) and
+  returning a `Q`, `True`/`None` (no restriction) or `False` (no rows). Declared
+  with `rule(target, fn)` / `@rule(target)` — target a model, an `"app.model"`
+  label or a `Semantic` — or as `row_rules = [...]` on `ModelOptions` /
+  `Semantic`. All applicable rules are AND-ed: model rules apply to that model's
+  CRUD, to every relation picker listing it and to every semantic model over it;
+  semantic rules add to those for reports only. They are applied *outside* the
+  overridable hooks: `model_queryset(options, request)` =
+  `options.get_queryset` + rules, `semantic_queryset(sem, request)` =
+  `Semantic.get_queryset` + model rules + semantic rules, so a custom
+  `get_queryset` can't drop them. Evaluated once per request (memoised on it).
+  Fail closed: a rule that raises or returns something else denies every row
+  (logged). Superusers bypass rules unless `ROW_RULES_BYPASS_SUPERUSER = False`.
+  `request=None` (trusted code, e.g. `run(spec)` in a shell) is unrestricted.
+- Every path is scoped: report run, drill-down, export, value lookups (distinct
+  values from the scoped semantic queryset; relation values from the target
+  model's scoped queryset), jobs; CRUD list (and its unfiltered total), filter
+  choices, detail, update, delete, history, autocomplete, actions (the selection
+  is intersected with the scope) and delete plans. Writes: relation form fields
+  only accept rows in scope — plus the ones already linked, so editing other
+  fields never fails on a hidden link — and a save whose row would end up outside
+  the scope is rolled back with `403 out_of_scope`. A delete whose cascade would
+  reach rows outside the user's scope is refused (`out_of_scope` in the plan,
+  `409` on delete); protected-object samples never name hidden rows. `validate`
+  touches no rows, so only visibility applies there. Known gap: M2M values on a
+  detail page still list every linked object.
+- **Semantic visibility**: `Dimension`/`Measure` take `permission=` — a
+  permission name, a list (all required) or a predicate on the user (a failing
+  predicate hides the item). `Semantic.is_visible(item, request)` is the hook;
+  `visible_dimensions/measures(request)` and `default_time_dimension(request)`
+  build on it, and the catalog, validator (hence run, drill-down, export, jobs)
+  and value lookups use them, so a hidden key gets exactly the error and
+  suggestions an unknown one would (`unknown_measure`, `unknown_dimension`,
+  `unknown_field` in sort — never `sort_field_not_in_report`); suggestions and
+  synonym matches never reveal it. A hidden default time dimension behaves as
+  none. Superusers pass permission strings (they have every permission), but
+  predicates decide for everyone. Drill-down drops list columns whose path (or
+  a relation leading to it) is read only by items the user can't see — paths of
+  invisible items minus paths of visible ones (`Semantic.hidden_fields`), using
+  the dimension paths and the measures' aggregated fields (not their `filter=`).
+  `hidden=True` still means "internal", not a permission. Demo: *Refunds*
+  needs `shop.change_order`.
+- **Audit log**: new model `bi_admin.ReportLog` (user + username copy, kind
+  run/export/drilldown, semantic model, normalised spec — the resolved calendar
+  included — scope, status ok/invalid/denied/failed, error code and message,
+  duration, row count, cache hit, database, job). Written by
+  `access.audit.record()` around every execution in the engine, so API, jobs
+  and code with a request are covered, including refused (403 → `denied`),
+  invalid (422 → `invalid`, first error code) and failed ones (timeouts,
+  `calendar_not_populated`, `internal_error`). `validate` and value lookups
+  aren't executions and aren't logged; exporting a finished job's stored result
+  is. The scope column is the WHERE clause of the user's scoped base queryset
+  (`""` = all rows), which also captures custom `get_queryset` filters. The
+  insert runs in its own savepoint and never masks the report's own outcome;
+  `AUDIT_REPORTS = False` turns it off. Readable with the model's view
+  permission `bi_admin.view_reportlog` (the model has no add/change/delete
+  perms) through `GET /api/audit/reports` (filters user, status, kind,
+  semantic_model, error_code, `q`; paginated) and the SPA's **Audit log** page;
+  `/auth/me` returns `permissions.audit`. `ChangeLog` was not extended: it
+  records object edits keyed by model/pk, a different shape and audience.
+- **Limits**: `REPORT_MAX_ROWS` (10 000), `REPORT_MAX_DIMENSIONS` (6, the time
+  grain counts) and the new `REPORT_MAX_FILTERS` (20 → `too_many_filters`) are
+  validator errors (422). `REPORT_STATEMENT_TIMEOUT_MS` (30 000; 0 = off) wraps
+  every report, drill-down and value query (`execution.limits`): PostgreSQL runs
+  them in a transaction with `set_config('statement_timeout', ms, true)` (=
+  `SET LOCAL`), restoring the previous value afterwards because a savepoint
+  inside an outer transaction would otherwise keep it, and maps SQLSTATE 57014;
+  SQLite installs a progress handler (every 1000 VM steps) that interrupts the
+  statement past the deadline; other backends run unlimited. Both map to `504
+  statement_timeout` with `timeout_ms`.
+- **Result cache** (`execution.cache`, Django's cache framework, alias
+  `REPORT_CACHE`, `REPORT_CACHE_TIMEOUT` = 300 s, 0 = off; on by default). Key =
+  SHA-256 of the normalised spec without `chart` (chart switches share an
+  entry), the resolved period, an exact scope fingerprint (the scoped base
+  queryset's SQL with typed params — `str(query)` inlines params unquoted, so it
+  is only used for display), the language (column labels), the reports database
+  and the data versions. Dependencies are read off the compiled SQL: every
+  model whose quoted table name appears (joins, subqueries such as the
+  calendar lookup or a rule's `__in` subquery) plus the semantic model's own.
+  A data version is a random token per model (plus a global epoch for
+  `bump_all()`), replaced on `post_save`/`post_delete`/`m2m_changed` — at once
+  (the writer's own transaction) and again `on_commit` (a reader that cached
+  pre-commit data in between is invalidated). A missing (evicted) version gets
+  a new random token, so it can't resurrect old entries. Receivers are
+  connected per model, skipping Gozar's bookkeeping and Django's plumbing, so
+  those keep Django's fast bulk delete. Bulk writes send no signals:
+  `cache.bump(Model)` is called by CRUD actions, `gozar_calendar` and
+  `seed_demo`. Permission and validation always run before the lookup; errors
+  are never cached. The run response has `cache: {enabled, hit, stored_at}`;
+  `?cache=false` on run/export/jobs bypasses the lookup but stores the fresh
+  result; the SPA's **Refresh** does that. The cache must be shared across
+  processes for the worker's results to be reused — the demo uses
+  `FileBasedCache` in `example_project/.cache` (tests: `LocMemCache`).
+- **Read-replica routing** (`execution.router`): `reporting(alias)` sets a
+  context variable while report, drill-down, export and value-lookup queries
+  run; `ReportsRouter.db_for_read` returns it, and the engine also passes the
+  alias explicitly (`QuerySet.using`), so the main queries are routed even
+  without the router. CRUD reads, all writes, permission/preference reads, the
+  audit log and jobs stay on `default`. Checks: `bi_admin.E002` (alias not in
+  `DATABASES`), `bi_admin.W001` (router not installed). The demo defines a
+  `replica` alias (same SQLite file in development, a separate test database —
+  `test_gozar_replica` on PostgreSQL — in tests); `GOZAR_REPORTS_DATABASE=replica`
+  enables it. Cache entries are per database.
+- **Background jobs** (`execution.jobs`): model `bi_admin.ReportJob` (UUID pk,
+  owner, spec, options = submitter's language/calendar/cache flag, status
+  queued/running/done/failed/cancelled, timestamps, result JSON = the `/run`
+  body, error payload + HTTP status). Synchronous by default; async when
+  `?mode=async`, or `mode=auto` (default) and `Semantic.run_async` /
+  `REPORT_ASYNC` say so; `mode=sync` forces it. Submitting validates first
+  (403/422 come back at once, no job) and returns a cached result directly
+  (`200`); otherwise `202 {"job"}`. Endpoints `POST /reports/jobs`, `GET
+  /reports/jobs`, `GET /reports/jobs/{id}`, `/result` (the run body; `409
+  job_not_finished`, `410 job_cancelled`, or the failure with the status a
+  synchronous run would have had), `POST /{id}/cancel`, `GET /{id}/export`
+  (from the stored result, no new query). Jobs are private: another user's job
+  is a `404 job_not_found`. Pluggable `JOB_BACKEND` with `submit(job)`:
+  `DatabaseBackend` (default; nothing to do, `manage.py gozar_worker [--burst]
+  [--sleep] [--max-jobs] [--keep-days 7]` claims jobs) and `ImmediateBackend`
+  (runs inside the request; tests and development). A worker claims with a
+  conditional `UPDATE … WHERE status='queued'` (portable, no `SKIP LOCKED`
+  needed) and runs the job as the owner with a request stand-in
+  (`JobRequest`) in their language, so permissions, visibility and rules are
+  re-checked at execution time (a user who lost access gets a failed job with
+  403). A job cancelled while running stays cancelled. Finished jobs older
+  than `--keep-days` are purged. Not handled yet: requeueing jobs of a worker
+  that died mid-run.
+- SPA: the report page handles `202` by showing the job state with **Cancel**
+  and polling (0.5 s backing off to 3 s, stopped when the spec changes); the
+  finished result shows "Background job" and exports from the job. The results
+  line shows "Cached result from …" or the run time. **Audit log** page
+  (sidebar, permission-gated): filters, user links, expandable rows with the
+  spec ("Open this report"), scope, error, database and job. The delete dialog
+  explains out-of-scope cascades. All strings are in the en/fa dictionaries.
+- Demo: groups "Sales: Tehran region" (Tehran, Karaj, Qom) and "Sales: East
+  region" (Mashhad, Kerman) are limited through `rule(City, …)`,
+  `rule(OrderItem, …)` and `row_rules` on the Order/Customer options (by
+  `City.name_en`, so it works for both seed locales); "Shop managers" see
+  everything plus *Refunds* and the audit log. `seed_demo` always (re)creates
+  the groups and their permissions; `--users [--password]` creates `admin`,
+  `manager`, `tehran` and `east`.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

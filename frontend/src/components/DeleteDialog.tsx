@@ -50,6 +50,13 @@ export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }:
                 </ul>
               </>
             )}
+            {(plan.out_of_scope ?? []).length > 0 && (
+              <p className="error">
+                {t("delete.outOfScope", {
+                  models: fmt.list((plan.out_of_scope ?? []).map((o) => `${cap(o.verbose_name)} (${fmt.number(o.count)})`)),
+                })}
+              </p>
+            )}
             {plan.perms_needed.length > 0 && (
               <p className="error">{t("delete.noPermission", { models: fmt.list(plan.perms_needed) })}</p>
             )}

@@ -6,6 +6,7 @@ import Layout from "./components/Layout";
 import { config } from "./config";
 import { clearMetaCache } from "./hooks";
 import { applyDocument, I18nProvider, type Prefs, useI18n } from "./i18n";
+import AuditLog from "./pages/AuditLog";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ModelList from "./pages/ModelList";
@@ -16,7 +17,12 @@ import type { AppEntry, Preferences } from "./types";
 // ECharts is large: load the Reports area on demand.
 const ReportsPage = lazy(() => import("./reports/ReportsPage"));
 
-export type User = { username: string; full_name: string; is_superuser: boolean };
+export type User = {
+  username: string;
+  full_name: string;
+  is_superuser: boolean;
+  permissions?: { audit?: boolean };
+};
 
 type Me = { authenticated: boolean; user: User | null; preferences: Preferences };
 
@@ -117,6 +123,7 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
             </Suspense>
           }
         />
+        {user.permissions?.audit && <Route path="/audit" element={<AuditLog />} />}
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />
         <Route path="/:app/:model/:pk" element={<ObjectForm />} />

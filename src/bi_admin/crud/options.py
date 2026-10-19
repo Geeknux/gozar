@@ -66,6 +66,9 @@ class ModelOptions:
     password_fields: list[str] = []  # write-only; hashed via set_password()
     actions: list[str] = []  # names of methods decorated with @action
     show_in_menu: bool = True
+    # Row-level rules (bi_admin.access.rules): callables taking the user and returning
+    # a Q (rows they may see and touch), True/None (no restriction) or False (none).
+    row_rules: list = []
 
     def __init__(self, model: type[models.Model]):
         self.model = model

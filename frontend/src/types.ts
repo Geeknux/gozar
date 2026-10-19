@@ -86,6 +86,7 @@ export type DeletePlan = {
   summary: { model: string; verbose_name: string; count: number }[];
   protected: { model: string; verbose_name: string; count: number; sample: Ref[] }[];
   perms_needed: string[];
+  out_of_scope?: { model: string; verbose_name: string; count: number }[];
 };
 
 export type HistoryEntry = {

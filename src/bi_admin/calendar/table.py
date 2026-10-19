@@ -81,6 +81,10 @@ def populate(start: dt.date, end: dt.date, batch_size: int = 1000) -> int:
     weekend = weekend_days()
     rows = [CalendarDay(**day_row(d, weekend)) for d in iter_days(start, end) if d not in existing]
     CalendarDay.objects.bulk_create(rows, batch_size=batch_size)
+    if rows:
+        from bi_admin.execution import cache
+
+        cache.bump(CalendarDay)  # bulk_create sends no signals
     return len(rows)
 
 

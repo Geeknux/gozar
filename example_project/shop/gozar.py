@@ -4,8 +4,44 @@ from django.db.models import Avg, Count, Q, Sum
 from django.utils.translation import gettext_lazy as _
 
 from bi_admin import semantic
+from bi_admin.access import rule
 from bi_admin.crud import ModelOptions, action, register
-from shop.models import Customer, Order
+from shop.models import City, Customer, Order, OrderItem
+
+# --- row-level rules -----------------------------------------------------------------
+# Staff in a sales-region group see only their region's cities — and so only those
+# cities' customers, orders and order items, in CRUD and in every report. Users in
+# no region group are unrestricted; superusers bypass rules. `seed_demo` creates the
+# groups (and, with --users, demo accounts in them).
+
+REGIONS = {
+    "Sales: Tehran region": ["Tehran", "Karaj", "Qom"],
+    "Sales: East region": ["Mashhad", "Kerman"],
+}
+
+
+def region_cities(user) -> list[str] | None:
+    """English names of the cities ``user`` may see; ``None``: every city."""
+    groups = set(user.groups.values_list("name", flat=True)) & set(REGIONS)
+    if not groups:
+        return None
+    return sorted({city for group in groups for city in REGIONS[group]})
+
+
+def in_region(city_path: str):
+    """A row rule limiting rows to the user's region, via ``city_path``."""
+    prefix = f"{city_path}__" if city_path else ""
+
+    def row_rule(user):
+        cities = region_cities(user)
+        return True if cities is None else Q(**{f"{prefix}name_en__in": cities})
+
+    return row_rule
+
+
+# The function API; the same rules could be ModelOptions.row_rules (as below).
+rule(City, in_region(""))
+rule(OrderItem, in_region("order__customer__city"))
 
 
 @register(Order)
@@ -16,6 +52,7 @@ class OrderOptions(ModelOptions):
     ordering = ["-created_at"]
     readonly_fields = ["paid_at"]
     actions = ["mark_cancelled"]
+    row_rules = [in_region("customer__city")]
 
     @action(_("Cancel selected orders"), permission="change")
     def mark_cancelled(self, request, queryset):
@@ -28,6 +65,7 @@ class CustomerOptions(ModelOptions):
     list_display = ["name", "phone", "city", "city__province", "created_at"]
     search_fields = ["name", "^phone"]
     list_filter = ["city", "created_at"]
+    row_rules = [in_region("city")]
 
 
 @semantic.register
@@ -119,6 +157,18 @@ class OrderMetrics(semantic.Semantic):
                 "en": "Average amount of paid orders",
             },
             format="currency",
+        ),
+        # Semantic visibility: only users who may change orders (finance) see it.
+        "refunds": semantic.Measure(
+            Sum("amount", filter=Q(status=Order.Status.REFUNDED)),
+            label={"fa": "مبلغ مرجوعی", "en": "Refunds"},
+            synonyms={"fa": ["برگشتی", "بازپرداخت"], "en": ["refunded amount"]},
+            description={
+                "fa": "جمع مبلغ سفارش‌های مرجوع‌شده",
+                "en": "Sum of amounts of refunded orders",
+            },
+            format="currency",
+            permission="shop.change_order",
         ),
         "customers": semantic.Measure(
             Count("customer", distinct=True),

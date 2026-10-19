@@ -4,16 +4,25 @@
 set (useful for RTL demos and Arabic/Persian letter search normalisation). Both
 locales draw the same random numbers, so a given seed yields the same orders,
 amounts and dates either way — only the names differ.
+
+It also creates the access-control demo groups (see ``shop/gozar.py``): the
+sales-region groups limited by row rules to their cities, and "Shop managers"
+(all shop data, the finance-only Refunds measure and the report audit log).
+``--users`` adds demo accounts in them, all with the password ``--password``.
 """
 
 import random
 from datetime import timedelta
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group, Permission
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from bi_admin.execution import cache
+from shop.gozar import REGIONS
 from shop.models import City, Customer, Order, OrderItem, Product
 
 LOCALES = ("en", "fa")
@@ -71,6 +80,16 @@ LAST_NAMES = {
     "en": ["Mohammadi", "Hosseini", "Rezaei", "Ahmadi", "Karimi", "Mousavi", "Jafari", "Sadeghi"],
 }
 
+SHOP_MODELS = ["city", "customer", "product", "order", "orderitem"]
+MANAGERS = "Shop managers"
+# (username, groups, superuser) — created by --users
+DEMO_USERS = [
+    ("admin", [], True),
+    ("manager", [MANAGERS], False),
+    ("tehran", ["Sales: Tehran region"], False),
+    ("east", ["Sales: East region"], False),
+]
+
 STATUSES = ["paid", "paid", "paid", "paid", "paid", "paid", "pending", "cancelled", "refunded"]
 
 
@@ -86,9 +105,25 @@ class Command(BaseCommand):
         parser.add_argument(
             "--locale", choices=LOCALES, default="en", help="language of names (default: en)"
         )
+        parser.add_argument(
+            "--users", action="store_true", help="create the demo accounts (see module doc)"
+        )
+        parser.add_argument("--password", default="gozar-demo", help="password of demo accounts")
 
     @transaction.atomic
-    def handle(self, *args, seed, customers, orders, days, flush, locale="en", **options):
+    def handle(
+        self,
+        *args,
+        seed,
+        customers,
+        orders,
+        days,
+        flush,
+        locale="en",
+        users=False,
+        password="gozar-demo",
+        **options,
+    ):
         if locale not in LOCALES:  # call_command() kwargs skip argparse's choices
             raise CommandError(f"Unknown locale {locale!r}; choose one of {', '.join(LOCALES)}")
         rng = random.Random(seed)
@@ -161,10 +196,46 @@ class Command(BaseCommand):
             ),
             batch_size=2000,
         )
+        cache.bump_all()  # bulk writes send no signals; drop cached report results
+        groups = self.access_groups()
+        accounts = self.demo_users(groups, password) if users else []
 
         self.stdout.write(
             self.style.SUCCESS(
                 f"Seeded ({locale}) {len(cities)} cities, {len(products)} products, "
-                f"{len(new_customers)} customers, {len(created_orders)} orders."
+                f"{len(new_customers)} customers, {len(created_orders)} orders, "
+                f"{len(groups)} groups" + (f", users: {', '.join(accounts)}." if accounts else ".")
             )
         )
+
+    def access_groups(self) -> dict[str, Group]:
+        """The region groups (view shop data, limited by row rules) and managers."""
+
+        def perms(*codenames):
+            return Permission.objects.filter(
+                content_type__app_label__in=["shop", "bi_admin"], codename__in=codenames
+            )
+
+        view = [f"view_{m}" for m in SHOP_MODELS]
+        groups = {}
+        for name in [*REGIONS, MANAGERS]:
+            group, _created = Group.objects.get_or_create(name=name)
+            extra = ["change_order", "view_reportlog"] if name == MANAGERS else []
+            group.permissions.set(perms(*view, *extra))
+            groups[name] = group
+        return groups
+
+    def demo_users(self, groups: dict[str, Group], password: str) -> list[str]:
+        User = get_user_model()
+        names = []
+        for username, group_names, superuser in DEMO_USERS:
+            user, _created = User.objects.get_or_create(
+                username=username, defaults={"email": f"{username}@example.com"}
+            )
+            user.is_staff = True
+            user.is_superuser = superuser
+            user.set_password(password)
+            user.save()
+            user.groups.set([groups[g] for g in group_names])
+            names.append(username)
+        return names

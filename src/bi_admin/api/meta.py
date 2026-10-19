@@ -47,7 +47,7 @@ def model_detail(request, app_label: str, model_name: str):
         "list": {
             "columns": [c.as_dict() for c in service.list_columns(opts)],
             "search_fields": opts.get_search_fields(),
-            "filters": service.filter_specs(opts),
+            "filters": service.filter_specs(opts, request),
             "ordering": opts.get_ordering(),
             "per_page": opts.list_per_page,
             "actions": [
