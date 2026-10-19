@@ -335,6 +335,9 @@ class Semantic:
     row_rules: list = []
     # Run reports as background jobs (None: GOZAR["REPORT_ASYNC"]).
     run_async: bool | None = None
+    # Few-shot examples for the NL interface: [{"question": str, "spec": {...}}]. Only
+    # examples whose keys the user may see are shown to the model (and offered in the UI).
+    nl_examples: list[dict[str, Any]] = []
 
     def __init__(self):
         cls = type(self)

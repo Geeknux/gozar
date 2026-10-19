@@ -6,6 +6,7 @@ from bi_admin.api.auth import router as auth_router
 from bi_admin.api.crud import router as crud_router
 from bi_admin.api.docs import GozarAPI, GozarSwagger, docs_access
 from bi_admin.api.meta import router as meta_router
+from bi_admin.api.nl import router as nl_router
 from bi_admin.api.preferences import router as preferences_router
 from bi_admin.api.reports import router as reports_router
 from bi_admin.api.security import staff_auth
@@ -48,3 +49,4 @@ api.add_router("/crud", crud_router)
 api.add_router("/reports", reports_router)
 api.add_router("/preferences", preferences_router)
 api.add_router("/audit", audit_router)
+api.add_router("/nl", nl_router)

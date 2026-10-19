@@ -80,6 +80,72 @@ class OrderMetrics(semantic.Semantic):
         "en": "Shop orders with amount, status, customer and city",
     }
     time_dimension = "created_at"
+    # Few-shot examples for the NL interface (also the example questions in the UI).
+    nl_examples = [
+        {
+            "question": "Revenue by city in the last 3 months",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["revenue"],
+                "dimensions": ["city"],
+                "relative_period": "last_3_months",
+                "chart": "bar",
+            },
+        },
+        {
+            "question": "Monthly orders this year",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["orders"],
+                "time_grain": "month",
+                "relative_period": "this_year",
+                "chart": "line",
+            },
+        },
+        {
+            "question": "Top 5 customers by revenue last year",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["revenue"],
+                "dimensions": ["customer"],
+                "relative_period": "last_year",
+                "sort": [{"field": "revenue", "direction": "desc"}],
+                "limit": 5,
+                "chart": "bar",
+            },
+        },
+        {
+            "question": "درآمد به تفکیک شهر در سه ماه گذشته",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["revenue"],
+                "dimensions": ["city"],
+                "relative_period": "last_3_months",
+                "chart": "bar",
+            },
+        },
+        {
+            "question": "تعداد سفارش‌های ماهانه امسال",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["orders"],
+                "time_grain": "month",
+                "relative_period": "this_year",
+                "chart": "line",
+            },
+        },
+        {
+            "question": "فروش تهران به تفکیک وضعیت در ماه گذشته",
+            "spec": {
+                "semantic_model": "order_metrics",
+                "measures": ["revenue"],
+                "dimensions": ["status"],
+                "filters": [{"field": "city", "op": "eq", "value": "تهران"}],
+                "relative_period": "last_month",
+                "chart": "bar",
+            },
+        },
+    ]
 
     dimensions = {
         "created_at": semantic.Dimension(
@@ -129,7 +195,10 @@ class OrderMetrics(semantic.Semantic):
         "revenue": semantic.Measure(
             Sum("amount", filter=Q(status=Order.Status.PAID)),
             label={"fa": "درآمد", "en": "Revenue"},
-            synonyms={"fa": ["فروش", "گردش مالی", "دریافتی"], "en": ["sales"]},
+            synonyms={
+                "fa": ["فروش", "گردش مالی", "دریافتی"],
+                "en": ["sales", "income", "turnover", "spend", "spent"],
+            },
             description={
                 "fa": "جمع مبلغ سفارش‌های پرداخت‌شده",
                 "en": "Sum of amounts of paid orders",
@@ -151,7 +220,10 @@ class OrderMetrics(semantic.Semantic):
         "aov": semantic.Measure(
             Avg("amount", filter=Q(status=Order.Status.PAID)),
             label={"fa": "میانگین سبد", "en": "Avg order value"},
-            synonyms={"fa": ["میانگین سفارش", "متوسط خرید"], "en": ["aov", "average basket"]},
+            synonyms={
+                "fa": ["میانگین سفارش", "متوسط خرید", "میانگین مبلغ سفارش"],
+                "en": ["aov", "average basket", "average order value", "average order"],
+            },
             description={
                 "fa": "میانگین مبلغ سفارش‌های پرداخت‌شده",
                 "en": "Average amount of paid orders",

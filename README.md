@@ -4,10 +4,13 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M4 (access control & execution) done — row-level rules, semantic
-visibility, a report audit log, limits with a statement timeout, a result cache,
-read-replica routing and background report jobs; on top of M3's report builder,
-charts, pivot, drill-down and CSV/XLSX export, in English or Persian.
+**Status:** M5 (natural-language interface) done — ask in English or Persian
+("revenue by city last 3 months", «فروش ماهانه امسال»), see the interpretation,
+the report and its chart, refine with follow-ups ("now only Tehran"), or open
+the spec in the builder. Works offline with a built-in interpreter, or with any
+OpenAI-compatible model (hosted, Ollama, vLLM). On top of M4's row-level rules,
+semantic visibility, audit log, limits, cache, replica routing and background
+jobs, and M3's report builder, charts, pivot, drill-down and export.
 
 ## Development
 
@@ -27,7 +30,7 @@ uv run pytest
 | user      | sees                                                                 |
 |-----------|----------------------------------------------------------------------|
 | `admin`   | superuser: everything                                                |
-| `manager` | all shop data, the finance-only *Refunds* measure, the report audit log |
+| `manager` | all shop data, the finance-only *Refunds* measure, the report audit log and question log |
 | `tehran`  | only Tehran, Karaj and Qom (row rules), no *Refunds*                 |
 | `east`    | only Mashhad and Kerman                                               |
 
@@ -240,6 +243,96 @@ status, error code and cache hit. Users with `bi_admin.view_reportlog` get
   another `JOB_BACKEND` (e.g. one that enqueues a Celery task calling
   `bi_admin.execution.jobs.execute(job_id)`).
 
+### Asking questions (natural language)
+
+The **Ask** box on the home page and at the top of **Reports** takes a question
+in English or Persian. Gozar turns it into a `ReportSpec` — never SQL — checks
+it with the same validator, permissions and row rules as the builder, and shows
+an interpretation sentence ("Revenue by City, the last 3 months (Jul 1 – Sep 30,
+2026), where Status is Paid.") with the report. Follow-up questions edit the
+current report ("now only Tehran", "make it monthly", "by province instead",
+«فقط تهران», «ماهانه‌اش کن»); **Open in report builder** hands the spec to the
+normal filter UI.
+
+- **Offline by default.** With no model configured, a deterministic interpreter
+  answers: measures, group-by fields, time grain, relative periods, explicit
+  dates/years/months (Jalali or Gregorian), category and choice filters, number
+  comparisons, top/bottom N, sort and chart type, in both languages. It uses the
+  semantic layer's labels and synonyms, so better synonyms mean better answers.
+- **Values are matched on the server**: «تهران» finds `Tehran` (and vice versa)
+  through letter normalisation, transliteration and fuzzy matching against the
+  distinct values the *user* may see; an unknown value gets a "did you mean"
+  question with in-scope suggestions only.
+- **Privacy**: only catalog metadata (keys, labels, synonyms, descriptions,
+  declared choices) and the user's words reach a model — never rows. Category
+  values in a spec being refined are sent as placeholders (`@v1`).
+- **Relative dates are resolved by Gozar**, not by the model, in the user's
+  calendar.
+
+**Pointing Gozar at a real LLM** (any OpenAI-compatible `/chat/completions`):
+
+```sh
+# hosted (OpenAI or a compatible gateway)
+export GOZAR_NL_BASE_URL=https://api.openai.com/v1
+export GOZAR_NL_MODEL=gpt-4o-mini
+export GOZAR_NL_API_KEY=sk-...            # read from the environment only
+
+# or local: Ollama / vLLM (no key needed)
+export GOZAR_NL_BASE_URL=http://localhost:11434/v1   # vLLM: http://localhost:8000/v1
+export GOZAR_NL_MODEL=qwen2.5:7b-instruct
+```
+
+or in settings (the key still comes from the environment; a literal key in
+settings fails system check `bi_admin.E003`):
+
+```python
+GOZAR = {
+    "NL": {
+        "BASE_URL": "http://localhost:11434/v1",
+        "MODEL": "qwen2.5:7b-instruct",
+        "API_KEY_ENV": "GOZAR_NL_API_KEY",  # name of the env variable holding the key
+        "TIMEOUT": 30,
+        "RESPONSE_FORMAT": "json_schema",   # or "json_object" / "none" for older servers
+    }
+}
+```
+
+The model must return the spec as JSON (structured outputs are requested and
+JSON mode is the automatic fallback). Invalid specs are sent back with the
+validation errors (`MAX_RETRIES`, 2); if the server can't be reached, the
+offline interpreter answers instead (`FALLBACK`). Other `GOZAR["NL"]` keys (see
+`bi_admin/nl/conf.py`): `PROVIDER` (`auto` | `openai` | `heuristic` | `stub` |
+a dotted path), `TEMPERATURE`, `EXTRA_HEADERS`, `TOP_K` and `MAX_MODELS`
+(catalog retrieval), `VALUE_INDEX_MAX`/`VALUE_INDEX_TIMEOUT`, `CACHE_TIMEOUT`
+(NL → spec cache, 3600 s), `LOG_PROMPTS` (opt-in: keep prompts and raw outputs
+for evaluation), `MAX_QUESTION_LENGTH` (500) and `RATE_LIMIT` (30 questions per
+user per minute).
+
+Every question is recorded in `bi_admin.NLLog` (readable with
+`bi_admin.view_nllog` on the **Question log** page or `GET
+/api/audit/questions`); reports it runs are in the report audit log as usual.
+Declare few-shot examples per semantic model with `nl_examples = [{"question":
+…, "spec": {…}}]` — they also become the suggested questions in the UI.
+
+API: `POST /api/nl/ask {"question", "previous"?, "execute"?}` → `{status: ok |
+clarification | invalid, spec, interpretation, clarification, suggestions,
+warnings, …}` (with `execute`, also the report `result` or a background
+`job`); `GET /api/nl/status`; `POST /api/nl/interpret {"spec"}`.
+`POST /api/reports/validate` returns the `interpretation` too.
+
+**Evaluation**: `tests/nl_golden/` holds 179 questions (122 Persian, 37 English,
+20 follow-ups) with their expected specs. CI scores them against the offline
+interpreter and a stub model; score a real model with
+
+```sh
+GOZAR_NL_BASE_URL=... GOZAR_NL_MODEL=... uv run python example_project/manage.py \
+    gozar_nl_eval --verbose-failures --json nl-report.json
+```
+
+(exact and semantic match rate, clarification rate and recall, retry rate;
+`--provider`, `--only fa`, `--user`, `--fail-under 0.9`). Expected values are
+those of the English demo data (`seed_demo`).
+
 Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [...],
 "EXCLUDE_APPS": [...], "EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None,
 "WEEKEND_DAYS": [4], "DEFAULT_LANGUAGE": "en", "DEFAULT_CALENDAR": "gregorian",
@@ -247,7 +340,7 @@ Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [.
 "REPORT_MAX_DIMENSIONS": 6, "REPORT_MAX_FILTERS": 20, "REPORT_STATEMENT_TIMEOUT_MS": 30000,
 "REPORTS_DATABASE": None, "REPORT_CACHE": "default", "REPORT_CACHE_TIMEOUT": 300,
 "REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend",
-"JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff"}`.
+"JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff", "NL": {…}}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs` (Swagger UI; schema at `/gozar/api/openapi.json`). The docs are
@@ -270,10 +363,14 @@ for staff only by default — anonymous visitors are sent to the login first; se
   - `api/` — auth, metadata, CRUD, report, job, audit and preferences endpoints;
   - `preferences.py`, `middleware.py` — per-user language/calendar;
   - `locale/fa/` — Persian gettext catalog;
-  - `nl` — the NL interface (M5).
+  - `nl/` — the NL interface: text normalisation and transliteration, the
+    visible catalog and retrieval, the value index, the prompt, providers
+    (OpenAI-compatible, offline heuristic, stub), the pipeline, the
+    interpretation sentence and the golden-set evaluation;
 - `frontend/` — React + TypeScript SPA (Vite); `src/i18n/` holds the en/fa
   dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates),
-  `src/reports/` the report builder, results, ECharts charts and drill-down,
+  `src/reports/` the report builder, results, ECharts charts, drill-down and
+  the Ask box (`AskBox.tsx`, `AskPanel.tsx`),
   `src/components/DatePicker.tsx` the Gregorian/Jalali date picker.
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
@@ -282,7 +379,8 @@ for staff only by default — anonymous visitors are sent to the login first; se
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search
   (`seed_demo --flush --locale fa`).
-- `tests/` — pytest suite; `tests/nl_golden/` holds NL → ReportSpec fixtures.
+- `tests/` — pytest suite; `tests/nl_golden/` holds the NL golden set
+  (question → expected ReportSpec, JSON).
 
 ## License
 

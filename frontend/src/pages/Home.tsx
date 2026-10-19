@@ -1,7 +1,11 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 
 import { useI18n } from "../i18n";
 import type { AppEntry } from "../types";
+
+// Loaded on demand like the Reports page (it shares the report components).
+const AskPanel = lazy(() => import("../reports/AskPanel"));
 
 export default function Home({ apps }: { apps: AppEntry[] }) {
   const { t, cap } = useI18n();
@@ -9,6 +13,9 @@ export default function Home({ apps }: { apps: AppEntry[] }) {
   return (
     <div className="home">
       <h1>{t("nav.dashboard")}</h1>
+      <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>
+        <AskPanel />
+      </Suspense>
       {apps.map((app) => (
         <section key={app.app_label} className="card">
           <h2>{cap(app.verbose_name)}</h2>

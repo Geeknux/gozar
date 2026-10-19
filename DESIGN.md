@@ -5,8 +5,8 @@
 > Design document.
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
 > Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
-> engine), i18n + per-user preferences, M3 (report UI) and M4 (access control +
-> execution) done — see §10.
+> engine), i18n + per-user preferences, M3 (report UI), M4 (access control +
+> execution) and M5 (natural-language interface) done — see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -846,6 +846,156 @@ Decided (bug-fix round before manual testing, 2026-10-19):
   audit page, for `admin`, `manager`, `tehran` and `east`) finished without
   console errors, failed requests or HTTP errors.
 
+Decided (M5 — natural-language interface, 2026-10-19):
+
+- Package `bi_admin.nl`; entry point `pipeline.ask(question, request, previous=,
+  today=, provider=, use_cache=, rate_limit=)` → `Answer` (`status` ok |
+  clarification | invalid, `spec`, `interpretation`, `clarification`,
+  `suggestions`, `warnings`, `period`, `provider`, `attempts`, `cached`,
+  `log_id`). Pipeline as §5.1, with three refinements: (1) **retrieval is
+  lexical**, not embeddings — phrase matching over keys/labels/synonyms (Persian
+  plural/ezafe suffixes and ZWNJ tolerated), character trigrams and
+  transliteration keys; no vector store or embedding service is needed, and
+  `GOZAR["NL"]["RETRIEVER"]` can swap in one (pgvector stays the M7 option).
+  It ranks semantic models (`MAX_MODELS` 3) and keeps `TOP_K` (20) items each,
+  always the default time dimension and every item of the spec being refined;
+  (2) value matching runs **after** the model, on the server, so the model never
+  sees stored values; (3) a provider may answer "clarification" at any time and
+  value matching may turn an answer into one.
+- **What the model sees** (`nl.prompt`): instructions, `TODAY` in both calendars
+  (ISO + Jalali `1405/07/26` + month name), the user's language and calendar,
+  the period grammar, the retrieved catalog subset in both languages (keys,
+  labels, synonyms, descriptions, types, formats, declared choices), up to 8
+  few-shot examples (`Semantic.nl_examples`, only those whose keys the user may
+  see), and for refinement `PREVIOUS SPEC` + the follow-up. Only metadata and the
+  user's words: category values of the previous spec (non-choice category/geo
+  dimensions) are **redacted to placeholders** `@v1…` and restored afterwards;
+  choices, dates and numbers stay (they aren't row data). Tests assert that no
+  city, province, customer name, phone or amount from the database appears in
+  any prompt, for the stub and for a real HTTP round trip.
+- **The model never does date arithmetic**: relative periods are names resolved
+  by `calendar.periods` in the user's calendar (the spec's `calendar` stays null
+  unless the user names one); explicit dates are copied as written and
+  normalised to ISO by code; a whole year/month may be written `1404`,
+  `1404/03`, `2025-03` and is expanded by `nl.dates` (Jalali leap years
+  included).
+- **Validation and retries**: each output is parsed (code fences and chatter
+  tolerated), cleaned (dates), validated as `ReportSpec` (pydantic errors become
+  `schema_error`s) and with the report validator *under the user's permissions*
+  (`prepare`: model permission, visibility). Errors go back to the model as the
+  assistant/user turns of the same conversation; `MAX_RETRIES` (2) extra calls,
+  then `status: invalid` with the errors. Non-JSON output is `output_not_json`.
+- **Value matching** (`nl.values`): a value index per category/geo dimension and
+  user — choices (both languages) for choice fields, the related objects of the
+  target's *scoped* queryset for paths ending on a relation, the related table's
+  column in the user's scope for paths through relations (so "Rasht" matches
+  even with no orders yet), otherwise distinct values of the scoped semantic
+  queryset — capped at `VALUE_INDEX_MAX` (5 000) and cached like report results
+  (scope fingerprint + data versions, `VALUE_INDEX_TIMEOUT`). Matching: exact
+  after normalisation (Arabic ي/ك/ة…, Persian/Arabic digits, ZWNJ, diacritics,
+  case), then a cross-script consonant-skeleton transliteration key (every
+  reading of و/ی, word order free: «خراسان رضوی» = *Razavi Khorasan*), then
+  fuzzy (≥ 0.8 and clearly ahead of the runner-up, reported as a warning). A
+  value that only exists in another category dimension moves there (warning);
+  an unknown one becomes a clarification with up to five *in-scope*
+  suggestions, each with a ready-made follow-up question. Out-of-scope values
+  are indistinguishable from nonexistent ones.
+- **Providers** (`nl.providers`): `OpenAICompatibleProvider` (stdlib `urllib`, no
+  new dependency; `POST {BASE_URL}/chat/completions`, `response_format`
+  `json_schema` with the retrieved model names as an enum → automatic fallback to
+  `json_object` on a 400, or `none`; `TEMPERATURE` 0), `HeuristicProvider`
+  (offline, deterministic, English + Persian) and `StubProvider` (tests; builds
+  the real prompt so tests can inspect it). Configuration: `GOZAR["NL"]` key →
+  `GOZAR_NL_<KEY>` environment variable → default; `PROVIDER = "auto"` picks the
+  LLM when `BASE_URL` and `MODEL` are set, else the heuristic. **The API key is
+  read only from the environment** (`API_KEY_ENV`, default `GOZAR_NL_API_KEY`);
+  a literal key in settings is system check error `bi_admin.E003`, a bad
+  `RESPONSE_FORMAT` `E004`. `describe()` exposes name, model and host, never the
+  key. An unreachable model falls back to the heuristic with a warning
+  (`FALLBACK`, default on) or answers `502 provider_*`.
+- **Heuristic interpreter** (`nl.heuristic`): recognises, in order, explicit
+  dates/years/months (Jalali and Gregorian month names; ambiguous ones like
+  *may*/«تیر» need a year or preposition), relative periods ("last 3 months",
+  «سه ماه گذشته», «امسال», «پارسال», "year to date"…), number comparisons with
+  multipliers («بالای ۵۰ میلیون», "between 2 and 10 million"), top/bottom N and
+  sort order («۵ شهر برتر», «پرفروش‌ترین», "which … most" → limit 1), grain and
+  chart words, then catalog phrases (longest match; a span may mean a measure
+  or a dimension — "top customers" vs "customers"), then category values via
+  the server-side index (it is local, so it may), negations («به جز», "except")
+  and qualifiers ("revenue *from orders* over…"). An unknown word right after a
+  category dimension's name is treated as a value (so «شهر نیویورک» asks
+  "no City matches"); other unused words are reported as a warning ("Not used:
+  …"), so a misreading is visible. Follow-ups merge into the previous spec: new
+  measures/group-bys replace (or add with "also"/«هم»/«اضافه»), filters replace
+  those on the same field, "all cities"/«همه شهرها» drops a filter, period and
+  grain replace; a chart that was the default is re-inferred. Chart default:
+  time series → line, one group-by → bar, none → kpi, else table. It asks when
+  no measure is recognised, when two models or two measures fit equally, and for
+  "top N" without a group-by.
+- **Interpretation sentence** (`nl.interpret.describe(report, lang)`): built from
+  the *validated* report (resolved period with its dates in the report's
+  calendar, choice labels, coerced values), gettext templates with Persian
+  digits and month names for `fa`. Shown with every answer, and `POST
+  /reports/validate` now returns it, so the builder shows it for manual specs
+  too ("Showing: …").
+- **Cache**: provider results are cached (`CACHE_TIMEOUT` 3600 s, the report
+  cache alias) under SHA-256 of the normalised question, the retrieved catalog
+  JSON (so visibility is part of the key), the redacted previous spec, today,
+  calendar, language, provider identity and `MAX_RETRIES`. Placeholders are
+  cached, values restored per request; value matching and final validation always
+  run fresh (they depend on scope and data). Failures aren't cached.
+- **Audit**: sibling model `bi_admin.NLLog` (user, question, language, calendar,
+  previous spec, status ok/clarification/invalid/denied/failed, model, spec,
+  interpretation, clarification, provider + model name, attempts, cache hit,
+  duration, error) — every request, including refused (403/429) and failed ones;
+  `AUDIT_REPORTS = False` turns it off too. `ReportLog` wasn't widened: an NL
+  request is not an execution (it may run none, or the client runs it later,
+  which `ReportLog` records). `transcript` (messages + raw outputs per attempt)
+  is filled only with `LOG_PROMPTS = True` (opt-in, for evaluation). Permission
+  `bi_admin.view_nllog` (view-only model), `GET /api/audit/questions`, the SPA's
+  **Question log** page, `/auth/me` `permissions.questions`; the demo's *Shop
+  managers* get it.
+- **API** (`/api/nl`, staff session + CSRF): `POST /ask {question (≤ 4000 chars;
+  `MAX_QUESTION_LENGTH` 500 → 422 question_too_long), previous?: ReportSpec,
+  execute?}` (`execute` runs the spec through `run()` — or submits a job when the
+  model is async — and adds `result`/`job`); `GET /status` (provider, LLM or not,
+  example questions in the user's language); `POST /interpret {spec}`. `403
+  permission_denied` without any reportable model, `429 rate_limited` past
+  `RATE_LIMIT` (30/user/minute, cache counter; `ask(rate_limit=True)` — library
+  callers and the evaluator aren't limited), `422 empty_question`.
+- **SPA**: `reports/AskBox.tsx` (question, examples, thread of answers with the
+  interpretation or the clarification and its suggestion chips, warnings, the
+  interpreter used; after an answer, questions refine the current report until
+  **New question**), at the top of **Reports** (answers become the URL spec, so
+  the builder shows and edits them; follow-ups refine whatever the builder
+  shows, including manual edits) and on the home page (`AskPanel.tsx`, lazy, with
+  `Results` loaded only when there is a result so ECharts stays off the first
+  paint; **Open in report builder**). The run/poll logic moved to
+  `reports/run.ts`, shared by both. All strings in the en/fa dictionaries.
+- **Evaluation** (`nl.evaluation`, `tests/nl_golden/*.json`): 179 cases — 122
+  Persian, 37 English, 20 follow-ups (both languages), 6 expecting a
+  clarification. *Exact* = normalised specs equal; *semantic* = same model,
+  measure and group-by sets, filters (normalised values), time dimension and
+  grain, same date range for the period, sort/limit when expected — chart and
+  calendar ignored. Metrics: exact/semantic match rate, clarification rate and
+  recall, retry rate, mean attempts. CI: the heuristic must reach ≥ 0.95
+  semantic / ≥ 0.9 exact with full clarification recall and no retries (it
+  scores 1.0 today); the stub reproduces a perfect model (1.0, no retries) and a
+  model that is wrong once per question (retry rate = answered share). Caveat:
+  the golden set was written alongside the heuristic, so its score measures
+  regressions, not real-world accuracy — real user questions (from `NLLog`)
+  should be added as they come. `manage.py gozar_nl_eval [--provider]
+  [--golden] [--user] [--today 2026-10-18] [--only fa,en-001] [--json]
+  [--fail-under] [--verbose-failures]` runs it against any provider; expected
+  values assume the English demo data.
+- Demo: `OrderMetrics` gained `nl_examples` (3 English, 3 Persian) and synonyms
+  (revenue: income/turnover/spend; AOV: "average order value",
+  «میانگین مبلغ سفارش»).
+- Deferred: embedding retrieval for large catalogs, learning few-shots from user
+  corrections (§5.5; `NLLog` already keeps question + spec), `compare_to` (M6),
+  filtering on measures (HAVING) — the heuristic ignores "customers with more
+  than 5 orders" style conditions.
+
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object
 tools, permission/user "change password" special forms.
@@ -854,7 +1004,9 @@ Still open:
 
 - Support databases other than PostgreSQL in v1?
 - How semantic models are declared for third-party apps without editing them.
-- Default LLM provider and whether a local model is the default.
+- Default LLM provider: M5 ships none — the offline interpreter is the default
+  and any OpenAI-compatible model (hosted or local) is opt-in by configuration.
+  Which model to recommend needs `gozar_nl_eval` runs against real candidates.
 
 ---
 

@@ -239,3 +239,22 @@ table.grid { width: 100%; border-collapse: collapse; }
 .audit-detail dt { font-weight: 600; }
 .audit-detail dd { margin: 0; min-width: 0; }
 .audit-detail pre { margin: 0 0 0.3rem; white-space: pre-wrap; word-break: break-word; font-size: 0.8rem; max-height: 280px; overflow: auto; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem; text-align: left; }
+
+/* ask (natural-language questions) */
+.ask-box { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.ask-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.ask-form input { flex: 1 1 18rem; font-size: 1rem; padding: 0.55rem 0.75rem; }
+.ask-examples { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+.chip-button { border-radius: 999px; background: var(--accent-soft); border-color: transparent; padding: 0.15rem 0.7rem; font-size: 0.85rem; }
+.chip-button:hover { border-color: var(--accent); }
+.ask-thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+.ask-thread li { border-inline-start: 3px solid var(--accent-soft); padding-inline-start: 0.75rem; }
+.ask-question { margin: 0 0 0.2rem; font-weight: 600; }
+.ask-answer p { margin: 0.15rem 0; }
+.ask-answer.status-ok { color: var(--text); }
+.ask-clarify { color: #8a5a00; }
+.ask-footer { margin: 0; font-size: 0.8rem; }
+.small { font-size: 0.8rem; }
+.interpretation { margin: 0 0 0.75rem; }
+.ask-result { margin-top: 0.5rem; }
+.badge.status-clarification { background: #fff4e0; color: #8a5a00; }

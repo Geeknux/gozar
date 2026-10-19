@@ -6,16 +6,21 @@ from django.utils.translation import gettext as _
 from ninja import Router
 
 from bi_admin.crud.service import CrudError
-from bi_admin.models import ReportLog
+from bi_admin.models import NLLog, ReportLog
 
 router = Router(tags=["audit"])
 
 PERMISSION = "bi_admin.view_reportlog"
+NL_PERMISSION = "bi_admin.view_nllog"
 MAX_PAGE_SIZE = 200
 
 
 def can_view(user) -> bool:
     return bool(user.is_active and user.is_staff and user.has_perm(PERMISSION))
+
+
+def can_view_questions(user) -> bool:
+    return bool(user.is_active and user.is_staff and user.has_perm(NL_PERMISSION))
 
 
 def entry(log: ReportLog) -> dict:
@@ -89,5 +94,73 @@ def report_log(
             "semantic_model": sorted(
                 ReportLog.objects.order_by().values_list("semantic_model", flat=True).distinct()
             ),
+        },
+    }
+
+
+def question_entry(log: NLLog) -> dict:
+    return {
+        "id": log.pk,
+        "timestamp": log.timestamp.isoformat(),
+        "user": log.username or None,
+        "question": log.question,
+        "language": log.language,
+        "calendar": log.calendar,
+        "previous_spec": log.previous_spec,
+        "status": log.status,
+        "status_display": log.get_status_display(),
+        "semantic_model": log.semantic_model,
+        "spec": log.spec,
+        "interpretation": log.interpretation,
+        "clarification": log.clarification,
+        "provider": log.provider,
+        "model": log.model_name,
+        "attempts": log.attempts,
+        "retries": log.retries,
+        "cache_hit": log.cache_hit,
+        "duration_ms": log.duration_ms,
+        "error_code": log.error_code,
+        "error": log.error,
+        "has_transcript": bool(log.transcript),
+    }
+
+
+@router.get("/questions")
+def question_log(
+    request,
+    page: int = 1,
+    page_size: int = 50,
+    user: str = "",
+    status: str = "",
+    q: str = "",
+):
+    """Natural-language questions, newest first (``bi_admin.view_nllog``); ``q``
+    searches questions, users and error codes. Transcripts (opt-in prompt
+    logging) are only flagged here, not returned."""
+    if not can_view_questions(request.user):
+        raise CrudError(403, _("Permission denied: view the question log"))
+    qs = NLLog.objects.defer("transcript")
+    if user:
+        qs = qs.filter(username=user)
+    if status:
+        qs = qs.filter(status=status)
+    for term in q.split():
+        qs = qs.filter(
+            Q(question__icontains=term)
+            | Q(username__icontains=term)
+            | Q(error_code__icontains=term)
+        )
+    paginator = Paginator(qs, max(1, min(page_size, MAX_PAGE_SIZE)))
+    try:
+        current = paginator.page(page)
+    except EmptyPage:
+        raise CrudError(404, _("Page %(page)s does not exist") % {"page": page}) from None
+    return {
+        "entries": [question_entry(log) for log in current.object_list],
+        "count": paginator.count,
+        "page": current.number,
+        "num_pages": paginator.num_pages,
+        "filters": {
+            "status": [{"value": v, "label": str(label)} for v, label in NLLog.Status.choices],
         },
     }

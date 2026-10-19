@@ -1,0 +1,1924 @@
+[
+ {
+  "id": "fa-001",
+  "question": "درآمد به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-002",
+  "question": "فروش هر شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-003",
+  "question": "فروش بر اساس استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-004",
+  "question": "تعداد سفارش به تفکیک وضعیت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-005",
+  "question": "تعداد سفارش‌ها بر اساس شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-006",
+  "question": "میانگین سبد خرید به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-007",
+  "question": "متوسط خرید هر استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-008",
+  "question": "تعداد مشتری به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-009",
+  "question": "تعداد مشتریان هر استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-010",
+  "question": "مبلغ مرجوعی به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "refunds"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-011",
+  "question": "سفارش‌های پرداخت‌شده به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "paid_orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-012",
+  "question": "درآمد و تعداد سفارش به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue",
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-013",
+  "question": "فروش و میانگین سبد به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue",
+    "aov"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-014",
+  "question": "درآمد به تفکیک شهر و وضعیت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city",
+    "status"
+   ],
+   "chart": "table"
+  }
+ },
+ {
+  "id": "fa-015",
+  "question": "تعداد سفارش به تفکیک استان و وضعیت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "province",
+    "status"
+   ],
+   "chart": "table"
+  }
+ },
+ {
+  "id": "fa-016",
+  "question": "فروش به تفکیک مشتری",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "customer"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-017",
+  "question": "خریداران به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-018",
+  "question": "گردش مالی به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-019",
+  "question": "دریافتی هر شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-020",
+  "question": "برگشتی به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "refunds"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-021",
+  "question": "کل درآمد",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-022",
+  "question": "مجموع فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-023",
+  "question": "تعداد کل سفارش‌ها",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-024",
+  "question": "میانگین سبد خرید",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-025",
+  "question": "تعداد مشتریان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-026",
+  "question": "چند سفارش داشتیم؟",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-027",
+  "question": "مبلغ مرجوعی کل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "refunds"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-028",
+  "question": "درآمد ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-029",
+  "question": "فروش امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-030",
+  "question": "فروش پارسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-031",
+  "question": "تعداد سفارش امروز",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "today",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-032",
+  "question": "سفارش‌های دیروز",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "yesterday",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-033",
+  "question": "درآمد این ماه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-034",
+  "question": "فروش ماه جاری به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "this_month",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-035",
+  "question": "درآمد سه ماه گذشته به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-036",
+  "question": "فروش ۶ ماه اخیر به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "last_6_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-037",
+  "question": "تعداد سفارش هفته گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "last_week",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-038",
+  "question": "درآمد فصل گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_season",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-039",
+  "question": "فروش این فصل به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "this_season",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-040",
+  "question": "تعداد مشتری سال گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "relative_period": "last_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-041",
+  "question": "فروش ۳۰ روز گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_30_days",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-042",
+  "question": "سفارش‌های هفت روز اخیر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "last_7_days",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-043",
+  "question": "درآمد دو سال گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_2_years",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-044",
+  "question": "فروش از اول سال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-045",
+  "question": "میانگین سبد ماه قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-046",
+  "question": "درآمد سال قبل به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "last_year",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-047",
+  "question": "تعداد سفارش این هفته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "this_week",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-048",
+  "question": "مبلغ مرجوعی امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "refunds"
+   ],
+   "relative_period": "this_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-049",
+  "question": "فروش ماهانه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-050",
+  "question": "درآمد ماهانه امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-051",
+  "question": "تعداد سفارش روزانه در ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "day",
+   "relative_period": "last_month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-052",
+  "question": "فروش هفتگی",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "week",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-053",
+  "question": "درآمد فصلی پارسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "season",
+   "relative_period": "last_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-054",
+  "question": "فروش سالانه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-055",
+  "question": "روند فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-056",
+  "question": "تعداد سفارش ماه به ماه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-057",
+  "question": "درآمد به تفکیک ماه در ۶ ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "relative_period": "last_6_months",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-058",
+  "question": "فروش ماهانه به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-059",
+  "question": "تعداد مشتری ماهانه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-060",
+  "question": "میانگین سبد ماهیانه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-061",
+  "question": "فروش ماهانه شمسی امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "calendar": "jalali",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-062",
+  "question": "درآمد ماهانه به تاریخ پرداخت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_dimension": "paid_at",
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-063",
+  "question": "فروش روزانه بر اساس تاریخ پرداخت در هفته گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_dimension": "paid_at",
+   "time_grain": "day",
+   "relative_period": "last_week",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-064",
+  "question": "فروش تهران",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-065",
+  "question": "درآمد شهر مشهد",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Mashhad"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-066",
+  "question": "تعداد سفارش اصفهان در ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Isfahan"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-067",
+  "question": "فروش استان فارس",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Fars"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-068",
+  "question": "درآمد استان خراسان رضوی به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Razavi Khorasan"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-069",
+  "question": "فروش تهران و کرج",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "in",
+     "value": [
+      "Karaj",
+      "Tehran"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-070",
+  "question": "درآمد شیراز و تبریز به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "in",
+     "value": [
+      "Shiraz",
+      "Tabriz"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-071",
+  "question": "فروش به تفکیک شهر به جز تهران",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "neq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-072",
+  "question": "درآمد همه شهرها غیر از تهران و کرج",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "not_in",
+     "value": [
+      "Karaj",
+      "Tehran"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-073",
+  "question": "فروش ماهانه تهران",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-074",
+  "question": "تعداد مشتریان رشت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Rasht"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-075",
+  "question": "فروش استان گیلان امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Gilan"
+    }
+   ],
+   "relative_period": "this_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-076",
+  "question": "سفارش‌های قم به تفکیک وضعیت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Qom"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-077",
+  "question": "درآمد اهواز در سه ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Ahvaz"
+    }
+   ],
+   "relative_period": "last_3_months",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-078",
+  "question": "میانگین سبد کرمان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Kerman"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-079",
+  "question": "فروش استان البرز به تفکیک ماه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Alborz"
+    }
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-080",
+  "question": "تعداد سفارش استان تهران",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-081",
+  "question": "تعداد سفارش لغو شده",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "cancelled"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-082",
+  "question": "سفارش‌های مرجوعی به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "refunded"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-083",
+  "question": "تعداد سفارش‌های در انتظار پرداخت",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "pending"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-084",
+  "question": "سفارش‌های لغو شده ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "cancelled"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-085",
+  "question": "تعداد سفارش غیر از لغو شده",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "neq",
+     "value": "cancelled"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-086",
+  "question": "سفارش‌های لغو شده و مرجوعی به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "in",
+     "value": [
+      "cancelled",
+      "refunded"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-087",
+  "question": "۵ شهر برتر از نظر فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 5,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-088",
+  "question": "پنج استان برتر از نظر درآمد",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 5,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-089",
+  "question": "۱۰ مشتری برتر بر اساس فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "customer"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 10,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-090",
+  "question": "سه شهر با کمترین فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "asc"
+    }
+   ],
+   "limit": 3,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-091",
+  "question": "کدام شهر بیشترین فروش را داشته؟",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 1,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-092",
+  "question": "پرفروش‌ترین شهرها",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 10,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-093",
+  "question": "پرفروش‌ترین استان‌ها در سال گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "last_year",
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 10,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-094",
+  "question": "بیشترین تعداد سفارش به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "orders",
+     "direction": "desc"
+    }
+   ],
+   "limit": 10,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-095",
+  "question": "کدام استان کمترین تعداد سفارش را داشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "sort": [
+    {
+     "field": "orders",
+     "direction": "asc"
+    }
+   ],
+   "limit": 1,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-096",
+  "question": "۳ مشتری برتر امسال از نظر فروش",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "customer"
+   ],
+   "relative_period": "this_year",
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 3,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-097",
+  "question": "فروش به تفکیک شهر به ترتیب نزولی",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-098",
+  "question": "تعداد سفارش هر استان به ترتیب صعودی",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "sort": [
+    {
+     "field": "orders",
+     "direction": "asc"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-099",
+  "question": "تعداد سفارش‌های بالای ۵۰ میلیون",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "gte",
+     "value": 50000000
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-100",
+  "question": "سفارش‌های بیشتر از ۱۰ میلیون به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "gte",
+     "value": 10000000
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-101",
+  "question": "تعداد سفارش با مبلغ کمتر از ۱ میلیون",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "lte",
+     "value": 1000000
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-102",
+  "question": "سفارش‌های بین ۱ تا ۵ میلیون",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "between",
+     "value": [
+      1000000,
+      5000000
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-103",
+  "question": "درآمد سفارش‌های حداقل ۲۰ میلیون",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "gte",
+     "value": 20000000
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-104",
+  "question": "فروش سال ۱۴۰۴",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2025-03-21",
+      "2026-03-20"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-105",
+  "question": "درآمد ماهانه سال ۱۴۰۴",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2025-03-21",
+      "2026-03-20"
+     ]
+    }
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-106",
+  "question": "فروش فروردین ۱۴۰۵",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2026-03-21",
+      "2026-04-20"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-107",
+  "question": "تعداد سفارش مهر ۱۴۰۴ به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2025-09-23",
+      "2025-10-22"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-108",
+  "question": "فروش از ۱۴۰۵/۰۱/۰۱ تا ۱۴۰۵/۰۳/۳۱",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2026-03-21",
+      "2026-06-21"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-109",
+  "question": "درآمد از ۱۴۰۵/۰۶/۰۱",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "gte",
+     "value": "2026-08-23"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-110",
+  "question": "فروش سال ۲۰۲۵ به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2025-01-01",
+      "2025-12-31"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-111",
+  "question": "فروش شهریور به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2026-08-23",
+      "2026-09-22"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-112",
+  "question": "نمودار دایره‌ای فروش به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "pie"
+  }
+ },
+ {
+  "id": "fa-113",
+  "question": "فروش هر شهر به صورت جدول",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "table"
+  }
+ },
+ {
+  "id": "fa-114",
+  "question": "نمودار میله‌ای تعداد سفارش ماهانه",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-115",
+  "question": "نمودار خطی درآمد به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "line"
+  }
+ },
+ {
+  "id": "fa-116",
+  "question": "فروش هر شهر در ٣ ماه گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-117",
+  "question": "تعداد سفارشها به تفکيک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "fa-118",
+  "question": "درآمد شهر تهرن",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "fa-119",
+  "question": "سلام",
+  "expected": {
+   "clarification": true
+  }
+ },
+ {
+  "id": "fa-120",
+  "question": "هوا چطور است؟",
+  "expected": {
+   "clarification": true
+  }
+ },
+ {
+  "id": "fa-121",
+  "question": "۵ تای برتر",
+  "expected": {
+   "clarification": true
+  }
+ },
+ {
+  "id": "fa-122",
+  "question": "فروش شهر نیویورک",
+  "expected": {
+   "clarification": true
+  }
+ }
+]

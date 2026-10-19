@@ -1,0 +1,576 @@
+[
+ {
+  "id": "refine-001",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "now only Tehran",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-002",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "make it monthly",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "time_grain": "month",
+   "relative_period": "last_3_months",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-003",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "by province instead",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-004",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "as a pie chart",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "pie"
+  }
+ },
+ {
+  "id": "refine-005",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "top 3",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 3,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-006",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "also show orders",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue",
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-007",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "for last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_year",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-008",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "حالا فقط تهران",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-009",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "ماهانه‌اش کن",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "time_grain": "month",
+   "relative_period": "last_3_months",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-010",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "به تفکیک استان",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-011",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "تعداد سفارش رو هم اضافه کن",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue",
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-012",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "برای امسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "this_year",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-013",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  },
+  "question": "فقط سفارش‌های لغو شده",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "cancelled"
+    }
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-014",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  },
+  "question": "به صورت هفتگی",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "week",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-015",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  },
+  "question": "به تفکیک شهر",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-016",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  },
+  "question": "now for Mashhad",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Mashhad"
+    }
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "refine-017",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  },
+  "question": "now Karaj instead",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Karaj"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "refine-018",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  },
+  "question": "همه شهرها",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "refine-019",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  },
+  "question": "by status",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "refine-020",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  },
+  "question": "مشهد چطور؟",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Mashhad"
+    }
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ }
+]

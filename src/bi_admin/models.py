@@ -226,3 +226,58 @@ class ReportLog(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()} {self.semantic_model} ({self.status})"
+
+
+class NLLog(models.Model):
+    """Audit log of natural-language questions (``/api/nl/ask``): who asked what,
+    what spec came out, how many LLM attempts it took. Prompts and raw model
+    outputs are kept in ``transcript`` only when ``GOZAR["NL"]["LOG_PROMPTS"]``
+    is on (opt-in, for evaluation). Readable with ``bi_admin.view_nllog``."""
+
+    class Status(models.TextChoices):
+        OK = "ok", _("Answered")
+        CLARIFICATION = "clarification", _("Clarification asked")
+        INVALID = "invalid", _("No valid spec")
+        DENIED = "denied", _("Denied")
+        FAILED = "failed", _("Failed")
+
+    timestamp = models.DateTimeField(_("time"), auto_now_add=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("user"),
+    )
+    username = models.CharField(_("username"), max_length=150, blank=True)
+    question = models.TextField(_("question"))
+    language = models.CharField(_("language"), max_length=10, blank=True)
+    calendar = models.CharField(_("calendar"), max_length=10, blank=True)
+    previous_spec = models.JSONField(_("previous spec"), null=True, blank=True)
+    status = models.CharField(_("status"), max_length=16, choices=Status.choices, db_index=True)
+    semantic_model = models.CharField(_("semantic model"), max_length=100, blank=True)
+    spec = models.JSONField(_("report spec"), null=True, blank=True)
+    interpretation = models.TextField(_("interpretation"), blank=True)
+    clarification = models.TextField(_("clarification"), blank=True)
+    provider = models.CharField(_("provider"), max_length=50, blank=True)
+    model_name = models.CharField(_("model"), max_length=200, blank=True)
+    attempts = models.PositiveSmallIntegerField(_("attempts"), default=0)
+    cache_hit = models.BooleanField(_("served from cache"), default=False)
+    duration_ms = models.PositiveIntegerField(_("duration (ms)"), null=True, blank=True)
+    error_code = models.CharField(_("error code"), max_length=64, blank=True)
+    error = models.TextField(_("error"), blank=True)
+    transcript = models.JSONField(_("transcript"), default=list, blank=True)
+
+    class Meta:
+        verbose_name = _("question log entry")
+        verbose_name_plural = _("question log entries")
+        ordering = ["-timestamp", "-id"]
+        default_permissions = ("view",)
+
+    def __str__(self):
+        return f"{self.username}: {self.question[:50]} ({self.status})"
+
+    @property
+    def retries(self) -> int:
+        return max(0, self.attempts - 1)

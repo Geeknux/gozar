@@ -1,0 +1,598 @@
+[
+ {
+  "id": "en-001",
+  "question": "revenue by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-002",
+  "question": "sales per province",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-003",
+  "question": "orders by status",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-004",
+  "question": "average order value by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-005",
+  "question": "number of customers by province",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-006",
+  "question": "total revenue",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-007",
+  "question": "how many orders did we get last month",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "last_month",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-008",
+  "question": "revenue for the last three months by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-009",
+  "question": "revenue in the past 6 months",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "past_6_months",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-010",
+  "question": "monthly revenue this year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-011",
+  "question": "weekly orders over the last 3 months",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "week",
+   "relative_period": "last_3_months",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-012",
+  "question": "quarterly sales last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "season",
+   "relative_period": "last_year",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-013",
+  "question": "daily orders yesterday",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "day",
+   "relative_period": "yesterday",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-014",
+  "question": "revenue year to date",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-015",
+  "question": "orders this quarter by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "this_season",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-016",
+  "question": "revenue in Tehran",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-017",
+  "question": "orders in Mashhad and Isfahan by status",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "in",
+     "value": [
+      "Isfahan",
+      "Mashhad"
+     ]
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-018",
+  "question": "revenue by province except Tehran",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "neq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-019",
+  "question": "sales in Fars province",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "province",
+     "op": "eq",
+     "value": "Fars"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-020",
+  "question": "cancelled orders by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "cancelled"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-021",
+  "question": "refunded orders last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "status",
+     "op": "eq",
+     "value": "refunded"
+    }
+   ],
+   "relative_period": "last_year",
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-022",
+  "question": "top 5 cities by revenue",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 5,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-023",
+  "question": "top 3 customers by revenue last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "customer"
+   ],
+   "relative_period": "last_year",
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "desc"
+    }
+   ],
+   "limit": 3,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-024",
+  "question": "bottom 3 provinces by orders",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "sort": [
+    {
+     "field": "orders",
+     "direction": "asc"
+    }
+   ],
+   "limit": 3,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-025",
+  "question": "which city had the most orders",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "orders",
+     "direction": "desc"
+    }
+   ],
+   "limit": 1,
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-026",
+  "question": "orders over 50 million",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "gte",
+     "value": 50000000
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-027",
+  "question": "revenue from orders under 2 million by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "filters": [
+    {
+     "field": "amount",
+     "op": "lte",
+     "value": 2000000
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-028",
+  "question": "revenue in 2025 by month",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2025-01-01",
+      "2025-12-31"
+     ]
+    }
+   ],
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-029",
+  "question": "orders in March 2026",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "filters": [
+    {
+     "field": "created_at",
+     "op": "between",
+     "value": [
+      "2026-03-01",
+      "2026-03-31"
+     ]
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-030",
+  "question": "revenue by province as a pie chart",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "chart": "pie"
+  }
+ },
+ {
+  "id": "en-031",
+  "question": "monthly revenue by payment date",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_dimension": "paid_at",
+   "time_grain": "month",
+   "chart": "line"
+  }
+ },
+ {
+  "id": "en-032",
+  "question": "paid orders by city this month",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "paid_orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "this_month",
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-033",
+  "question": "refunds by city",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "refunds"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-034",
+  "question": "revenue in Tehrn",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  }
+ },
+ {
+  "id": "en-035",
+  "question": "revenue and orders by city sorted ascending",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue",
+    "orders"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "sort": [
+    {
+     "field": "revenue",
+     "direction": "asc"
+    }
+   ],
+   "chart": "bar"
+  }
+ },
+ {
+  "id": "en-036",
+  "question": "hello",
+  "expected": {
+   "clarification": true
+  }
+ },
+ {
+  "id": "en-037",
+  "question": "top 5",
+  "expected": {
+   "clarification": true
+  }
+ }
+]

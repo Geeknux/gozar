@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Gozar (bi_admin)\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 18:45+0330\n"
+"POT-Creation-Date: 2026-10-19 20:02+0330\n"
 "PO-Revision-Date: 2026-10-18 23:40+0330\n"
 "Last-Translator: Gozar contributors\n"
 "Language-Team: Persian\n"
@@ -15,20 +15,25 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: api/audit.py:58
+#: api/audit.py:63
 msgid "Permission denied: view the report audit log"
 msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش ممیزی اجرای گزارش‌ها"
 
-#: api/audit.py:80 crud/service.py:518 engine/drilldown.py:183
+#: api/audit.py:85 api/audit.py:157 crud/service.py:518
+#: engine/drilldown.py:183
 #, python-format
 msgid "Page %(page)s does not exist"
 msgstr "صفحهٔ %(page)s وجود ندارد"
 
-#: api/auth.py:47
+#: api/audit.py:141
+msgid "Permission denied: view the question log"
+msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش پرسش‌ها"
+
+#: api/auth.py:48
 msgid "CSRF verification failed"
 msgstr "بررسی CSRF ناموفق بود"
 
-#: api/auth.py:51
+#: api/auth.py:52
 msgid "Incorrect username or password, or the account has no admin access."
 msgstr "نام کاربری یا گذرواژه نادرست است، یا حساب دسترسی مدیریت ندارد."
 
@@ -36,7 +41,7 @@ msgstr "نام کاربری یا گذرواژه نادرست است، یا حس�
 msgid "Invalid JSON body"
 msgstr "بدنهٔ JSON نامعتبر است"
 
-#: api/docs.py:63
+#: api/docs.py:81
 msgid "Staff access is required."
 msgstr "دسترسی کارمندی لازم است."
 
@@ -52,19 +57,19 @@ msgstr "بدنهٔ درخواست باید یک شیء JSON باشد"
 msgid "Validation failed"
 msgstr "اعتبارسنجی ناموفق بود"
 
-#: api/reports.py:131
+#: api/reports.py:134
 msgid "Report job not found"
 msgstr "کار گزارش پیدا نشد"
 
-#: api/reports.py:147 execution/jobs.py:245
+#: api/reports.py:150 execution/jobs.py:245
 msgid "The report failed."
 msgstr "اجرای گزارش ناموفق بود."
 
-#: api/reports.py:151
+#: api/reports.py:154
 msgid "The report job was cancelled"
 msgstr "کار گزارش لغو شد"
 
-#: api/reports.py:153
+#: api/reports.py:156
 msgid "The report job has not finished"
 msgstr "کار گزارش هنوز تمام نشده است"
 
@@ -391,15 +396,15 @@ msgstr "ویرایش"
 msgid "Deletion"
 msgstr "حذف"
 
-#: models.py:16 models.py:191
+#: models.py:16 models.py:191 models.py:244
 msgid "time"
 msgstr "زمان"
 
-#: models.py:23 models.py:106 models.py:142 models.py:198
+#: models.py:23 models.py:106 models.py:142 models.py:198 models.py:251
 msgid "user"
 msgstr "کاربر"
 
-#: models.py:25
+#: models.py:25 models.py:264
 msgid "model"
 msgstr "مدل"
 
@@ -531,7 +536,7 @@ msgstr "روز تقویم"
 msgid "calendar days"
 msgstr "روزهای تقویم"
 
-#: models.py:98
+#: models.py:98 nl/interpret.py:261
 msgid "Gregorian"
 msgstr "میلادی"
 
@@ -539,11 +544,11 @@ msgstr "میلادی"
 msgid "Jalali (Solar Hijri)"
 msgstr "شمسی (هجری خورشیدی)"
 
-#: models.py:108
+#: models.py:108 models.py:255
 msgid "language"
 msgstr "زبان"
 
-#: models.py:109
+#: models.py:109 models.py:256
 msgid "calendar"
 msgstr "تقویم"
 
@@ -571,7 +576,7 @@ msgstr "در حال اجرا"
 msgid "Done"
 msgstr "انجام شد"
 
-#: models.py:132 models.py:189
+#: models.py:132 models.py:189 models.py:242
 msgid "Failed"
 msgstr "ناموفق"
 
@@ -579,11 +584,11 @@ msgstr "ناموفق"
 msgid "Cancelled"
 msgstr "لغو شده"
 
-#: models.py:144 models.py:202
+#: models.py:144 models.py:202 models.py:259
 msgid "semantic model"
 msgstr "مدل معنایی"
 
-#: models.py:145 models.py:203
+#: models.py:145 models.py:203 models.py:260
 msgid "report spec"
 msgstr "مشخصات گزارش"
 
@@ -591,7 +596,7 @@ msgstr "مشخصات گزارش"
 msgid "options"
 msgstr "گزینه‌ها"
 
-#: models.py:148 models.py:205
+#: models.py:148 models.py:205 models.py:258
 msgid "status"
 msgstr "وضعیت"
 
@@ -615,7 +620,7 @@ msgstr "اجاره"
 msgid "heartbeat"
 msgstr "آخرین نشانهٔ حیات"
 
-#: models.py:157
+#: models.py:157 models.py:265
 msgid "attempts"
 msgstr "تعداد تلاش"
 
@@ -623,7 +628,7 @@ msgstr "تعداد تلاش"
 msgid "result"
 msgstr "نتیجه"
 
-#: models.py:159 models.py:207
+#: models.py:159 models.py:207 models.py:269
 msgid "error"
 msgstr "خطا"
 
@@ -659,11 +664,11 @@ msgstr "موفق"
 msgid "Invalid spec"
 msgstr "مشخصات نامعتبر"
 
-#: models.py:188
+#: models.py:188 models.py:241
 msgid "Denied"
 msgstr "رد شده"
 
-#: models.py:200
+#: models.py:200 models.py:253
 msgid "username"
 msgstr "نام کاربری"
 
@@ -675,11 +680,11 @@ msgstr "نوع"
 msgid "row-level scope"
 msgstr "محدودهٔ سطرها"
 
-#: models.py:206
+#: models.py:206 models.py:268
 msgid "error code"
 msgstr "کد خطا"
 
-#: models.py:208
+#: models.py:208 models.py:267
 msgid "duration (ms)"
 msgstr "مدت (میلی‌ثانیه)"
 
@@ -687,7 +692,7 @@ msgstr "مدت (میلی‌ثانیه)"
 msgid "rows"
 msgstr "تعداد سطر"
 
-#: models.py:210
+#: models.py:210 models.py:266
 msgid "served from cache"
 msgstr "از حافظهٔ نهان"
 
@@ -706,6 +711,407 @@ msgstr "رکورد ممیزی گزارش"
 #: models.py:223
 msgid "report log entries"
 msgstr "رکوردهای ممیزی گزارش"
+
+#: models.py:238
+msgid "Answered"
+msgstr "پاسخ داده شد"
+
+#: models.py:239
+msgid "Clarification asked"
+msgstr "درخواست توضیح"
+
+#: models.py:240
+msgid "No valid spec"
+msgstr "بدون مشخصات معتبر"
+
+#: models.py:254
+msgid "question"
+msgstr "پرسش"
+
+#: models.py:257
+msgid "previous spec"
+msgstr "مشخصات قبلی"
+
+#: models.py:261
+msgid "interpretation"
+msgstr "برداشت"
+
+#: models.py:262
+msgid "clarification"
+msgstr "درخواست توضیح"
+
+#: models.py:263
+msgid "provider"
+msgstr "ارائه‌دهنده"
+
+#: models.py:270
+msgid "transcript"
+msgstr "متن گفتگو"
+
+#: models.py:273
+msgid "question log entry"
+msgstr "رکورد گزارش پرسش"
+
+#: models.py:274
+msgid "question log entries"
+msgstr "رکوردهای گزارش پرسش"
+
+#: nl/heuristic.py:791
+#, python-format
+msgid "Not used: %(words)s"
+msgstr "استفاده نشد: %(words)s"
+
+#: nl/heuristic.py:791 nl/interpret.py:94 nl/interpret.py:299
+#: nl/pipeline.py:304
+msgid ", "
+msgstr "، "
+
+#: nl/heuristic.py:864 nl/heuristic.py:871
+#, python-format
+msgid "Which data do you mean: %(options)s?"
+msgstr "منظورتان کدام داده است: %(options)s؟"
+
+#: nl/heuristic.py:882
+#, python-format
+msgid "%(items)s or %(last)s"
+msgstr "%(items)s یا %(last)s"
+
+#: nl/heuristic.py:892
+msgid "There is no data you may report on."
+msgstr "داده‌ای نیست که اجازهٔ گزارش‌گیری از آن را داشته باشید."
+
+#: nl/heuristic.py:973
+#, python-format
+msgid "Did you mean %(options)s?"
+msgstr "منظورتان %(options)s است؟"
+
+#: nl/heuristic.py:1031
+#, python-format
+msgid "What should I measure? For example: %(options)s."
+msgstr "چه چیزی را بسنجم؟ برای نمونه: %(options)s."
+
+#: nl/heuristic.py:1190
+#, python-format
+msgid "Top of what? For example: %(options)s."
+msgstr "برترین‌ها از نظر چه؟ برای نمونه: %(options)s."
+
+#: nl/interpret.py:102
+msgctxt "period unit"
+msgid "day"
+msgstr "روز"
+
+#: nl/interpret.py:103
+msgctxt "period unit"
+msgid "week"
+msgstr "هفته"
+
+#: nl/interpret.py:104
+msgctxt "period unit"
+msgid "month"
+msgstr "ماه"
+
+#: nl/interpret.py:105
+msgctxt "period unit"
+msgid "season"
+msgstr "فصل"
+
+#: nl/interpret.py:106
+msgctxt "period unit"
+msgid "quarter"
+msgstr "سه‌ماهه"
+
+#: nl/interpret.py:107
+msgctxt "period unit"
+msgid "year"
+msgstr "سال"
+
+#: nl/interpret.py:110
+msgctxt "period unit plural"
+msgid "days"
+msgstr "روز"
+
+#: nl/interpret.py:111
+msgctxt "period unit plural"
+msgid "weeks"
+msgstr "هفته"
+
+#: nl/interpret.py:112
+msgctxt "period unit plural"
+msgid "months"
+msgstr "ماه"
+
+#: nl/interpret.py:113
+msgctxt "period unit plural"
+msgid "seasons"
+msgstr "فصل"
+
+#: nl/interpret.py:114
+msgctxt "period unit plural"
+msgid "quarters"
+msgstr "سه‌ماهه"
+
+#: nl/interpret.py:115
+msgctxt "period unit plural"
+msgid "years"
+msgstr "سال"
+
+#: nl/interpret.py:125
+msgid "today"
+msgstr "امروز"
+
+#: nl/interpret.py:127
+msgid "yesterday"
+msgstr "دیروز"
+
+#: nl/interpret.py:129
+#, python-format
+msgid "this %(unit)s"
+msgstr "%(unit)s جاری"
+
+#: nl/interpret.py:131
+#, python-format
+msgid "last %(unit)s"
+msgstr "%(unit)s گذشته"
+
+#: nl/interpret.py:133
+#, python-format
+msgid "the last %(count)s %(units)s"
+msgstr "%(count)s %(units)s گذشته"
+
+#: nl/interpret.py:139
+#, python-format
+msgid "the past %(count)s %(units)s, including this %(unit)s"
+msgstr "%(count)s %(units)s اخیر با احتساب %(unit)s جاری"
+
+#: nl/interpret.py:148
+#, python-format
+msgid "%(start)s – %(end)s"
+msgstr "%(start)s تا %(end)s"
+
+#: nl/interpret.py:158
+msgid "daily"
+msgstr "روزانه"
+
+#: nl/interpret.py:159
+msgid "weekly"
+msgstr "هفتگی"
+
+#: nl/interpret.py:160
+msgid "monthly"
+msgstr "ماهانه"
+
+#: nl/interpret.py:161
+msgid "by season"
+msgstr "فصلی"
+
+#: nl/interpret.py:162
+msgid "yearly"
+msgstr "سالانه"
+
+#: nl/interpret.py:168
+msgid "quarterly"
+msgstr "سه‌ماهه"
+
+#: nl/interpret.py:176
+msgid "yes"
+msgstr "بله"
+
+#: nl/interpret.py:176
+msgid "no"
+msgstr "خیر"
+
+#: nl/interpret.py:191
+#, python-format
+msgid "%(field)s is empty"
+msgstr "%(field)s خالی باشد"
+
+#: nl/interpret.py:191
+#, python-format
+msgid "%(field)s is not empty"
+msgstr "%(field)s خالی نباشد"
+
+#: nl/interpret.py:200
+#, python-format
+msgid "%(field)s is %(value)s"
+msgstr "%(field)s %(value)s باشد"
+
+#: nl/interpret.py:202
+#, python-format
+msgid "%(field)s is not %(value)s"
+msgstr "%(field)s %(value)s نباشد"
+
+#: nl/interpret.py:204
+#, python-format
+msgid "%(field)s is %(values)s"
+msgstr "%(field)s %(values)s باشد"
+
+#: nl/interpret.py:204
+msgid "or"
+msgstr "یا"
+
+#: nl/interpret.py:206
+#, python-format
+msgid "%(field)s is neither %(values)s"
+msgstr "%(field)s هیچ‌یک از %(values)s نباشد"
+
+#: nl/interpret.py:208
+msgid "nor"
+msgstr "و"
+
+#: nl/interpret.py:212
+#, python-format
+msgid "%(field)s from %(value)s"
+msgstr "%(field)s از %(value)s به بعد باشد"
+
+#: nl/interpret.py:213
+#, python-format
+msgid "%(field)s at least %(value)s"
+msgstr "%(field)s حداقل %(value)s باشد"
+
+#: nl/interpret.py:216
+#, python-format
+msgid "%(field)s until %(value)s"
+msgstr "%(field)s تا %(value)s باشد"
+
+#: nl/interpret.py:217
+#, python-format
+msgid "%(field)s at most %(value)s"
+msgstr "%(field)s حداکثر %(value)s باشد"
+
+#: nl/interpret.py:220
+#, python-format
+msgid "%(field)s from %(low)s to %(high)s"
+msgstr "%(field)s از %(low)s تا %(high)s باشد"
+
+#: nl/interpret.py:225
+#, python-format
+msgid "%(field)s between %(low)s and %(high)s"
+msgstr "%(field)s بین %(low)s و %(high)s باشد"
+
+#: nl/interpret.py:230
+#, python-format
+msgid "%(field)s contains “%(value)s”"
+msgstr "%(field)s شامل «%(value)s» باشد"
+
+#: nl/interpret.py:248 nl/interpret.py:254 nl/interpret.py:274
+msgid "and"
+msgstr "و"
+
+#: nl/interpret.py:252
+#, python-format
+msgid "%(measures)s by %(dimensions)s"
+msgstr "%(measures)s به تفکیک %(dimensions)s"
+
+#: nl/interpret.py:261
+msgid "Jalali"
+msgstr "شمسی"
+
+#: nl/interpret.py:266
+#, python-format
+msgid "%(grain)s by %(field)s"
+msgstr "%(grain)s بر اساس %(field)s"
+
+#: nl/interpret.py:271
+#, python-format
+msgid "%(period)s by %(field)s"
+msgstr "%(period)s بر اساس %(field)s"
+
+#: nl/interpret.py:275
+#, python-format
+msgid "where %(conditions)s"
+msgstr "به شرط آنکه %(conditions)s"
+
+#: nl/interpret.py:285
+#, python-format
+msgid "top %(n)s by %(field)s"
+msgstr "%(n)s مورد برتر از نظر %(field)s"
+
+#: nl/interpret.py:287
+#, python-format
+msgid "bottom %(n)s by %(field)s"
+msgstr "%(n)s مورد پایین از نظر %(field)s"
+
+#: nl/interpret.py:292
+#, python-format
+msgid "sorted by %(field)s, highest first"
+msgstr "مرتب بر اساس %(field)s، از بیشترین"
+
+#: nl/interpret.py:294
+#, python-format
+msgid "sorted by %(field)s, lowest first"
+msgstr "مرتب بر اساس %(field)s، از کمترین"
+
+#: nl/interpret.py:298
+#, python-format
+msgid "first %(n)s rows"
+msgstr "%(n)s سطر اول"
+
+#: nl/interpret.py:299
+msgid "."
+msgstr "."
+
+#: nl/pipeline.py:207
+#, python-format
+msgid ""
+"Too many questions; try again in a minute (limit: %(limit)s per minute)"
+msgstr ""
+"پرسش‌ها زیاد است؛ یک دقیقهٔ دیگر دوباره بپرسید (حداکثر %(limit)s پرسش در "
+"دقیقه)"
+
+#: nl/pipeline.py:280
+#, python-format
+msgid "Matched “%(value)s” to %(field)s “%(match)s”."
+msgstr "«%(value)s» با %(field)s «%(match)s» تطبیق داده شد."
+
+#: nl/pipeline.py:292
+#, python-format
+msgid "“%(value)s” is a %(field)s, so the filter uses %(field)s."
+msgstr "«%(value)s» یک %(field)s است، پس فیلتر روی %(field)s اعمال شد."
+
+#: nl/pipeline.py:301
+#, python-format
+msgid "No %(field)s matches “%(value)s”. Did you mean %(options)s?"
+msgstr "هیچ %(field)s با «%(value)s» مطابقت ندارد. منظورتان %(options)s است؟"
+
+#: nl/pipeline.py:307
+#, python-format
+msgid "No %(field)s matches “%(value)s”."
+msgstr "هیچ %(field)s با «%(value)s» مطابقت ندارد."
+
+#: nl/pipeline.py:430
+msgid "Type a question"
+msgstr "پرسشی بنویسید"
+
+#: nl/pipeline.py:436
+#, python-format
+msgid "Questions are limited to %(max)s characters"
+msgstr "پرسش حداکثر می‌تواند %(max)s نویسه باشد"
+
+#: nl/pipeline.py:440
+msgid "You don't have access to any report data"
+msgstr "به هیچ داده‌ای برای گزارش‌گیری دسترسی ندارید"
+
+#: nl/pipeline.py:459
+msgid ""
+"Sorry, I couldn't turn that into a report. Try naming what to measure and "
+"how to group it, e.g. “revenue by city last month”."
+msgstr ""
+"متأسفانه نتوانستم این را به گزارش تبدیل کنم. بگویید چه چیزی سنجیده و بر چه "
+"اساسی تفکیک شود؛ مثلاً «درآمد به تفکیک شهر در ماه گذشته»."
+
+#: nl/pipeline.py:493
+#, python-format
+msgid "The matched report is not valid: %(error)s"
+msgstr "گزارش به‌دست‌آمده معتبر نیست: %(error)s"
+
+#: nl/pipeline.py:572
+msgid "The language model is unavailable; the built-in interpreter answered."
+msgstr "مدل زبانی در دسترس نیست؛ مفسر داخلی پاسخ داد."
+
+#: nl/pipeline.py:578
+#, python-format
+msgid "The language model could not be reached: %(error)s"
+msgstr "دسترسی به مدل زبانی ممکن نشد: %(error)s"
 
 #: preferences.py:131
 msgid "Unknown preference."

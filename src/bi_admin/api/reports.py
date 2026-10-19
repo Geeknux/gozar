@@ -17,6 +17,7 @@ from bi_admin.engine.spec import Scalar
 from bi_admin.engine.values import dimension_values
 from bi_admin.execution import jobs
 from bi_admin.models import ReportJob
+from bi_admin.nl.interpret import describe
 from bi_admin.semantic import catalog, semantic_site
 from bi_admin.semantic.base import active_language
 
@@ -38,7 +39,8 @@ def report_catalog(request, lang: str | None = None):
 
 @router.post("/validate")
 def validate_spec(request, spec: ReportSpec):
-    """Check a spec without running it; returns ``valid`` plus structured errors."""
+    """Check a spec without running it; returns ``valid`` plus structured errors, and
+    for a valid spec its resolved calendar/period and interpretation sentence."""
     try:
         report = prepare(spec, request)
     except SpecValidationError as exc:
@@ -48,6 +50,7 @@ def validate_spec(request, spec: ReportSpec):
         "errors": [],
         "calendar": report.calendar,
         "period": report.period.as_dict() if report.period else None,
+        "interpretation": describe(report),
     }
 
 

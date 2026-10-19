@@ -43,3 +43,29 @@ def check_reports_database(app_configs=None, **kwargs):
             )
         ]
     return []
+
+
+@checks.register()
+def check_nl_settings(app_configs=None, **kwargs):
+    """The LLM API key comes from the environment only, never from settings."""
+    from bi_admin.nl.conf import configured
+
+    config = configured()
+    errors = []
+    if config.get("API_KEY"):
+        errors.append(
+            checks.Error(
+                'Don\'t put the LLM API key in settings: set GOZAR["NL"]["API_KEY_ENV"] to the '
+                "name of an environment variable (default GOZAR_NL_API_KEY) and export the key",
+                id="bi_admin.E003",
+            )
+        )
+    fmt = config.get("RESPONSE_FORMAT")
+    if fmt and fmt not in ("json_schema", "json_object", "none"):
+        errors.append(
+            checks.Error(
+                f'GOZAR["NL"]["RESPONSE_FORMAT"] = {fmt!r}: use json_schema, json_object or none',
+                id="bi_admin.E004",
+            )
+        )
+    return errors

@@ -16,7 +16,9 @@ import {
   type SpecError,
   specFromParam,
 } from "./model";
+import AskBox from "./AskBox";
 import Results from "./Results";
+import { JobCancelled, runSpec } from "./run";
 
 const incomplete = (f: Filter) =>
   f.op !== "is_null" &&
@@ -35,9 +37,6 @@ function sanitize(spec: Spec): { spec: Spec; filterIndex: number[] } {
 const remap = (errors: SpecError[], filterIndex: number[]) =>
   errors.map((e) => ({ ...e, path: e.path.replace(/^filters\[(\d+)\]/, (_, i) => `filters[${filterIndex[Number(i)] ?? i}]`) }));
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const POLL_MS = [500, 1000, 1000, 2000, 2000, 3000]; // then every 3 s
-
 /** Reports: builder on one side, live results on the other; the spec lives in the URL. */
 export default function ReportsPage() {
   const { t } = useI18n();
@@ -49,6 +48,7 @@ export default function ReportsPage() {
   const [job, setJob] = useState<Job | null>(null);
   const [runError, setRunError] = useState("");
   const [running, setRunning] = useState(false);
+  const [interpretation, setInterpretation] = useState("");
   const [copied, setCopied] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const seq = useRef(0);
@@ -90,50 +90,35 @@ export default function ReportsPage() {
       if (!clean.measures.length) {
         setErrors([]);
         setResult(null);
+        setInterpretation("");
         return;
       }
       try {
-        const check = await api<{ valid: boolean; errors: SpecError[] }>("/reports/validate", {
+        const check = await api<{ valid: boolean; errors: SpecError[]; interpretation?: string }>("/reports/validate", {
           method: "POST",
           body: clean,
         });
         if (id !== seq.current) return;
         setErrors(remap(check.errors, filterIndex));
-        if (!check.valid) return;
+        if (!check.valid) {
+          setInterpretation("");
+          return;
+        }
+        setInterpretation(check.interpretation ?? "");
         setRunning(true);
-        const params = bypassCache.current ? { cache: "false" } : undefined;
+        const bypass = bypassCache.current;
         bypassCache.current = false;
-        const res = await api<Result | { job: Job }>("/reports/run", { method: "POST", body: clean, params });
-        if (!current()) return;
-        if (!("job" in res)) {
-          setResult({ result: res, spec: clean });
-          return;
-        }
-        // A background job: poll until it finishes, unless the spec changes meanwhile.
-        let state = res.job;
-        setJob(state);
-        for (let i = 0; state.status === "queued" || state.status === "running"; i++) {
-          await wait(POLL_MS[Math.min(i, POLL_MS.length - 1)]);
-          if (!current()) return;
-          state = await api<Job>(`/reports/jobs/${state.id}`);
-          if (!current()) return;
-          setJob(state);
-        }
-        if (state.status === "cancelled") {
-          setRunError(t("job.cancelled"));
-          return;
-        }
-        // done → the result; failed → the same error a synchronous run would raise
-        const final = await api<Result>(`/reports/jobs/${state.id}/result`);
-        if (current()) {
+        const done = await runSpec(clean, { bypassCache: bypass, isCurrent: current, onJob: setJob });
+        if (done) {
           setJob(null);
-          setResult({ result: final, spec: clean, jobId: state.id });
+          setResult({ ...done, spec: clean });
         }
       } catch (err) {
         if (id !== seq.current) return;
         setJob(null);
         const specErrors = err instanceof ApiError ? (err.data as { errors?: unknown }).errors : undefined;
-        if (Array.isArray(specErrors)) setErrors(remap(specErrors as SpecError[], filterIndex));
+        if (err instanceof JobCancelled) setRunError(t("job.cancelled"));
+        else if (Array.isArray(specErrors)) setErrors(remap(specErrors as SpecError[], filterIndex));
         else setRunError(err instanceof Error ? err.message : String(err));
       } finally {
         if (current()) setRunning(false);
@@ -189,12 +174,18 @@ export default function ReportsPage() {
           </button>
         </div>
       </div>
+      <AskBox current={spec} onSpec={(next) => setSpec(next)} />
       <div className="reports-layout">
         <Builder catalog={catalog} spec={spec} onChange={setSpec} errors={errors} />
         <div className="reports-main">
           {!spec.measures.length && <p className="notice">{t("report.pickMeasure")}</p>}
           {errors.length > 0 && <p className="error">{t("report.invalid")}</p>}
           {runError && <p className="error">{runError}</p>}
+          {interpretation && errors.length === 0 && (
+            <p className="interpretation" dir="auto">
+              <span className="muted">{t("ask.showing")}</span> {interpretation}
+            </p>
+          )}
           {job && (
             <div className="notice job-status" role="status">
               <span>

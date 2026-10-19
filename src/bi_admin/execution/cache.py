@@ -36,6 +36,7 @@ EPOCH_KEY = "gozar:dv:*"
 # Gozar's own bookkeeping never feeds a report; don't churn versions for it.
 UNTRACKED = {
     "bi_admin.reportlog",
+    "bi_admin.nllog",
     "bi_admin.reportjob",
     "bi_admin.changelog",
     "bi_admin.userpreferences",

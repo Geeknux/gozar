@@ -49,7 +49,7 @@ def test_measure_metadata():
     revenue = semantic_site.get("order_metrics").measures["revenue"]
     assert revenue.format == "currency"
     assert revenue.label == {"fa": "درآمد", "en": "Revenue"}
-    assert "گردش مالی" in revenue.synonyms["fa"] and revenue.synonyms["en"] == ["sales"]
+    assert "گردش مالی" in revenue.synonyms["fa"] and revenue.synonyms["en"][0] == "sales"
     assert revenue.description["en"] == "Sum of amounts of paid orders"
 
 

@@ -7,7 +7,8 @@ amounts and dates either way — only the names differ.
 
 It also creates the access-control demo groups (see ``shop/gozar.py``): the
 sales-region groups limited by row rules to their cities, and "Shop managers"
-(all shop data, the finance-only Refunds measure and the report audit log).
+(all shop data, the finance-only Refunds measure, the report audit log and
+the question log).
 ``--users`` adds demo accounts in them, all with the password ``--password``.
 """
 
@@ -220,7 +221,7 @@ class Command(BaseCommand):
         groups = {}
         for name in [*REGIONS, MANAGERS]:
             group, _created = Group.objects.get_or_create(name=name)
-            extra = ["change_order", "view_reportlog"] if name == MANAGERS else []
+            extra = ["change_order", "view_reportlog", "view_nllog"] if name == MANAGERS else []
             group.permissions.set(perms(*view, *extra))
             groups[name] = group
         return groups

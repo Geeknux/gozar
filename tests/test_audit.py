@@ -139,11 +139,17 @@ def test_audit_api_needs_the_dedicated_permission(make_staff, orders):
     assert c.get(f"{API}/audit/reports").status_code == 401
     c.force_login(make_staff("shop.view_order"))
     assert c.get(f"{API}/audit/reports").status_code == 403
-    assert c.get(f"{API}/auth/me").json()["user"]["permissions"] == {"audit": False}
+    assert c.get(f"{API}/auth/me").json()["user"]["permissions"] == {
+        "audit": False,
+        "questions": False,
+    }
     auditor = Client()
     auditor.force_login(make_staff("bi_admin.view_reportlog", username="auditor"))
     assert auditor.get(f"{API}/audit/reports").status_code == 200
-    assert auditor.get(f"{API}/auth/me").json()["user"]["permissions"] == {"audit": True}
+    assert auditor.get(f"{API}/auth/me").json()["user"]["permissions"] == {
+        "audit": True,
+        "questions": False,
+    }
 
 
 def test_audit_api_lists_and_filters(admin_client, make_staff, orders, report_api):

@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ModelList from "./pages/ModelList";
 import ObjectForm from "./pages/ObjectForm";
+import QuestionLog from "./pages/QuestionLog";
 import Settings from "./pages/Settings";
 import type { AppEntry, Preferences } from "./types";
 
@@ -21,7 +22,7 @@ export type User = {
   username: string;
   full_name: string;
   is_superuser: boolean;
-  permissions?: { audit?: boolean };
+  permissions?: { audit?: boolean; questions?: boolean };
 };
 
 type Me = { authenticated: boolean; user: User | null; preferences: Preferences };
@@ -124,6 +125,7 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
           }
         />
         {user.permissions?.audit && <Route path="/audit" element={<AuditLog />} />}
+        {user.permissions?.questions && <Route path="/questions" element={<QuestionLog />} />}
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />
         <Route path="/:app/:model/:pk" element={<ObjectForm />} />
