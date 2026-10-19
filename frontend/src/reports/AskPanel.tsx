@@ -3,7 +3,9 @@ import { Link } from "react-router-dom";
 
 import { ApiError } from "../api";
 import { useI18n } from "../i18n";
+import type { SavedReport } from "../sharing";
 import AskBox from "./AskBox";
+import SavedActions from "./SavedActions";
 import { compact, type ChartType, type Job, type Result, type Spec } from "./model";
 import { JobCancelled, runSpec } from "./run";
 
@@ -19,12 +21,14 @@ export default function AskPanel() {
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
+  const [saved, setSaved] = useState<SavedReport | null>(null);
   const seq = useRef(0);
 
   async function show(next: Spec) {
     const id = ++seq.current;
     const current = () => id === seq.current;
     setSpec(next);
+    setSaved(null);
     setError("");
     setRunning(true);
     try {
@@ -54,10 +58,19 @@ export default function AskPanel() {
       {result && spec && (
         <section className="card ask-result">
           <div className="page-head">
-            <h2>{t("ask.result")}</h2>
-            <Link to={builderLink} className="button">
-              {t("ask.openInBuilder")}
-            </Link>
+            <h2>{saved ? <bdi>{saved.name}</bdi> : t("ask.result")}</h2>
+            <div className="results-actions">
+              {saved ? (
+                <Link to={`/reports?saved=${saved.id}`} className="button">
+                  {t("ask.openSaved")}
+                </Link>
+              ) : (
+                <SavedActions saved={null} spec={compact(spec)} onSaved={setSaved} minimal />
+              )}
+              <Link to={builderLink} className="button">
+                {t("ask.openInBuilder")}
+              </Link>
+            </div>
           </div>
           <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>
             <Results

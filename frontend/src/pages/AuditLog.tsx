@@ -72,7 +72,12 @@ export default function AuditLog() {
     <div className="audit-page">
       <div className="page-head">
         <h1>{t("audit.title")}</h1>
-        {data && <span className="muted">{t("audit.count", { count: data.count })}</span>}
+        <span className="results-actions">
+          {data && <span className="muted">{t("audit.count", { count: data.count })}</span>}
+          <Link to="/audit/deliveries" className="button">
+            {t("deliveries.title")}
+          </Link>
+        </span>
       </div>
       <p className="muted">{t("audit.intro")}</p>
       <div className="toolbar audit-filters">

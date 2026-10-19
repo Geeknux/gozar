@@ -164,3 +164,41 @@ def question_log(
             "status": [{"value": v, "label": str(label)} for v, label in NLLog.Status.choices],
         },
     }
+
+
+@router.get("/deliveries")
+def delivery_log(request, page: int = 1, page_size: int = 50, status: str = "", q: str = ""):
+    """Scheduled e-mails sent (or skipped, or failed), newest first; readable with
+    ``bi_admin.view_reportlog``. The reports each one ran are in ``/audit/reports``
+    with kind ``email``."""
+    from bi_admin.api.schedules import delivery_payload
+    from bi_admin.models import ScheduleDelivery
+
+    if not can_view(request.user):
+        raise CrudError(403, _("Permission denied: view the report audit log"))
+    qs = ScheduleDelivery.objects.all()
+    if status:
+        qs = qs.filter(status=status)
+    for term in q.split():
+        qs = qs.filter(
+            Q(username__icontains=term)
+            | Q(schedule_name__icontains=term)
+            | Q(email__icontains=term)
+            | Q(error__icontains=term)
+        )
+    paginator = Paginator(qs, max(1, min(page_size, MAX_PAGE_SIZE)))
+    try:
+        current = paginator.page(page)
+    except EmptyPage:
+        raise CrudError(404, _("Page %(page)s does not exist") % {"page": page}) from None
+    return {
+        "entries": [delivery_payload(d) for d in current.object_list],
+        "count": paginator.count,
+        "page": current.number,
+        "num_pages": paginator.num_pages,
+        "filters": {
+            "status": [
+                {"value": v, "label": str(label)} for v, label in ScheduleDelivery.Status.choices
+            ],
+        },
+    }

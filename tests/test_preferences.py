@@ -32,7 +32,12 @@ def test_defaults_without_a_stored_row(admin_client):
     body = admin_client.get(PREFS).json()
     assert (body["language"], body["calendar"]) == ("en", "gregorian")
     assert body["stored"] == {"language": "", "calendar": ""}
-    assert body["defaults"] == {"language": "en", "calendar": "gregorian"}
+    assert body["defaults"] == {
+        "language": "en",
+        "calendar": "gregorian",
+        "timezone": "Asia/Tehran",
+    }
+    assert body["timezone"] == "Asia/Tehran"
     assert [lang["value"] for lang in body["available"]["languages"]] == ["en", "fa"]
     assert body["available"]["languages"][1] == {"value": "fa", "label": "فارسی", "dir": "rtl"}
     assert [c["value"] for c in body["available"]["calendars"]] == ["gregorian", "jalali"]
@@ -214,3 +219,12 @@ def test_spa_shell_language_and_direction(admin_client):
     patch(admin_client, {"language": "fa", "calendar": "jalali"})
     page = admin_client.get("/gozar/").content.decode()
     assert '<html lang="fa" dir="rtl">' in page and '"calendar": "jalali"' in page
+
+
+def test_timezone_and_home_dashboard_options(admin_client):
+    body = patch(admin_client, {"options": {"timezone": "Europe/Berlin"}}).json()
+    assert body["timezone"] == "Europe/Berlin"
+    assert patch(admin_client, {"options": {"timezone": "Mars/Olympus"}}).status_code == 400
+    assert patch(admin_client, {"options": {"home_dashboard": "x"}}).status_code == 400
+    body = patch(admin_client, {"options": {"home_dashboard": 3, "timezone": ""}}).json()
+    assert body["options"]["home_dashboard"] == 3 and body["timezone"] == "Asia/Tehran"

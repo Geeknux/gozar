@@ -1,10 +1,13 @@
-"""Run queued background report jobs (``GOZAR["JOB_BACKEND"]`` = DatabaseBackend)."""
+"""Run queued background report jobs (``GOZAR["JOB_BACKEND"]`` = DatabaseBackend)
+and, unless ``GOZAR["WORKER_SENDS_SCHEDULES"]`` is off, send due e-mail schedules."""
 
 import datetime as dt
 import time
 
 from django.core.management.base import BaseCommand
 
+from bi_admin import scheduling
+from bi_admin.conf import setting
 from bi_admin.execution import jobs
 
 
@@ -28,7 +31,14 @@ class Command(BaseCommand):
         done = 0
         last_purge: float | None = None
         last_recovery: float | None = None
+        last_schedules: float | None = None
         while True:
+            if setting("WORKER_SENDS_SCHEDULES") and (
+                last_schedules is None or time.monotonic() - last_schedules > 30
+            ):
+                for d in scheduling.send_due():
+                    self.stdout.write(f"E-mail {d.schedule_name} → {d.username}: {d.status}")
+                last_schedules = time.monotonic()
             # Requeue (or fail) jobs whose worker died, about once per lease period.
             if last_recovery is None or time.monotonic() - last_recovery > jobs.lease_seconds():
                 recovered = jobs.recover_stale()

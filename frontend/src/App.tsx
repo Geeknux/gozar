@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, type ReactNode, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import { api, setUnauthorizedHandler } from "./api";
@@ -7,18 +7,25 @@ import { config } from "./config";
 import { clearMetaCache } from "./hooks";
 import { applyDocument, I18nProvider, type Prefs, useI18n } from "./i18n";
 import AuditLog from "./pages/AuditLog";
+import DeliveryLog from "./pages/DeliveryLog";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ModelList from "./pages/ModelList";
 import ObjectForm from "./pages/ObjectForm";
 import QuestionLog from "./pages/QuestionLog";
 import Settings from "./pages/Settings";
+import { type Session, SessionContext } from "./session";
 import type { AppEntry, Preferences } from "./types";
 
-// ECharts is large: load the Reports area on demand.
+// ECharts is large: load the Reports and Dashboards areas on demand.
 const ReportsPage = lazy(() => import("./reports/ReportsPage"));
+const SavedReports = lazy(() => import("./reports/SavedReports"));
+const DashboardsList = lazy(() => import("./dashboards/DashboardsList"));
+const DashboardPage = lazy(() => import("./dashboards/DashboardPage"));
+const SchedulesPage = lazy(() => import("./schedules/SchedulesPage"));
 
 export type User = {
+  id: number;
   username: string;
   full_name: string;
   is_superuser: boolean;
@@ -31,6 +38,7 @@ export default function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [apps, setApps] = useState<AppEntry[]>([]);
   const [prefs, setPrefsState] = useState<Prefs>({ language: config.language, calendar: config.calendar });
+  const [extra, setExtra] = useState<{ options: Record<string, unknown>; timezone: string }>({ options: {}, timezone: "UTC" });
 
   const setPrefs = useCallback((next: Prefs) => {
     setPrefsState((current) => {
@@ -45,6 +53,7 @@ export default function App() {
     await api("/auth/csrf");
     const me = await api<Me>("/auth/me");
     setPrefs({ language: me.preferences.language, calendar: me.preferences.calendar });
+    setExtra({ options: me.preferences.options, timezone: me.preferences.timezone });
     setUser(me.authenticated ? me.user : null);
     if (me.authenticated) {
       const index = await api<{ apps: AppEntry[] }>("/meta/models");
@@ -71,18 +80,34 @@ export default function App() {
     setApps([]);
   };
 
+  const setOption = useCallback(async (key: string, value: unknown) => {
+    const next = await api<Preferences>("/preferences", { method: "PATCH", body: { options: { [key]: value } } });
+    setExtra({ options: next.options, timezone: next.timezone });
+  }, []);
+  const session = useMemo<Session | null>(
+    () => (user ? { user, options: extra.options, timezone: extra.timezone, setOption } : null),
+    [user, extra, setOption],
+  );
+
   return (
     <I18nProvider prefs={prefs}>
-      <Shell
-        user={user}
-        apps={apps}
-        prefs={prefs}
-        onLogin={refresh}
-        onLogout={logout}
-        onPrefs={setPrefs}
-      />
+      <SessionContext.Provider value={session}>
+        <Shell
+          user={user}
+          apps={apps}
+          prefs={prefs}
+          onLogin={refresh}
+          onLogout={logout}
+          onPrefs={setPrefs}
+        />
+      </SessionContext.Provider>
     </I18nProvider>
   );
+}
+
+function Lazy({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
+  return <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>{children}</Suspense>;
 }
 
 type ShellProps = {
@@ -119,12 +144,45 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
         <Route
           path="/reports"
           element={
-            <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>
+            <Lazy>
               <ReportsPage />
-            </Suspense>
+            </Lazy>
+          }
+        />
+        <Route
+          path="/reports/saved"
+          element={
+            <Lazy>
+              <SavedReports />
+            </Lazy>
+          }
+        />
+        <Route
+          path="/dashboards"
+          element={
+            <Lazy>
+              <DashboardsList />
+            </Lazy>
+          }
+        />
+        <Route
+          path="/dashboards/:id"
+          element={
+            <Lazy>
+              <DashboardPage />
+            </Lazy>
+          }
+        />
+        <Route
+          path="/schedules"
+          element={
+            <Lazy>
+              <SchedulesPage />
+            </Lazy>
           }
         />
         {user.permissions?.audit && <Route path="/audit" element={<AuditLog />} />}
+        {user.permissions?.audit && <Route path="/audit/deliveries" element={<DeliveryLog />} />}
         {user.permissions?.questions && <Route path="/questions" element={<QuestionLog />} />}
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />

@@ -42,6 +42,10 @@ Rules:
   spelling); the server matches it to stored values. For dimensions with "choices" use a
   choice value. Values like "@v1" are placeholders: copy them unchanged.
 - Number filters: gte/lte/between with plain numbers (no thousands separators).
+- Comparisons ("compared to last year", "vs previous month", "نسبت به سال قبل"): set compare_to
+  to "same_period_last_year" (a year back) or "previous_period" (the span just before). It
+  needs a period: keep the one asked for, else use this_<unit> of the unit compared against
+  ("revenue vs last month" -> relative_period "this_month", compare_to "previous_period").
 - "top N"/"N بیشترین" -> sort by the measure desc and limit N; "lowest" -> asc.
 - chart: "line" for a time series, "bar" for one category dimension, "pie" only when asked,
   "kpi" for a single number without dimensions, otherwise "table".

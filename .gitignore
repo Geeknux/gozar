@@ -11,3 +11,4 @@ node_modules/
 src/bi_admin/static/bi_admin/spa/
 .env
 example_project/.cache/
+example_project/.mail/

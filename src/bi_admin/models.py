@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -181,6 +182,7 @@ class ReportLog(models.Model):
         RUN = "run", _("Run")
         EXPORT = "export", _("Export")
         DRILLDOWN = "drilldown", _("Drill-down")
+        EMAIL = "email", _("Scheduled email")
 
     class Status(models.TextChoices):
         OK = "ok", _("Succeeded")
@@ -281,3 +283,234 @@ class NLLog(models.Model):
     @property
     def retries(self) -> int:
         return max(0, self.attempts - 1)
+
+
+# --- M6: saved reports, dashboards, scheduled emails ---------------------------------
+
+
+class Shared(models.Model):
+    """Something a user owns and may share: privately, with specific users and
+    groups, or with everyone who may see its data. Whoever views it always does so
+    with their *own* permissions, row-level scope and semantic visibility."""
+
+    class Visibility(models.TextChoices):
+        PRIVATE = "private", _("Only me")
+        USERS = "users", _("Specific users and groups")
+        EVERYONE = "everyone", _("Everyone who can see the data")
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="+",
+        verbose_name=_("owner"),
+    )
+    name = models.CharField(_("name"), max_length=200)
+    description = models.TextField(_("description"), blank=True)
+    visibility = models.CharField(
+        _("shared with"), max_length=10, choices=Visibility.choices, default=Visibility.PRIVATE
+    )
+    shared_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="+", verbose_name=_("users")
+    )
+    shared_groups = models.ManyToManyField(
+        Group, blank=True, related_name="+", verbose_name=_("groups")
+    )
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        abstract = True
+        ordering = ["name", "pk"]
+
+    def __str__(self):
+        return self.name
+
+
+class SavedReport(Shared):
+    """A named ``ReportSpec``. The spec is stored as submitted (a ``null`` calendar
+    stays null), so every viewer sees it in their own calendar and scope."""
+
+    semantic_model = models.CharField(_("semantic model"), max_length=100, db_index=True)
+    spec = models.JSONField(_("report spec"))
+
+    class Meta(Shared.Meta):
+        verbose_name = _("saved report")
+        verbose_name_plural = _("saved reports")
+        default_permissions = ()  # access follows ownership and sharing
+
+
+class Dashboard(Shared):
+    """A grid of widgets (saved reports or inline specs) with global filters.
+
+    ``filters``: ``{"period": "last_3_months" | null, "range": [start, end] | null,
+    "dimensions": ["city", …], "values": {"city": [...]}}`` — the filters the
+    dashboard offers and their defaults."""
+
+    filters = models.JSONField(_("global filters"), default=dict, blank=True)
+
+    class Meta(Shared.Meta):
+        verbose_name = _("dashboard")
+        verbose_name_plural = _("dashboards")
+        default_permissions = ()
+
+
+class DashboardWidget(models.Model):
+    """One tile of a dashboard: a saved report or an inline spec, its chart type
+    and its place on a 12-column grid."""
+
+    dashboard = models.ForeignKey(
+        Dashboard, on_delete=models.CASCADE, related_name="widgets", verbose_name=_("dashboard")
+    )
+    title = models.CharField(_("title"), max_length=200, blank=True)
+    saved_report = models.ForeignKey(
+        SavedReport,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="widgets",
+        verbose_name=_("saved report"),
+    )
+    spec = models.JSONField(_("report spec"), null=True, blank=True)
+    chart = models.CharField(_("chart"), max_length=10, blank=True)
+    x = models.PositiveSmallIntegerField(default=0)
+    y = models.PositiveSmallIntegerField(default=0)
+    w = models.PositiveSmallIntegerField(default=6)
+    h = models.PositiveSmallIntegerField(default=4)
+
+    class Meta:
+        verbose_name = _("dashboard widget")
+        verbose_name_plural = _("dashboard widgets")
+        ordering = ["y", "x", "pk"]
+        default_permissions = ()
+
+    def __str__(self):
+        return self.title or (self.saved_report.name if self.saved_report else str(self.pk))
+
+
+class Schedule(models.Model):
+    """A saved report or dashboard e-mailed to users of the system, each one with
+    their own scope, language and calendar."""
+
+    class Frequency(models.TextChoices):
+        DAILY = "daily", _("Daily")
+        WEEKLY = "weekly", _("Weekly")
+        MONTHLY = "monthly", _("Monthly")
+
+    class Attachment(models.TextChoices):
+        NONE = "", _("No attachment")
+        CSV = "csv", "CSV"
+        XLSX = "xlsx", "Excel (XLSX)"
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="+",
+        verbose_name=_("owner"),
+    )
+    name = models.CharField(_("name"), max_length=200, blank=True)
+    saved_report = models.ForeignKey(
+        SavedReport,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="schedules",
+        verbose_name=_("saved report"),
+    )
+    dashboard = models.ForeignKey(
+        Dashboard,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="schedules",
+        verbose_name=_("dashboard"),
+    )
+    frequency = models.CharField(_("frequency"), max_length=10, choices=Frequency.choices)
+    time = models.TimeField(_("time of day"))
+    weekday = models.PositiveSmallIntegerField(_("weekday (Monday=0)"), null=True, blank=True)
+    day_of_month = models.PositiveSmallIntegerField(_("day of month"), null=True, blank=True)
+    calendar = models.CharField(
+        _("calendar"),
+        max_length=10,
+        choices=UserPreferences.Calendar.choices,
+        default=UserPreferences.Calendar.GREGORIAN,
+    )
+    timezone = models.CharField(_("time zone"), max_length=64)
+    recipients = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, related_name="+", verbose_name=_("recipients")
+    )
+    attachment = models.CharField(
+        _("attachment"), max_length=5, choices=Attachment.choices, blank=True, default="xlsx"
+    )
+    enabled = models.BooleanField(_("enabled"), default=True)
+    next_run_at = models.DateTimeField(_("next run"), null=True, blank=True, db_index=True)
+    last_run_at = models.DateTimeField(_("last run"), null=True, blank=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("email schedule")
+        verbose_name_plural = _("email schedules")
+        ordering = ["next_run_at", "pk"]
+        default_permissions = ()
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(saved_report__isnull=False, dashboard__isnull=True)
+                | models.Q(saved_report__isnull=True, dashboard__isnull=False),
+                name="bi_admin_schedule_one_target",
+            )
+        ]
+
+    def __str__(self):
+        return self.name or str(self.target)
+
+    @property
+    def target(self):
+        return self.saved_report or self.dashboard
+
+
+class ScheduleDelivery(models.Model):
+    """Audit log of scheduled e-mails: one row per recipient per send. The reports
+    run for it are in ``ReportLog`` (kind ``email``, user = the recipient)."""
+
+    class Status(models.TextChoices):
+        SENT = "sent", _("Sent")
+        FAILED = "failed", _("Failed")
+        SKIPPED = "skipped", _("Skipped")
+
+    timestamp = models.DateTimeField(_("time"), auto_now_add=True, db_index=True)
+    schedule = models.ForeignKey(
+        Schedule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deliveries",
+        verbose_name=_("schedule"),
+    )
+    schedule_name = models.CharField(_("schedule"), max_length=200, blank=True)
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("recipient"),
+    )
+    username = models.CharField(_("username"), max_length=150, blank=True)
+    email = models.CharField(_("e-mail address"), max_length=254, blank=True)
+    status = models.CharField(_("status"), max_length=10, choices=Status.choices, db_index=True)
+    trigger = models.CharField(_("trigger"), max_length=10, default="schedule")  # or "manual"
+    language = models.CharField(_("language"), max_length=10, blank=True)
+    calendar = models.CharField(_("calendar"), max_length=10, blank=True)
+    reports = models.PositiveSmallIntegerField(_("reports"), default=0)
+    attachments = models.PositiveSmallIntegerField(_("attachments"), default=0)
+    error = models.TextField(_("error"), blank=True)
+    duration_ms = models.PositiveIntegerField(_("duration (ms)"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("email delivery")
+        verbose_name_plural = _("email deliveries")
+        ordering = ["-timestamp", "-id"]
+        default_permissions = ()  # readable with bi_admin.view_reportlog
+
+    def __str__(self):
+        return f"{self.schedule_name} → {self.username} ({self.status})"

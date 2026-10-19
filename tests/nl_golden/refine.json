@@ -572,5 +572,123 @@
    "relative_period": "last_month",
    "chart": "kpi"
   }
+ },
+ {
+  "id": "refine-021",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "chart": "bar"
+  },
+  "question": "compare with last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "compare_to": "same_period_last_year",
+   "chart": "bar"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "refine-022",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_month",
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "chart": "kpi"
+  },
+  "question": "با پارسال مقایسه کن",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "last_month",
+   "filters": [
+    {
+     "field": "city",
+     "op": "eq",
+     "value": "Tehran"
+    }
+   ],
+   "compare_to": "same_period_last_year",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "refine-023",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_month",
+   "compare_to": "previous_period",
+   "chart": "kpi"
+  },
+  "question": "without comparison",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_month",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "refine-024",
+  "previous": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "chart": "line"
+  },
+  "question": "نسبت به سال قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "line"
+  },
+  "tags": [
+   "compare"
+  ]
  }
 ]

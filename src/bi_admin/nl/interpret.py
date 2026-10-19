@@ -270,6 +270,16 @@ def _describe(report: ValidatedReport, lang: str, default_limit: int) -> str:
         if time_dim is not None and sem.time_dimension != time_dim.key and not timed:
             piece = _("%(period)s by %(field)s") % {"period": piece, "field": label(time_dim)}
         parts.append(piece)
+    if report.comparison is not None:
+        c = report.comparison
+        start, end = format_date(c.start, cal, lang), format_date(c.end, cal, lang)
+        span = (
+            start if c.start == c.end else _("%(start)s – %(end)s") % {"start": start, "end": end}
+        )
+        if c.kind == "previous_period":
+            parts.append(_("compared with the previous period (%(span)s)") % {"span": span})
+        else:
+            parts.append(_("compared with the same period last year (%(span)s)") % {"span": span})
     if report.filters:
         conditions = _join([_filter(f, cal, lang) for f in report.filters], _("and"))
         parts.append(_("where %(conditions)s") % {"conditions": conditions})

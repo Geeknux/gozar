@@ -1,0 +1,18 @@
+{% load i18n %}{% autoescape off %}{{ title }}
+{% if description %}{{ description }}
+{% endif %}{% blocktranslate %}{{ frequency }} report, generated {{ generated }}.{% endblocktranslate %}
+{% for s in sections %}
+== {{ s.title }} ==
+{% if s.error %}{{ s.error }}
+{% else %}{% if s.interpretation %}{{ s.interpretation }}
+{% endif %}{% for k in s.kpis %}{{ k.label }}: {{ k.value }}{% if k.compare %} ({{ k.change }}, {% translate "was" %} {{ k.compare }}){% endif %}
+{% endfor %}{% if s.headers %}{% for h in s.headers %}{{ h.label }}{% if not forloop.last %} | {% endif %}{% endfor %}
+{% for row in s.rows %}{% for c in row %}{{ c.text }}{% if not forloop.last %} | {% endif %}{% endfor %}
+{% endfor %}{% endif %}{% if s.hidden_rows %}{% blocktranslate count counter=s.hidden_rows %}…and {{ counter }} more row (see the attachment).{% plural %}…and {{ counter }} more rows (see the attachment).{% endblocktranslate %}
+{% endif %}{% if s.note %}{{ s.note }}
+{% endif %}{% if not s.result.rows %}{% translate "No data for this report." %}
+{% endif %}{% endif %}{% endfor %}
+{% if link %}{% translate "Open in Gozar" %}: {{ link }}
+{% endif %}
+{% blocktranslate with name=user.get_username %}Sent to {{ name }} by Gozar. The numbers reflect what your account may see.{% endblocktranslate %}
+{% endautoescape %}

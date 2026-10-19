@@ -6,6 +6,8 @@ import ValuePicker from "./ValuePicker";
 import {
   type CatalogDimension,
   type CatalogModel,
+  COMPARE_TO,
+  type CompareTo,
   defaultValue,
   type Filter,
   GRAINS,
@@ -144,7 +146,7 @@ export default function Builder({ catalog, spec, onChange, errors }: Props) {
           errors={show(
             errorsAt(
               (p) =>
-                ["time_dimension", "time_grain", "relative_period", "calendar"].includes(p) ||
+                ["time_dimension", "time_grain", "relative_period", "calendar", "compare_to"].includes(p) ||
                 (rangeIndex >= 0 && p.startsWith(`filters[${rangeIndex}]`)),
             ),
           )}
@@ -211,6 +213,20 @@ export default function Builder({ catalog, spec, onChange, errors }: Props) {
               </label>
             </div>
           )}
+          <label className="stack">
+            {t("report.compareTo")}
+            <select
+              value={spec.compare_to ?? ""}
+              onChange={(e) => set({ compare_to: (e.target.value || null) as CompareTo | null })}
+            >
+              <option value="">{t("compare.none")}</option>
+              {COMPARE_TO.map((c) => (
+                <option key={c} value={c}>
+                  {t(`compare.${c}` as MessageKey)}
+                </option>
+              ))}
+            </select>
+          </label>
         </Section>
       )}
 
@@ -301,7 +317,7 @@ export default function Builder({ catalog, spec, onChange, errors }: Props) {
       {show(
         errorsAt(
           (p) =>
-            !/^(semantic_model|measures|dimensions|filters|sort|limit|time_dimension|time_grain|relative_period|calendar)/.test(p),
+            !/^(semantic_model|measures|dimensions|filters|sort|limit|time_dimension|time_grain|relative_period|calendar|compare_to)/.test(p),
         ),
       )}
     </div>

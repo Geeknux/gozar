@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { ApiError, api } from "../api";
 import { type CalendarName, type Lang, makeFormat, type Prefs, useI18n } from "../i18n";
+import { timeZones } from "../schedules/api";
+import { useSession } from "../session";
 import type { Preferences } from "../types";
 
 function today(): string {
@@ -17,6 +19,20 @@ export default function Settings({ onSaved }: { onSaved: (p: Prefs) => void }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const session = useSession();
+  const zones = timeZones();
+  const storedZone = typeof session.options.timezone === "string" ? session.options.timezone : "";
+
+  async function saveZone(zone: string) {
+    setError("");
+    setSaved(false);
+    try {
+      await session.setOption("timezone", zone || null);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("app.networkError"));
+    }
+  }
 
   useEffect(() => {
     api<Preferences>("/preferences")
@@ -89,6 +105,21 @@ export default function Settings({ onSaved }: { onSaved: (p: Prefs) => void }) {
             </label>
           ))}
           <small className="help">{t("settings.calendarHelp")}</small>
+        </fieldset>
+
+        <fieldset disabled={busy}>
+          <legend>{t("settings.timezone")}</legend>
+          <select value={storedZone} onChange={(e) => saveZone(e.target.value)} dir="ltr" aria-label={t("settings.timezone")}>
+            <option value="">
+              {prefs.defaults.timezone} {t("settings.default")}
+            </option>
+            {zones.map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+          <small className="help">{t("settings.timezoneHelp")}</small>
         </fieldset>
 
         <dl className="preview" aria-label={t("settings.preview")}>

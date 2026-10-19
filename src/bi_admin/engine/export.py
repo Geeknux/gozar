@@ -78,7 +78,7 @@ def to_xlsx(result: ReportResult | dict) -> bytes:
         letter = get_column_letter(i)
         width = max([len(str(headers[i - 1]))] + [len(str(r[i - 1] or "")) for r in rows[:200]])
         ws.column_dimensions[letter].width = min(max(width + 2, 10), 60)
-        if col["role"] == "measure":
+        if col["role"] in ("measure", "comparison"):
             fmt = XLSX_NUMBER_FORMATS.get(col.get("format", "number"), "General")
             for (cell,) in ws.iter_rows(min_row=2, min_col=i, max_col=i):
                 cell.number_format = fmt

@@ -117,6 +117,72 @@ FIXED_PERIODS = {
     "از اول ماه": "this_month",
     "از ابتدای ماه": "this_month",
 }
+# Comparisons: a cue ("compared to", «نسبت به») followed by what to compare with.
+# Payload: (compare_to kind, unit compared against or None).
+_UNITS_EN = {"day": "day", "week": "week", "month": "month", "quarter": "season",
+             "season": "season", "year": "year"}  # fmt: skip
+_UNITS_FA = {"روز": "day", "هفته": "week", "ماه": "month", "فصل": "season", "سال": "year"}
+_SPLY = "same_period_last_year"
+_PREVIOUS = "previous_period"
+
+
+def _compare_targets() -> dict[str, tuple[str, str | None]]:
+    out: dict[str, tuple[str, str | None]] = {}
+    for word, unit in _UNITS_EN.items():
+        kind = _SPLY if unit == "year" else _PREVIOUS
+        for before in ("last", "previous", "prior", "the last", "the previous", "the prior"):
+            out[f"{before} {word}"] = (kind, unit)
+        out[f"the {word} before"] = (kind, unit)
+    for word, unit in _UNITS_FA.items():
+        kind = _SPLY if unit == "year" else _PREVIOUS
+        for after in ("قبل", "گذشته", "پیش", "قبلی"):
+            out[f"{word} {after}"] = (kind, unit)
+    out["پارسال"] = (_SPLY, "year")
+    out["a year ago"] = (_SPLY, "year")
+    for phrase in ("previous period", "prior period", "last period", "preceding period"):
+        out[phrase] = out[f"the {phrase}"] = (_PREVIOUS, None)
+    for word in ("دوره", "بازه", "مدت"):
+        for after in ("قبل", "قبلی", "گذشته"):
+            out[f"{word} {after}"] = (_PREVIOUS, None)
+    for phrase in ("same period last year", "same time last year", "same period a year ago",
+                   "same period of last year", "same period the year before"):  # fmt: skip
+        out[phrase] = out[f"the {phrase}"] = (_SPLY, None)
+    for word in ("دوره", "مدت", "بازه", "زمان"):
+        for year in ("سال قبل", "سال گذشته", "پارسال", "سال پیش"):
+            out[f"{word} مشابه {year}"] = (_SPLY, None)
+            out[f"همین {word} {year}"] = (_SPLY, None)
+            out[f"همین {word} در {year}"] = (_SPLY, None)
+    return out
+
+
+def _compare_phrases() -> dict[str, tuple[str, str | None]]:
+    targets = _compare_targets()
+    cues = [
+        *("compared to", "compared with", "compare to", "compare with", "compare it to"),
+        *("compare it with", "comparing to", "comparing with", "in comparison to"),
+        *("in comparison with", "vs", "versus", "against", "relative to"),
+        *("نسبت به", "در مقایسه با", "مقایسه با", "در قیاس با", "قیاس با"),
+    ]
+    out = {f"{cue} {target}": payload for cue in cues for target, payload in targets.items()}
+    for target, payload in targets.items():  # «با سال قبل مقایسه کن»
+        for verb in ("مقایسه", "مقایسه کن", "مقایسه شود", "مقایسه کنید"):
+            out[f"با {target} {verb}"] = payload
+    for phrase in ("year over year", "year-over-year", "yoy"):
+        out[phrase] = (_SPLY, "year")
+    for phrase, unit in (("month over month", "month"), ("week over week", "week"),
+                         ("quarter over quarter", "season")):  # fmt: skip
+        out[phrase] = (_PREVIOUS, unit)
+    out["period over period"] = (_PREVIOUS, None)
+    return out
+
+
+COMPARE_PHRASES = _compare_phrases()
+NO_COMPARE = [
+    *("without comparison", "without the comparison", "no comparison", "remove comparison"),
+    *("remove the comparison", "بدون مقایسه", "حذف مقایسه", "مقایسه را حذف کن"),
+    "مقایسه رو حذف کن",
+]
+
 ALL_TIME = ["all time", "همه زمان ها", "کل دوره", "از ابتدا تا کنون", "بدون محدودیت زمانی"]
 
 GRAINS = {
@@ -448,6 +514,8 @@ class Parsed:
     order: str | None = None
     implied_measure: str | None = None
     comparisons: list[tuple[int, str, Any]] = field(default_factory=list)  # (pos, op, value)
+    compare: tuple[str, str | None] | None = None  # (compare_to, unit) — see COMPARE_PHRASES
+    no_compare: bool = False
 
     def free(self, i: int) -> bool:
         return 0 <= i < len(self.words) and i not in self.taken
@@ -463,6 +531,19 @@ def _find(p: Parsed, phrases) -> list[Hit]:
 
 def _has(words: list[str], phrases) -> bool:
     return bool(find_phrases(words, _lex(phrases)))
+
+
+def parse_compare(p: Parsed) -> None:
+    """ "compared to last year", «نسبت به ماه قبل», "yoy"… — claimed before the time
+    parser, so the period compared against isn't read as the report's own period."""
+    hits = _find(p, NO_COMPARE)
+    if hits:
+        p.no_compare = True
+        p.claim(hits)
+    hits = _find(p, COMPARE_PHRASES)
+    if hits:
+        p.compare = hits[0].payload
+        p.claim(hits)
 
 
 def parse_time(p: Parsed, today, calendar: str) -> None:
@@ -893,6 +974,7 @@ class Interpreter:
                 "measures": [],
                 "clarification_needed": _("There is no data you may report on."),
             }
+        parse_compare(p)
         parse_time(p, task.today, task.calendar)
         parse_comparisons(p)
         parse_top(p)
@@ -1049,7 +1131,7 @@ class Interpreter:
             spec["relative_period"] = p.period
         if p.calendar:
             spec["calendar"] = p.calendar
-        problem = self._apply_sort(spec, entry)
+        problem = self._apply_compare(spec) or self._apply_sort(spec, entry)
         if problem:
             return self.clarify(problem, model)
         spec["chart"] = p.chart or infer_chart(spec)
@@ -1196,6 +1278,31 @@ class Interpreter:
             spec["sort"] = [{"field": spec["measures"][0], "direction": p.order}]
         return None
 
+    def _apply_compare(self, spec: dict[str, Any]) -> str | None:
+        """Set ``compare_to``; a comparison without a period compares the current
+        unit to date ("revenue vs last month" → this month vs the previous one)."""
+        if self.p.compare is None:
+            return None
+        kind, unit = self.p.compare
+        spec["compare_to"] = kind
+        dated = spec.get("relative_period") or any(
+            f.get("op") in ("between", "eq") and f.get("field") == self.time_dimension(spec)
+            for f in spec.get("filters") or []
+        )
+        if dated:
+            return None
+        if unit is None and kind == _SPLY:
+            unit = "year"
+        if unit is None:
+            return _("Which period should I compare? For example: “this month compared to the "
+                     "previous period”.")  # fmt: skip
+        spec["relative_period"] = f"this_{unit}"
+        return None
+
+    def time_dimension(self, spec: dict[str, Any]) -> str | None:
+        entry = self.catalog.get(spec.get("semantic_model", ""))
+        return spec.get("time_dimension") or (entry.time_dimension if entry else None)
+
     def _refine(self, entry, previous, measures, groups, time_dims, filters, removed, all_dims):
         p = self.p
         words = p.words
@@ -1238,6 +1345,11 @@ class Interpreter:
             spec["time_grain"] = p.grain
         if p.calendar:
             spec["calendar"] = p.calendar
+        if p.no_compare:
+            spec.pop("compare_to", None)
+        problem = self._apply_compare(spec)
+        if problem:
+            return self.clarify(problem, entry.name)
         if p.top is not None or p.order is not None:
             problem = self._apply_sort(spec, entry)
             if problem:

@@ -6,6 +6,7 @@ export type Scalar = string | number | boolean;
 export type Op = "eq" | "neq" | "in" | "not_in" | "gte" | "lte" | "between" | "contains" | "is_null";
 export type Grain = "day" | "week" | "month" | "season" | "year";
 export type ChartType = "table" | "bar" | "line" | "area" | "pie" | "pivot" | "kpi";
+export type CompareTo = "previous_period" | "same_period_last_year";
 
 export type Filter = { field: string; op: Op; value?: Scalar | Scalar[] | null };
 export type Sort = { field: string; direction: "asc" | "desc" };
@@ -19,6 +20,7 @@ export type Spec = {
   time_grain?: Grain | null;
   calendar?: CalendarName | null;
   relative_period?: string | null;
+  compare_to?: CompareTo | null;
   sort?: Sort[];
   limit?: number | null;
   chart?: ChartType;
@@ -50,7 +52,10 @@ export type CatalogModel = {
 
 export type Column = {
   key: string;
-  role: "dimension" | "measure";
+  role: "dimension" | "measure" | "comparison";
+  /** comparison columns: the measure compared and which part this is */
+  measure?: string;
+  comparison?: "compare" | "change" | "change_pct";
   type?: CatalogDimension["type"];
   label: string;
   format?: string;
@@ -72,6 +77,8 @@ export type Result = {
   time_dimension: string | null;
   time_grain: Grain | null;
   period: Period | null;
+  compare_to: CompareTo | null;
+  comparison: (Period & { kind: CompareTo }) | null;
   columns: Column[];
   rows: Row[];
   row_count: number;
@@ -106,6 +113,7 @@ export type SpecError = {
 export type Cell = Record<string, Scalar | null>;
 
 export const CHARTS: ChartType[] = ["table", "bar", "line", "area", "pie", "pivot", "kpi"];
+export const COMPARE_TO: CompareTo[] = ["previous_period", "same_period_last_year"];
 export const GRAINS: Grain[] = ["day", "week", "month", "season", "year"];
 export const PERIODS = [
   "today",
@@ -167,6 +175,7 @@ export function compact(spec: Spec): Spec {
   if (spec.time_grain) out.time_grain = spec.time_grain;
   if (spec.calendar) out.calendar = spec.calendar;
   if (spec.relative_period) out.relative_period = spec.relative_period;
+  if (spec.compare_to) out.compare_to = spec.compare_to;
   if (spec.sort?.length) out.sort = spec.sort;
   if (spec.limit !== undefined && spec.limit !== null && spec.limit !== 1000) out.limit = spec.limit;
   if (spec.chart && spec.chart !== "table") out.chart = spec.chart;
@@ -215,6 +224,16 @@ export function dimensionText(col: Column, value: Scalar | null, fmt: Format, t:
 
 export const dimensionColumns = (r: Result) => r.columns.filter((c) => c.role === "dimension");
 export const measureColumns = (r: Result) => r.columns.filter((c) => c.role === "measure");
+
+/** The comparison column of ``measure`` for ``part`` (when the report has a comparison). */
+export const comparisonColumn = (r: Result, measure: string, part: "compare" | "change" | "change_pct") =>
+  r.columns.find((c) => c.role === "comparison" && c.measure === measure && c.comparison === part);
+
+/** "up" | "down" | "flat" for a change value (null: no comparison value). */
+export function trend(value: Scalar | null | undefined): "up" | "down" | "flat" | null {
+  if (value === null || value === undefined || typeof value !== "number") return null;
+  return value > 0 ? "up" : value < 0 ? "down" : "flat";
+}
 
 /** The group values of a row — the cell to drill into. */
 export function cellOf(r: Result, row: Row, keys?: string[]): Cell {

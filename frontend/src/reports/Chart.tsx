@@ -5,7 +5,7 @@ import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 
 import { useI18n } from "../i18n";
-import { type Cell, type Column, dimensionColumns, dimensionText, type Result, type Scalar } from "./model";
+import { type Cell, type Column, comparisonColumn, dimensionColumns, dimensionText, type Result, type Scalar } from "./model";
 
 echarts.use([BarChart, LineChart, PieChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
 
@@ -14,7 +14,7 @@ type Props = {
   result: Result;
   kind: Kind;
   measure: Column;
-  onDrill: (cell: Cell, measure: string) => void;
+  onDrill: (cell: Cell, measure: string, comparison?: boolean) => void;
 };
 
 const uniq = (values: (Scalar | null)[]) => {
@@ -43,11 +43,13 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
   const lookup = new Map(
     result.rows.map((r) => [JSON.stringify([r[first.key] ?? null, second ? (r[second.key] ?? null) : null]), r]),
   );
-  const valueAt = (cat: Scalar | null, split: Scalar | null) => {
+  const valueAt = (cat: Scalar | null, split: Scalar | null, key = measure.key) => {
     const row = lookup.get(JSON.stringify([cat, split]));
-    const v = row?.[measure.key];
+    const v = row?.[key];
     return v === null || v === undefined ? null : Number(v);
   };
+  // With a comparison period (and no second group-by), it becomes a second series.
+  const compare = !second && kind !== "pie" ? comparisonColumn(result, measure.key, "compare") : undefined;
   const rtl = dir === "rtl";
   const font = getComputedStyle(document.documentElement).fontFamily;
   const catLabels = categories.map((c) => dimensionText(first, c, fmt, t));
@@ -77,8 +79,8 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
     option = {
       textStyle: { fontFamily: font },
       tooltip: { trigger: "axis", valueFormatter: valueText },
-      legend: second ? { type: "scroll", top: 0, [rtl ? "right" : "left"]: 0 } : undefined,
-      grid: { top: second ? 40 : 16, bottom: 8, left: 16, right: 16, containLabel: true },
+      legend: second || compare ? { type: "scroll", top: 0, [rtl ? "right" : "left"]: 0 } : undefined,
+      grid: { top: second || compare ? 40 : 16, bottom: 8, left: 16, right: 16, containLabel: true },
       xAxis: {
         type: "category",
         data: catLabels,
@@ -92,14 +94,29 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
           formatter: (v: number) => (measure.format === "percent" ? fmt.measure(v, "percent") : fmt.compact(v)),
         },
       },
-      series: splits.map((s) => ({
-        type: kind === "bar" ? "bar" : "line",
-        name: second ? dimensionText(second, s, fmt, t) : measure.label,
-        data: categories.map((c) => valueAt(c, s)),
-        areaStyle: kind === "area" ? { opacity: 0.25 } : undefined,
-        connectNulls: kind !== "bar",
-        emphasis: { focus: "series" },
-      })),
+      series: [
+        ...splits.map((s) => ({
+          type: kind === "bar" ? "bar" : "line",
+          name: second ? dimensionText(second, s, fmt, t) : measure.label,
+          data: categories.map((c) => valueAt(c, s)),
+          areaStyle: kind === "area" ? { opacity: 0.25 } : undefined,
+          connectNulls: kind !== "bar",
+          emphasis: { focus: "series" },
+        })),
+        ...(compare
+          ? [
+              {
+                type: kind === "bar" ? "bar" : "line",
+                name: compare.label,
+                data: categories.map((c) => valueAt(c, null, compare.key)),
+                connectNulls: kind !== "bar",
+                lineStyle: { type: "dashed" },
+                itemStyle: { opacity: kind === "bar" ? 0.45 : 0.8 },
+                emphasis: { focus: "series" },
+              },
+            ]
+          : []),
+      ],
     };
   }
 
@@ -116,7 +133,7 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
     };
   }, []);
 
-  const optionKey = JSON.stringify([kind, measure.key, result.rows, dir, i18n.lang, i18n.calendar]);
+  const optionKey = JSON.stringify([kind, measure.key, result.rows, result.columns.length, dir, i18n.lang, i18n.calendar]);
   useEffect(() => {
     const instance = chart.current;
     if (!instance) return;
@@ -126,7 +143,7 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
       const p = params as { dataIndex: number; seriesIndex?: number };
       const cell: Cell = { [first.key]: categories[p.dataIndex] ?? null };
       if (second && kind !== "pie") cell[second.key] = splits[p.seriesIndex ?? 0] ?? null;
-      drill.current(cell, measure.key);
+      drill.current(cell, measure.key, Boolean(compare) && p.seriesIndex === splits.length);
     });
     // option is rebuilt every render; optionKey captures what it depends on
   }, [optionKey]);

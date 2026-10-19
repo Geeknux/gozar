@@ -258,3 +258,83 @@ table.grid { width: 100%; border-collapse: collapse; }
 .interpretation { margin: 0 0 0.75rem; }
 .ask-result { margin-top: 0.5rem; }
 .badge.status-clarification { background: #fff4e0; color: #8a5a00; }
+
+/* M6: comparisons */
+.change.up, .kpi-compare.up { color: var(--ok); }
+.change.down, .kpi-compare.down { color: var(--danger); }
+.change.flat, .kpi-compare.flat { color: var(--muted); }
+.kpi { padding: 0; }
+.kpi-main { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-start; text-align: start; padding: 1rem 1rem 0.5rem; background: none; border: 0; width: 100%; }
+.kpi-compare { display: flex; flex-wrap: wrap; gap: 0.2rem 0.5rem; align-items: baseline; padding: 0 1rem 0.8rem; background: none; border: 0; text-align: start; font-size: 0.85rem; }
+.kpi-change { font-weight: 600; font-variant-numeric: tabular-nums; }
+.kpi-main:hover .kpi-value, .kpi-compare:hover .kpi-change { text-decoration: underline; }
+
+/* M6: dialogs, sharing, lists */
+.dialog.wide { width: min(980px, 94vw); max-height: 90vh; }
+.dialog-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.dialog-form textarea { width: 100%; resize: vertical; }
+.dialog-form input:not([type="checkbox"]):not([type="radio"]) { width: 100%; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+.share-fields { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.share-fields legend { font-weight: 600; margin-bottom: 0.3rem; padding: 0; }
+.choice { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.people-picker .relation-select { max-width: none; }
+.people-picker input { width: 100%; }
+.chips li.group-chip { background: #e6f4ff; }
+.button.danger, button.button.danger { background: #fff; color: var(--danger); border-color: #f0c4c4; }
+.list-page { display: flex; flex-direction: column; gap: 0.75rem; }
+.list-page .page-head { margin-bottom: 0; }
+.list-page .toolbar { justify-content: flex-start; }
+.history-row td { background: #fafbfc; white-space: normal; }
+.deliveries { width: 100%; }
+.status-sent { color: var(--ok); }
+.status-failed { color: var(--danger); }
+.status-skipped { color: #8a5a00; }
+.badge { margin-inline-start: 0.5rem; vertical-align: middle; font-weight: normal; }
+
+/* M6: dashboards */
+.dashboard-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 0.75rem; }
+.dashboard-card h2 { margin-bottom: 0.4rem; }
+.dashboard-card p { margin: 0 0 0.5rem; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.dashboard { display: flex; flex-direction: column; gap: 0.75rem; }
+.dashboard .page-head { margin-bottom: 0; align-items: flex-start; flex-wrap: wrap; }
+.dashboard .page-head p { margin: 0.25rem 0 0; }
+.filter-bar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end; padding: 0.75rem 1rem; }
+.filter-bar .stack { min-width: 10rem; }
+.filter-bar .filter-values { min-width: 14rem; flex: 1 1 14rem; max-width: 26rem; }
+.filter-config { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center; }
+.filter-config legend { font-weight: 600; padding: 0 0.3rem; }
+.dashboard-grid { min-height: 4rem; }
+.widget-stack { display: flex; flex-direction: column; gap: 12px; }
+.widget { height: 100%; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.75rem; overflow: hidden; }
+.widget-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.widget-head h3 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.widget-note { margin: 0; }
+.widget .notice { margin: 0; }
+.results.compact { flex: 1; min-height: 0; gap: 0.35rem; }
+.widget-tools { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: flex-end; align-items: center; }
+.widget-tools select { font-size: 0.8rem; padding: 0.1rem 0.3rem; }
+.widget-body { flex: 1; min-height: 0; overflow: auto; }
+.widget-body .chart { height: 100%; min-height: 160px; }
+.widget-body .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.widget-body .kpi-value { font-size: 1.35rem; }
+.widget-body .table-wrap { border: 0; }
+.widget-body .empty { padding: 1rem; }
+.edit-card { border-style: dashed; background: #fcfcff; }
+.drag-handle { cursor: grab; font-size: 1.2rem; line-height: 1; color: var(--muted); user-select: none; }
+.dashboard.editing .react-grid-item.react-draggable-dragging .widget { box-shadow: 0 8px 24px rgb(0 0 0 / 0.15); }
+.resize-hint { margin-top: auto; }
+.react-grid-item.react-grid-placeholder { background: var(--accent); opacity: 0.15; border-radius: var(--radius); }
+.widget-builder .builder { width: 100%; position: static; max-height: 50vh; }
+.home.home-dashboard { max-width: none; }
+.home-ask summary { cursor: pointer; font-weight: 600; }
+.home-ask[open] summary { margin-bottom: 0.75rem; }
+@media (max-width: 720px) {
+  .filter-bar .stack, .filter-bar .filter-values { min-width: 0; flex: 1 1 100%; max-width: none; }
+}
+.widget-tools { justify-content: flex-start; }
+.widget-tools .widget-head { flex: 1; min-width: 0; }
+/* the grid positions tiles with transforms from the left edge; in RTL an absolutely
+   positioned box would otherwise start at the right edge (its static position) */
+.react-grid-layout > .react-grid-item, .react-grid-layout > .react-grid-placeholder { left: 0; top: 0; }

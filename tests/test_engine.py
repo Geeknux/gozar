@@ -120,7 +120,6 @@ def test_all_errors_are_collected_at_once():
         ("sort_field_not_in_report", "sort[0].field"),
         ("unknown_field", "sort[1].field"),
         ("invalid_limit", "limit"),
-        ("not_supported", "compare_to"),
     ]
 
 

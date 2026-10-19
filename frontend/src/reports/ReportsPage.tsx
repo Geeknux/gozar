@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "../api";
 import { useI18n } from "../i18n";
+import { type SavedReport, getSaved } from "../sharing";
 import Builder from "./Builder";
+import SavedActions from "./SavedActions";
 import {
   type CatalogModel,
   type ChartType,
@@ -51,6 +53,9 @@ export default function ReportsPage() {
   const [interpretation, setInterpretation] = useState("");
   const [copied, setCopied] = useState(false);
   const [refresh, setRefresh] = useState(0);
+  const [saved, setSaved] = useState<SavedReport | null>(null);
+  const [savedError, setSavedError] = useState("");
+  const navigate = useNavigate();
   const seq = useRef(0);
   const bypassCache = useRef(false); // set by "Refresh": the next run skips the result cache
 
@@ -60,7 +65,22 @@ export default function ReportsPage() {
       .catch((e: Error) => setLoadError(e.message));
   }, []);
 
-  const rawSpec = params.get("spec");
+  const savedId = params.get("saved");
+  useEffect(() => {
+    setSavedError("");
+    if (!savedId) {
+      setSaved(null);
+      return;
+    }
+    getSaved(savedId)
+      .then(setSaved)
+      .catch((e: Error) => {
+        setSaved(null);
+        setSavedError(e.message);
+      });
+  }, [savedId]);
+
+  const rawSpec = params.get("spec") ?? (saved && String(saved.id) === savedId ? JSON.stringify(saved.spec) : null);
   const spec = useMemo(() => {
     const parsed = specFromParam(rawSpec);
     if (parsed && catalog?.some((m) => m.name === parsed.semantic_model)) return parsed;
@@ -69,7 +89,13 @@ export default function ReportsPage() {
   }, [rawSpec, catalog]);
 
   const setSpec = useCallback(
-    (next: Spec) => setParams({ spec: JSON.stringify(compact(next)) }, { replace: true }),
+    (next: Spec) =>
+      setParams((current) => {
+        const out: Record<string, string> = { spec: JSON.stringify(compact(next)) };
+        const id = current.get("saved");
+        if (id) out.saved = id;
+        return out;
+      }, { replace: true }),
     [setParams],
   );
 
@@ -129,7 +155,7 @@ export default function ReportsPage() {
   }, [key, refresh]);
 
   if (loadError) return <p className="error">{loadError}</p>;
-  if (!catalog) return <p className="muted">{t("app.loading")}</p>;
+  if (!catalog || (savedId && !saved && !savedError)) return <p className="muted">{t("app.loading")}</p>;
   if (!catalog.length || !spec) return <p className="empty">{t("report.noModels")}</p>;
 
   const chart: ChartType = spec.chart ?? "table";
@@ -153,10 +179,26 @@ export default function ReportsPage() {
     }
   };
 
+  const openSaved = (report: SavedReport | null) =>
+    navigate(report ? `/reports?saved=${report.id}` : "/reports", { replace: !report });
+
   return (
     <div className="reports-page">
       <div className="page-head">
-        <h1>{t("report.title")}</h1>
+        <div>
+          <h1>
+            {saved ? <bdi>{saved.name}</bdi> : t("report.title")}
+            {saved && clean && dataKey(clean) !== dataKey(saved.spec) && <small className="muted"> · {t("saved.modified")}</small>}
+          </h1>
+          {saved && (
+            <p className="muted small">
+              {saved.description && <bdi>{saved.description} · </bdi>}
+              {saved.is_owner ? t("saved.mine") : t("saved.sharedBy", { name: saved.owner.full_name || saved.owner.username })}
+              {" · "}
+              <Link to="/reports">{t("saved.newReport")}</Link>
+            </p>
+          )}
+        </div>
         <div className="results-actions">
           {running && !job && <span className="muted">{t("report.running")}</span>}
           <button
@@ -172,8 +214,13 @@ export default function ReportsPage() {
           <button type="button" onClick={share}>
             {copied ? t("report.copied") : t("report.share")}
           </button>
+          {clean && <SavedActions saved={saved} spec={clean} onSaved={(r) => (r.id === saved?.id ? setSaved(r) : openSaved(r))} onDeleted={() => openSaved(null)} />}
+          <Link to="/reports/saved" className="button">
+            {t("nav.savedReports")}
+          </Link>
         </div>
       </div>
+      {savedError && <p className="error">{savedError}</p>}
       <AskBox current={spec} onSpec={(next) => setSpec(next)} />
       <div className="reports-layout">
         <Builder catalog={catalog} spec={spec} onChange={setSpec} errors={errors} />

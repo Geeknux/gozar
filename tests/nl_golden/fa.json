@@ -1920,5 +1920,141 @@
   "expected": {
    "clarification": true
   }
+ },
+ {
+  "id": "fa-123",
+  "question": "درآمد امسال نسبت به سال قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-124",
+  "question": "فروش ماهانه نسبت به سال گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "line"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-125",
+  "question": "تعداد سفارش این ماه در مقایسه با ماه قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "this_month",
+   "compare_to": "previous_period",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-126",
+  "question": "درآمد به تفکیک شهر در سه ماه گذشته نسبت به دوره مشابه سال قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_3_months",
+   "compare_to": "same_period_last_year",
+   "chart": "bar"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-127",
+  "question": "میانگین سبد فصل گذشته در مقایسه با فصل قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "aov"
+   ],
+   "relative_period": "last_season",
+   "compare_to": "previous_period",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-128",
+  "question": "تعداد مشتری امسال نسبت به پارسال",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "customers"
+   ],
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-129",
+  "question": "فروش هفتگی این ماه نسبت به دوره قبل",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "week",
+   "relative_period": "this_month",
+   "compare_to": "previous_period",
+   "chart": "line"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "fa-130",
+  "question": "درآمد به تفکیک استان امسال در مقایسه با سال گذشته",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "province"
+   ],
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "bar"
+  },
+  "tags": [
+   "compare"
+  ]
  }
 ]

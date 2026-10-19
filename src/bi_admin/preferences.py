@@ -49,8 +49,13 @@ class Preferences:
             "language": self.language,
             "calendar": self.calendar,
             "options": self.options,
+            "timezone": timezone_of(self.options),
             "stored": {"language": self.stored_language, "calendar": self.stored_calendar},
-            "defaults": {"language": default_language(), "calendar": default_calendar()},
+            "defaults": {
+                "language": default_language(),
+                "calendar": default_calendar(),
+                "timezone": settings.TIME_ZONE,
+            },
             "available": {
                 "languages": [
                     {"value": code, "label": name, "dir": "rtl" if code == "fa" else "ltr"}
@@ -62,6 +67,20 @@ class Preferences:
                 ],
             },
         }
+
+
+def timezone_of(options: dict[str, Any]) -> str:
+    """``options["timezone"]`` when it names a known zone, else ``TIME_ZONE``."""
+    import zoneinfo
+
+    tz = options.get("timezone")
+    if isinstance(tz, str) and tz:
+        try:
+            zoneinfo.ZoneInfo(tz)
+            return tz
+        except (zoneinfo.ZoneInfoNotFoundError, ValueError):
+            pass
+    return settings.TIME_ZONE
 
 
 def _staff(user) -> bool:
@@ -138,6 +157,13 @@ def update(request, data: dict[str, Any]) -> Preferences:
         errors["calendar"] = [_("Choose one of: %(choices)s.") % {"choices": ", ".join(CALENDARS)}]
     if opts is not ... and not isinstance(opts, dict):
         errors["options"] = [_("Must be an object.")]
+    elif isinstance(opts, dict):
+        tz = opts.get("timezone")
+        if tz not in (None, "") and timezone_of({"timezone": tz}) != tz:
+            errors["options"] = [_("Unknown time zone")]
+        home = opts.get("home_dashboard")
+        if home is not None and (isinstance(home, bool) or not isinstance(home, int)):
+            errors["options"] = [_("home_dashboard is a dashboard id or null")]
     if errors:
         raise PreferenceError(errors)
     row, _created = UserPreferences.objects.get_or_create(user=request.user)

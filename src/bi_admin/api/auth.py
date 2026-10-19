@@ -19,6 +19,7 @@ class LoginIn(Schema):
 
 def user_payload(user) -> dict:
     return {
+        "id": user.pk,
         "username": user.get_username(),
         "full_name": user.get_full_name() if hasattr(user, "get_full_name") else "",
         "is_superuser": user.is_superuser,

@@ -108,7 +108,18 @@ GOZAR = {
     "REPORT_CACHE_TIMEOUT": 300,
     # "1": every report runs as a background job (start `manage.py gozar_worker`)
     "REPORT_ASYNC": os.environ.get("GOZAR_REPORT_ASYNC") == "1",
+    # M6: scheduled e-mails link back to the app
+    "BASE_URL": os.environ.get("GOZAR_BASE_URL", "http://localhost:8000/gozar"),
 }
+
+# Scheduled e-mail reports (`manage.py gozar_send_schedules`, or `gozar_worker`) are
+# written to example_project/.mail as files — no SMTP server needed. Use
+# GOZAR_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend to print them.
+EMAIL_BACKEND = os.environ.get(
+    "GOZAR_EMAIL_BACKEND", "django.core.mail.backends.filebased.EmailBackend"
+)
+EMAIL_FILE_PATH = os.environ.get("GOZAR_EMAIL_DIR") or BASE_DIR / ".mail"
+DEFAULT_FROM_EMAIL = "Gozar <gozar@example.com>"
 
 LANGUAGE_CODE = "en"
 LANGUAGES = [("en", "English"), ("fa", "فارسی")]

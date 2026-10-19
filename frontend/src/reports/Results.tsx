@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { ApiError } from "../api";
 import { config } from "../config";
@@ -11,6 +11,7 @@ import {
   type ChartType,
   type Column,
   cellOf,
+  comparisonColumn,
   dimensionColumns,
   dimensionText,
   measureColumns,
@@ -18,6 +19,7 @@ import {
   type Row,
   type Scalar,
   type Spec,
+  trend,
 } from "./model";
 
 type Props = {
@@ -25,17 +27,21 @@ type Props = {
   spec: Spec; // the spec that produced ``result`` (for drill-down and export)
   jobId?: string; // set when a background job produced it: export its stored result
   chart: ChartType;
-  onChart: (chart: ChartType) => void;
+  onChart?: (chart: ChartType) => void;
+  /** dashboard widgets: no chart switcher or meta line, small export buttons */
+  compact?: boolean;
+  /** compact only: shown at the start of the tools row (the widget's title) */
+  head?: ReactNode;
 };
 
-type Drill = { cell: Cell; measure: string | null; title: string };
+type Drill = { cell: Cell; measure: string | null; comparison: boolean; title: string };
 
 function csrfToken(): string {
   const m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
   return m ? decodeURIComponent(m[1]) : "";
 }
 
-export default function Results({ result, spec, jobId, chart, onChart }: Props) {
+export default function Results({ result, spec, jobId, chart, onChart, compact = false, head }: Props) {
   const { t, fmt } = useI18n();
   const dims = dimensionColumns(result);
   const measures = measureColumns(result);
@@ -50,7 +56,17 @@ export default function Results({ result, spec, jobId, chart, onChart }: Props) 
     if (m) parts.push(m.label);
     return parts.join(" · ") || result.columns.map((c) => c.label).join(" · ");
   };
-  const open = (cell: Cell, measureKey: string | null) => setDrill({ cell, measure: measureKey, title: describe(cell, measureKey) });
+  const open = (cell: Cell, measureKey: string | null, comparison = false) => {
+    let title = describe(cell, measureKey);
+    if (comparison && result.comparison) {
+      const range = t("report.periodRange", {
+        start: fmt.dateIn(result.comparison.start, result.calendar, { dateStyle: "medium" }),
+        end: fmt.dateIn(result.comparison.end, result.calendar, { dateStyle: "medium" }),
+      });
+      title = `${title} · ${t(`compare.${result.comparison.kind}`)} (${range})`;
+    }
+    setDrill({ cell, measure: measureKey, comparison, title });
+  };
 
   async function download(format: "csv" | "xlsx") {
     setExportError("");
@@ -89,12 +105,58 @@ export default function Results({ result, spec, jobId, chart, onChart }: Props) 
   else if (!dims.length) body = <p className="empty">{t("report.chartNeedsDimension")}</p>;
   else body = <Chart result={result} kind={chart} measure={measure} onDrill={open} />;
 
+  const exports = (
+    <>
+      {!compact && <span className="muted">{t("report.export")}:</span>}
+      <button type="button" className={compact ? "button small" : undefined} onClick={() => download("csv")}>
+        {t("report.exportCsv")}
+      </button>
+      <button type="button" className={compact ? "button small" : undefined} onClick={() => download("xlsx")}>
+        {t("report.exportXlsx")}
+      </button>
+    </>
+  );
+  const drillDialog = drill && (
+    <Drilldown
+      spec={spec}
+      cell={drill.cell}
+      measure={drill.measure}
+      comparison={drill.comparison}
+      title={drill.title}
+      onClose={() => setDrill(null)}
+    />
+  );
+
+  if (compact) {
+    return (
+      <div className="results compact">
+        <div className="widget-tools">
+          {head}
+          {needsMeasurePicker && (
+            <select value={measure.key} aria-label={t("report.pivotMeasure")} onChange={(e) => setMeasureKey(e.target.value)}>
+              {measures.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          )}
+          {exports}
+        </div>
+        {result.truncated && <p className="notice">{t("report.truncated", { count: result.row_count })}</p>}
+        {exportError && <p className="error">{exportError}</p>}
+        <div className="widget-body">{body}</div>
+        {drillDialog}
+      </div>
+    );
+  }
+
   return (
     <section className="results card">
       <div className="results-head">
         <div className="segmented chart-switch" role="group">
           {CHARTS.map((c) => (
-            <button key={c} type="button" className={c === chart ? "active" : ""} aria-pressed={c === chart} onClick={() => onChart(c)}>
+            <button key={c} type="button" className={c === chart ? "active" : ""} aria-pressed={c === chart} onClick={() => onChart?.(c)}>
               {t(`chart.${c}` as MessageKey)}
             </button>
           ))}
@@ -109,13 +171,7 @@ export default function Results({ result, spec, jobId, chart, onChart }: Props) 
               ))}
             </select>
           )}
-          <span className="muted">{t("report.export")}:</span>
-          <button type="button" onClick={() => download("csv")}>
-            {t("report.exportCsv")}
-          </button>
-          <button type="button" onClick={() => download("xlsx")}>
-            {t("report.exportXlsx")}
-          </button>
+          {exports}
         </div>
       </div>
       <p className="muted results-meta">
@@ -133,6 +189,18 @@ export default function Results({ result, spec, jobId, chart, onChart }: Props) 
         {result.cache?.hit && result.cache.stored_at
           ? t("report.cached", { time: fmt.date(result.cache.stored_at) })
           : t("report.duration", { ms: result.duration_ms })}
+        {result.comparison && (
+          <>
+            {" · "}
+            {t("report.comparedWith", {
+              what: t(`compare.${result.comparison.kind}`),
+              range: t("report.periodRange", {
+                start: fmt.dateIn(result.comparison.start, result.calendar, { dateStyle: "medium" }),
+                end: fmt.dateIn(result.comparison.end, result.calendar, { dateStyle: "medium" }),
+              }),
+            })}
+          </>
+        )}
         {jobId && <> · {t("job.fromJob")}</>}
         {" · "}
         {t("report.clickToDrill")}
@@ -140,14 +208,12 @@ export default function Results({ result, spec, jobId, chart, onChart }: Props) 
       {result.truncated && <p className="notice">{t("report.truncated", { count: result.row_count })}</p>}
       {exportError && <p className="error">{exportError}</p>}
       {body}
-      {drill && (
-        <Drilldown spec={spec} cell={drill.cell} measure={drill.measure} title={drill.title} onClose={() => setDrill(null)} />
-      )}
+      {drillDialog}
     </section>
   );
 }
 
-type DrillFn = (cell: Cell, measure: string | null) => void;
+type DrillFn = (cell: Cell, measure: string | null, comparison?: boolean) => void;
 
 function compare(a: Scalar | null, b: Scalar | null): number {
   if (a === b) return 0;
@@ -173,7 +239,7 @@ function Table({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
         <thead>
           <tr>
             {result.columns.map((c) => (
-              <th key={c.key} className={c.role === "measure" ? "num" : ""}>
+              <th key={c.key} className={c.role === "dimension" ? "" : "num"}>
                 <button type="button" className="link" onClick={() => toggle(c.key)}>
                   {c.label} {sort?.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : ""}
                 </button>
@@ -184,17 +250,29 @@ function Table({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
         <tbody>
           {rows.map((row, i) => (
             <tr key={i}>
-              {result.columns.map((c) => (
-                <td key={c.key} className={c.role === "measure" ? "num" : ""}>
-                  <button
-                    type="button"
-                    className="cell-link"
-                    onClick={() => onDrill(cellOf(result, row), c.role === "measure" ? c.key : null)}
-                  >
-                    <bdi>{c.role === "measure" ? fmt.measure(row[c.key], c.format) : dimensionText(c, row[c.key] ?? null, fmt, t)}</bdi>
-                  </button>
-                </td>
-              ))}
+              {result.columns.map((c) => {
+                if (c.role === "comparison" && c.comparison !== "compare") {
+                  const dir = trend(row[c.key]);
+                  return (
+                    <td key={c.key} className={`num change ${dir ?? ""}`}>
+                      <bdi>{signed(fmt.measure(row[c.key], c.format), dir)}</bdi>
+                    </td>
+                  );
+                }
+                return (
+                  <td key={c.key} className={c.role === "dimension" ? "" : "num"}>
+                    <button
+                      type="button"
+                      className="cell-link"
+                      onClick={() =>
+                        onDrill(cellOf(result, row), c.role === "dimension" ? null : (c.measure ?? c.key), c.role === "comparison")
+                      }
+                    >
+                      <bdi>{c.role === "dimension" ? dimensionText(c, row[c.key] ?? null, fmt, t) : fmt.measure(row[c.key], c.format)}</bdi>
+                    </button>
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>
@@ -203,17 +281,50 @@ function Table({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
   );
 }
 
+/** "+12%" / "−3" with an arrow; ``dir`` from ``trend()``. */
+function signed(text: string, dir: ReturnType<typeof trend>): string {
+  if (dir === "up") return `▲ +${text}`;
+  if (dir === "down") return `▼ ${text.replace(/^[-−]/, "−")}`;
+  if (dir === "flat") return `■ ${text}`;
+  return text;
+}
+
 function Kpi({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
-  const { fmt } = useI18n();
+  const { t, fmt } = useI18n();
   const row: Row = result.rows[0] ?? {};
   return (
     <div className="kpis">
-      {measureColumns(result).map((m) => (
-        <button key={m.key} type="button" className="kpi" onClick={() => onDrill({}, m.key)}>
-          <span className="kpi-label">{m.label}</span>
-          <strong className="kpi-value">{fmt.measure(row[m.key], m.format)}</strong>
-        </button>
-      ))}
+      {measureColumns(result).map((m) => {
+        const previous = comparisonColumn(result, m.key, "compare");
+        const pct = comparisonColumn(result, m.key, "change_pct");
+        const change = comparisonColumn(result, m.key, "change");
+        const dir = change ? trend(row[change.key]) : null;
+        return (
+          <div key={m.key} className="kpi">
+            <button type="button" className="kpi-main" onClick={() => onDrill({}, m.key)}>
+              <span className="kpi-label">{m.label}</span>
+              <strong className="kpi-value">{fmt.measure(row[m.key], m.format)}</strong>
+            </button>
+            {previous && (
+              <button
+                type="button"
+                className={`kpi-compare ${dir ?? ""}`}
+                title={previous.label}
+                onClick={() => onDrill({}, m.key, true)}
+              >
+                <span className="kpi-change">
+                  {dir === null
+                    ? t("compare.noValue")
+                    : signed(pct && row[pct.key] !== null ? fmt.measure(row[pct.key], "percent") : fmt.measure(row[change!.key], m.format), dir)}
+                </span>
+                <span className="muted">
+                  {t("compare.was", { value: fmt.measure(row[previous.key], m.format) })}
+                </span>
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

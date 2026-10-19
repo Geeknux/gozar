@@ -594,5 +594,119 @@
   "expected": {
    "clarification": true
   }
+ },
+ {
+  "id": "en-038",
+  "question": "revenue compared to last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-039",
+  "question": "revenue this month vs last month",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "relative_period": "this_month",
+   "compare_to": "previous_period",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-040",
+  "question": "monthly revenue this year compared to the same period last year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "time_grain": "month",
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "line"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-041",
+  "question": "revenue by city last quarter versus the previous quarter",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "revenue"
+   ],
+   "dimensions": [
+    "city"
+   ],
+   "relative_period": "last_season",
+   "compare_to": "previous_period",
+   "chart": "bar"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-042",
+  "question": "orders year over year",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "relative_period": "this_year",
+   "compare_to": "same_period_last_year",
+   "chart": "kpi"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-043",
+  "question": "orders by status last 3 months compared to the previous period",
+  "expected": {
+   "semantic_model": "order_metrics",
+   "measures": [
+    "orders"
+   ],
+   "dimensions": [
+    "status"
+   ],
+   "relative_period": "last_3_months",
+   "compare_to": "previous_period",
+   "chart": "bar"
+  },
+  "tags": [
+   "compare"
+  ]
+ },
+ {
+  "id": "en-044",
+  "question": "revenue compared to the previous period",
+  "expected": {
+   "clarification": true
+  },
+  "tags": [
+   "compare",
+   "clarification"
+  ]
  }
 ]

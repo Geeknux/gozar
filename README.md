@@ -4,13 +4,16 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M5 (natural-language interface) done — ask in English or Persian
-("revenue by city last 3 months", «فروش ماهانه امسال»), see the interpretation,
-the report and its chart, refine with follow-ups ("now only Tehran"), or open
-the spec in the builder. Works offline with a built-in interpreter, or with any
-OpenAI-compatible model (hosted, Ollama, vLLM). On top of M4's row-level rules,
-semantic visibility, audit log, limits, cache, replica routing and background
-jobs, and M3's report builder, charts, pivot, drill-down and export.
+**Status:** M6 (dashboards and scheduling) done — save reports and share them
+(each viewer sees their own rows), compare with the previous period or the same
+period last year (in both calendars, also by asking "compared to last year" /
+«نسبت به سال قبل»), build dashboards with drag-and-drop widgets and global
+filters, pin one as your home page, and e-mail reports or dashboards daily,
+weekly or monthly — every recipient gets their own scope, language and calendar.
+On top of M5's natural-language interface (English and Persian, offline or with
+any OpenAI-compatible model), M4's row-level rules, semantic visibility, audit
+log, limits, cache, replica routing and background jobs, and M3's report
+builder, charts, pivot, drill-down and export.
 
 ## Development
 
@@ -33,6 +36,14 @@ uv run pytest
 | `manager` | all shop data, the finance-only *Refunds* measure, the report audit log and question log |
 | `tehran`  | only Tehran, Karaj and Qom (row rules), no *Refunds*                 |
 | `east`    | only Mashhad and Kerman                                               |
+
+It also creates demo content owned by `manager` and shared with everyone: four
+saved reports, the **Sales overview** dashboard (manager's home page) and a
+weekly e-mail of it to `manager`, `tehran` and `east`. Send it now with
+`manage.py gozar_send_schedules --schedule 1`: the e-mails land in
+`example_project/.mail/` (file e-mail backend; set
+`GOZAR_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend` to print
+them), and each recipient's numbers differ by region.
 
 Frontend hot reload: run `npm run dev` in `frontend/` and start Django with
 `GOZAR_VITE_DEV_SERVER=http://localhost:5173`.
@@ -146,6 +157,48 @@ Endpoints behind it (all staff session + the model's view permission):
 "created_at": "2026-09-01"}, "measure": "revenue", "page": 1}` → paginated
 records) and `POST /api/reports/export?format=csv|xlsx` (body: the spec;
 headers in the user's language).
+
+### Comparisons, saved reports, dashboards, e-mail
+
+- **Comparison periods**: `ReportSpec.compare_to` = `previous_period` (the span
+  just before: `last_3_months` → the 3 months before, `this_month` to date → the
+  same days of last month) or `same_period_last_year` (a year back in the
+  report's calendar; weeks move 52 weeks). It needs a period — a relative period
+  or a date range on the time dimension. Each measure gets
+  `<measure>__compare`, `__change` and `__change_pct` columns (role
+  `comparison`), and time buckets line up across the two periods (Esfand 1404 ↔
+  Esfand 1403, Dec 2025 ↔ Dec 2024). The builder's **Compare to** control shows
+  them as table columns with ▲/▼, KPI deltas and a dashed second series in line
+  and bar charts; clicking a comparison value drills into the comparison period
+  (`"comparison": true` in `/reports/drilldown`).
+- **Saved reports** (`/api/saved-reports`, **Saved reports** in the sidebar):
+  named specs with a description and sharing — only me, specific users and
+  groups, or everyone who may see the data. Save, save as, rename/share,
+  duplicate and delete from the builder (`/reports?saved=<id>`) and from an Ask
+  answer. Only the owner edits; anyone who can open one may duplicate it. A
+  shared report always runs as the viewer: their permissions, visible measures
+  and row-level scope.
+- **Dashboards** (`/api/dashboards`, **Dashboards**): a 12-column grid of
+  widgets — saved reports or reports defined in the dashboard — each with its own
+  chart and size. The owner adds, removes, resizes and drags them into place
+  (react-grid-layout) and picks which category filters viewers get; viewers set
+  a period or date range and values (e.g. cities), which apply to every widget
+  whose data has that field (`POST /api/dashboards/<id>/resolve` returns each
+  widget's effective spec). Widgets load in parallel through `/reports/run`
+  (result cache and background jobs included) and keep drill-down and export.
+  **Pin as home page** shows a dashboard on the home page.
+- **E-mail schedules** (`/api/schedules`, **Email schedules**): a saved report or
+  dashboard sent daily, weekly or monthly (a Gregorian or Jalali day of the
+  month) at a local time in a time zone (the owner's **Settings → Time zone** by
+  default). Recipients are users of the system who can open it; each gets an HTML
+  e-mail with the tables and KPI values (comparisons included) built as them — in
+  their language and calendar — plus CSV or XLSX attachments. Send due schedules
+  with `manage.py gozar_send_schedules` from cron (`--dry-run`, `--schedule ID`),
+  or let `gozar_worker` do it (`WORKER_SENDS_SCHEDULES`). Uses Django's e-mail
+  framework (`EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL` or `GOZAR["EMAIL_FROM"]`);
+  `GOZAR["BASE_URL"]` adds an "Open in Gozar" link. Every e-mail is logged
+  (`GET /api/audit/deliveries`, **Audit log → Email deliveries**) and every report
+  it ran is in the audit log with kind *Scheduled email*.
 
 ### Language and calendar
 
@@ -340,7 +393,8 @@ Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [.
 "REPORT_MAX_DIMENSIONS": 6, "REPORT_MAX_FILTERS": 20, "REPORT_STATEMENT_TIMEOUT_MS": 30000,
 "REPORTS_DATABASE": None, "REPORT_CACHE": "default", "REPORT_CACHE_TIMEOUT": 300,
 "REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend",
-"JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff", "NL": {…}}`.
+"JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff", "NL": {…},
+"EMAIL_FROM": None, "EMAIL_MAX_ROWS": 50, "BASE_URL": None, "WORKER_SENDS_SCHEDULES": True}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs` (Swagger UI; schema at `/gozar/api/openapi.json`). The docs are
@@ -360,7 +414,11 @@ for staff only by default — anonymous visitors are sent to the login first; se
   - `calendar/` — Jalali helpers, `CalendarDay` table builder, relative periods;
   - `access/` — row-level rules and the report audit log;
   - `execution/` — statement timeout, result cache, replica router, background jobs;
-  - `api/` — auth, metadata, CRUD, report, job, audit and preferences endpoints;
+  - `api/` — auth, metadata, CRUD, report, job, audit, preferences, saved-report,
+    dashboard and schedule endpoints;
+  - `sharing.py`, `dashboards.py`, `scheduling.py`, `formatting.py` — who may
+    open saved reports and dashboards, widget specs and global filters, e-mail
+    schedules (due times, per-recipient e-mails), server-side value formatting;
   - `preferences.py`, `middleware.py` — per-user language/calendar;
   - `locale/fa/` — Persian gettext catalog;
   - `nl/` — the NL interface: text normalisation and transliteration, the
@@ -370,7 +428,9 @@ for staff only by default — anonymous visitors are sent to the login first; se
 - `frontend/` — React + TypeScript SPA (Vite); `src/i18n/` holds the en/fa
   dictionaries and formatting (LTR/RTL, digits, Gregorian/Jalali dates),
   `src/reports/` the report builder, results, ECharts charts, drill-down and
-  the Ask box (`AskBox.tsx`, `AskPanel.tsx`),
+  the Ask box (`AskBox.tsx`, `AskPanel.tsx`) and saved reports,
+  `src/dashboards/` the dashboard view, grid editor and global filters,
+  `src/schedules/` e-mail schedules,
   `src/components/DatePicker.tsx` the Gregorian/Jalali date picker.
 - `example_project/` — demo project with the `shop` app (City, Customer,
   Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),

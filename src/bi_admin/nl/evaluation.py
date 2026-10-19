@@ -117,6 +117,7 @@ def semantic_view(spec: dict[str, Any], today: dt.date) -> dict[str, Any]:
         "time_dimension": data["time_dimension"],
         "time_grain": data["time_grain"],
         "period": period,
+        "compare_to": data["compare_to"],
     }
     return view
 

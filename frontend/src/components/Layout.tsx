@@ -17,7 +17,12 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
         </Link>
         <nav>
           <section>
-            <NavLink to="/reports">{t("nav.reports")}</NavLink>
+            <NavLink to="/dashboards">{t("nav.dashboards")}</NavLink>
+            <NavLink to="/reports" end>
+              {t("nav.reports")}
+            </NavLink>
+            <NavLink to="/reports/saved">{t("nav.savedReports")}</NavLink>
+            <NavLink to="/schedules">{t("nav.schedules")}</NavLink>
             {user.permissions?.audit && <NavLink to="/audit">{t("nav.audit")}</NavLink>}
             {user.permissions?.questions && <NavLink to="/questions">{t("nav.questions")}</NavLink>}
           </section>

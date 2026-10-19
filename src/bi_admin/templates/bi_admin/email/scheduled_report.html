@@ -1,0 +1,69 @@
+{% load i18n %}<!doctype html>
+<html lang="{{ lang }}" dir="{{ dir }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ subject }}</title>
+<style>
+  body { margin: 0; padding: 0; background: #f4f5f7; color: #1f2330; font-family: {% if lang == "fa" %}Vazirmatn, Tahoma, {% endif %}-apple-system, "Segoe UI", Roboto, Arial, sans-serif; font-size: 14px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 24px 16px; }
+  .card { background: #ffffff; border: 1px solid #e3e5ea; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  .muted { color: #6b7080; font-size: 12px; }
+  table.data { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  table.data th, table.data td { border-bottom: 1px solid #e3e5ea; padding: 6px 8px; text-align: {% if dir == "rtl" %}right{% else %}left{% endif %}; white-space: nowrap; }
+  table.data th { background: #fafbfc; font-size: 12px; }
+  table.data .num { text-align: {% if dir == "rtl" %}left{% else %}right{% endif %}; font-variant-numeric: tabular-nums; }
+  .kpis td { padding: 8px 16px 8px 0; vertical-align: top; }
+  .kpi-label { color: #6b7080; font-size: 12px; }
+  .kpi-value { font-size: 22px; font-weight: bold; }
+  .up { color: #18794e; } .down { color: #c53030; } .flat { color: #6b7080; }
+  .error { color: #c53030; }
+  .button { display: inline-block; background: #5b4ce0; color: #ffffff !important; text-decoration: none; padding: 8px 14px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1 dir="auto">{{ title }}</h1>
+    {% if description %}<p dir="auto">{{ description }}</p>{% endif %}
+    <p class="muted">{% blocktranslate %}{{ frequency }} report, generated {{ generated }}.{% endblocktranslate %}</p>
+  </div>
+  {% for s in sections %}
+  <div class="card">
+    <h2 dir="auto">{{ s.title }}</h2>
+    {% if s.error %}
+      <p class="error" dir="auto">{{ s.error }}</p>
+    {% else %}
+      {% if s.interpretation %}<p class="muted" dir="auto">{{ s.interpretation }}</p>{% endif %}
+      {% if s.kpis %}
+      <table class="kpis" role="presentation"><tr>
+        {% for k in s.kpis %}
+        <td>
+          <div class="kpi-label">{{ k.label }}</div>
+          <div class="kpi-value">{{ k.value }}</div>
+          {% if k.compare %}<div class="{{ k.direction }}">{{ k.arrow }} {{ k.change }} <span class="muted">({% translate "was" %} {{ k.compare }})</span></div>{% endif %}
+        </td>
+        {% endfor %}
+      </tr></table>
+      {% elif s.headers %}
+      <table class="data">
+        <thead><tr>{% for h in s.headers %}<th{% if h.numeric %} class="num"{% endif %}>{{ h.label }}</th>{% endfor %}</tr></thead>
+        <tbody>
+          {% for row in s.rows %}<tr>{% for c in row %}<td{% if c.class %} class="{{ c.class }}"{% endif %}>{{ c.text }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% endif %}
+      {% if s.hidden_rows %}<p class="muted">{% blocktranslate count counter=s.hidden_rows %}…and {{ counter }} more row (see the attachment).{% plural %}…and {{ counter }} more rows (see the attachment).{% endblocktranslate %}</p>{% endif %}
+      {% if s.note %}<p class="muted">{{ s.note }}</p>{% endif %}
+      {% if not s.result.rows %}<p class="muted">{% translate "No data for this report." %}</p>{% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% if link %}<p><a class="button" href="{{ link }}">{% translate "Open in Gozar" %}</a></p>{% endif %}
+  <p class="muted">{% blocktranslate with name=user.get_username %}Sent to {{ name }} by Gozar. The numbers reflect what your account may see.{% endblocktranslate %}</p>
+</div>
+</body>
+</html>

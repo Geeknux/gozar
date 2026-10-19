@@ -6,7 +6,8 @@
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
 > Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
 > engine), i18n + per-user preferences, M3 (report UI), M4 (access control +
-> execution) and M5 (natural-language interface) done — see §10.
+> execution), M5 (natural-language interface) and M6 (dashboards and
+> scheduling) done — see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -381,7 +382,8 @@ Each milestone ends with passing tests and a runnable `example_project`.
   retry, value matching, interpretation sentence, conversational refinement,
   golden-set evaluation.
 - **M6 — Dashboards & scheduling**: dashboards, global filters, pivot,
-  scheduled email reports, comparison periods.
+  scheduled email reports, comparison periods. *(Done; saved reports came with
+  it, the pivot table already shipped in M3.)*
 - **M7 — Scale**: pre-aggregations, DuckDB/ClickHouse backend.
 
 ---
@@ -463,8 +465,8 @@ Decided (M2, 2026-10-18):
   `not_a_time_dimension`, `unknown_relative_period`, `invalid_operator`,
   `invalid_value`, `invalid_choice`, `measure_filter_not_supported`,
   `sort_field_not_in_report`, `unknown_field`, `invalid_limit`,
-  `limit_exceeded`, `not_supported` (`compare_to`, until M6) and
-  `clarification_needed`. Caps: `GOZAR["REPORT_MAX_ROWS"]` (10 000; also the
+  `limit_exceeded`, `not_supported` (`compare_to`, until M6; M6 replaced it with
+  `compare_needs_period`) and `clarification_needed`. Caps: `GOZAR["REPORT_MAX_ROWS"]` (10 000; also the
   limit when `limit` is null) and `GOZAR["REPORT_MAX_DIMENSIONS"]` (6).
   Filtering on measures (HAVING) is deferred.
 - Time semantics: `time_grain` adds the time dimension (spec's or the model's
@@ -588,7 +590,8 @@ Decided (M3 — report UI, 2026-10-19):
 - **The URL is the state**: the builder edits a `ReportSpec` serialised as
   `?spec=<json>` (empty/default keys dropped), so reports are shareable and
   reloadable; "Copy link" copies it. Saved reports in the database are left
-  for M6 (dashboards), where they are needed anyway.
+  for M6 (dashboards), where they are needed anyway. *(Done in M6: `?saved=<id>`
+  next to `?spec=`.)*
 - Live editing: every change is validated (`POST /reports/validate`, 350 ms
   debounce) and, when valid, run. Half-filled filters are left out of the
   request (and error paths are mapped back to the original filter rows), so
@@ -619,7 +622,7 @@ Decided (M3 — report UI, 2026-10-19):
   legends. Unsuitable chart/shape combinations show a hint instead of a broken
   chart. The pivot has no totals column: totals of non-additive measures
   (averages, distinct counts) can't be derived client-side; M6 may add server
-  totals.
+  totals. *(M6 didn't: see the M6 decisions.)*
 - Drill-down (`POST /reports/drilldown` → `bi_admin.engine.drilldown`): the
   clicked group values become extra filters on the spec — a time bucket becomes
   a `between` covering the bucket (it must start a bucket of that grain in the
@@ -992,9 +995,169 @@ Decided (M5 — natural-language interface, 2026-10-19):
   (revenue: income/turnover/spend; AOV: "average order value",
   «میانگین مبلغ سفارش»).
 - Deferred: embedding retrieval for large catalogs, learning few-shots from user
-  corrections (§5.5; `NLLog` already keeps question + spec), `compare_to` (M6),
+  corrections (§5.5; `NLLog` already keeps question + spec), `compare_to` (M6 —
+  done, see below),
   filtering on measures (HAVING) — the heuristic ignores "customers with more
   than 5 orders" style conditions.
+
+Decided (M6 — dashboards and scheduling, 2026-10-20):
+
+- **Comparison periods** (`ReportSpec.compare_to`, `calendar.periods.comparison`,
+  `engine.runner`). The validator resolves the comparison when the report has a
+  bounded period: the relative period, else the first `between` (or single-day
+  `eq`) filter on the time dimension; otherwise `422 compare_needs_period`.
+  `previous_period`: a relative period moves by its own length in its own units
+  (`last_3_months` → the 3 months before; `this_month` to date → the previous
+  month up to the same day; `past_30_days` → the 30 days before); a custom range
+  of whole months moves by that many months, any other range by its length in
+  days. `same_period_last_year`: 12 months back in the report's calendar, except
+  weekly periods (52 weeks, so weekdays line up). Month shifts clamp the day to
+  the target month (31 Mehr − 1 month = 30 Shahrivar, 29 Feb + 12 months = 28
+  Feb) and a range ending on a month boundary keeps ending on one (Esfand 1404,
+  29 days, a year back is Esfand 1403 with its 30th) — `Offset.shift_range`.
+  Execution: a second query — the same compiled report over the comparison range
+  (period or the replaced range filter), unsorted, up to `REPORT_MAX_ROWS` — in
+  the same reporting/timeout context; its rows are merged by group values with
+  every time bucket mapped onto the current bucket it lines up with
+  (`Comparison.to_current`: month/season/year grains by the month offset; day
+  grain by the calendar date; week grain by the offset rounded to whole weeks, so
+  weeks map one-to-one). A collision (a clamped day: 28 and 29 Feb 2024 both
+  before 28 Feb 2025) keeps the exact match. It is a left join: groups that only
+  exist in the comparison period are dropped. Each measure gets
+  `<m>__compare`, `<m>__change` (current − previous) and `<m>__change_pct`
+  (change / |previous|, `null` when previous is 0 or missing) and columns with
+  `role: "comparison"`, `measure`, `comparison` (compare/change/change_pct),
+  labels in both languages; the response has `compare_to` and `comparison`
+  (kind and range, with Jalali dates). Cached with the report (the spec carries
+  `compare_to`); exported like measures. Drill-down accepts `comparison: true`
+  and moves the cell's buckets to the comparison bucket (`to_comparison`). The
+  interpretation sentence says "compared with the previous period (…)". Sorting by
+  a comparison column (e.g. "biggest movers") is not supported.
+- **Saved reports** (`bi_admin.SavedReport`, abstract `Shared`): owner, name,
+  description, `semantic_model`, the spec as submitted with defaults dropped (a
+  `null` calendar stays null, so every viewer gets their own), and sharing —
+  `visibility` private | users (M2M users and groups) | everyone. Sharing rules
+  (`bi_admin.sharing`): listed for the owner, the shared users/groups or everyone,
+  *and only when the viewer may report on its semantic model*; anyone who can
+  open it may duplicate it (a private copy); only the owner changes or deletes
+  it (`403`); someone else's private report is a `404` like a missing one;
+  shares go to active staff only. Saving validates the spec for the owner
+  (`prepare`: `403`/`422`). Nothing about running changes: the SPA runs the
+  stored spec through `/reports/run`, so the viewer's permissions, visibility and
+  row rules apply (a spec using a measure hidden from the viewer lists as
+  `available: false` with the reason, and running it is the usual `422`).
+  The model has no Django permissions (`default_permissions = ()`): access is
+  ownership + sharing + the model permission. API `/api/saved-reports`
+  (list `?q=&mine=`, create, get, patch, delete, `POST /{id}/duplicate?name=`),
+  `/api/sharing/targets?q=` (users and groups to pick). SPA: `/reports?saved=<id>`
+  (the URL spec still wins; "edited" marker, Save / Save as / Rename & share /
+  Duplicate / Delete / Email schedule / Add to dashboard), **Saved reports** page,
+  and **Save report…** on an Ask answer.
+- **Dashboards** (`bi_admin.Dashboard` + `DashboardWidget`): sharing as above,
+  but a dashboard is listed when the viewer may report on at least one widget's
+  model. A widget is a saved report (FK, `SET_NULL` — the tile then says it was
+  deleted) or an inline spec, plus title, chart and a place on a 12-column grid
+  (`x, y, w, h`; validated to fit). A saved-report widget is shown to a viewer
+  who may open that report *or* when the dashboard's owner owns it (putting your
+  own report on your shared dashboard shares it); a third person's report that
+  isn't shared with the viewer shows "not shared with you", and an editor can
+  only add reports they can open. Duplicating keeps saved-report widgets the new
+  owner can open and inlines the rest. Editing replaces all widgets in one
+  `PATCH` (owner only). `filters` stores the offered category filters
+  (`dimensions`) and defaults (`period` or `range`, `values`). **Global
+  filters** (`bi_admin.dashboards.apply_filters`) apply per widget, matched by
+  dimension key *as the viewer sees the model* (a hidden dimension doesn't
+  match): the period replaces the widget's relative period and any range
+  filter on its time dimension (a comparison stays, now against the new
+  period); a category filter replaces the widget's own filter on that key
+  (`eq`, or `in` for several values). Widgets without the field report it as
+  `ignored` and the tile says "Not filtered by …". `POST
+  /api/dashboards/{id}/resolve {filters}` returns every widget's effective spec;
+  the SPA runs them in parallel through `/reports/run` (cache, background jobs,
+  limits and audit as for any report), and each tile has drill-down and export.
+  Filters can never widen access: a city outside the viewer's scope just yields
+  no rows. SPA: **Dashboards** list (create, pin, duplicate, delete) and
+  `/dashboards/<id>`: filter bar (period presets or a date range, value pickers
+  per offered dimension), the grid (react-grid-layout 2.3, new dependency;
+  mirrored for RTL, items anchored left because absolutely positioned boxes
+  otherwise start at the right edge in RTL; one column in reading order below
+  720 px), and the owner's editor (drag by the handle, resize by the corner,
+  add/edit widget from a saved report or a builder in a dialog, offered filters
+  and defaults). **Pin as home page** stores `options.home_dashboard` in the
+  user's preferences (validated as an id); the home page then shows that
+  dashboard, with the Ask panel folded below it.
+- **Scheduled e-mail** (`bi_admin.Schedule`, `bi_admin.scheduling`): owner, name,
+  target (a saved report *or* a dashboard — a check constraint), frequency daily
+  | weekly (weekday, Monday = 0) | monthly (day 1–31, clamped to the month's
+  length, in the Gregorian or Jalali calendar), local time, IANA time zone
+  (default: the owner's new **Settings → Time zone** preference,
+  `options.timezone`, else `TIME_ZONE`), recipients (M2M users), attachment
+  csv | xlsx | none, enabled, `next_run_at` (UTC, indexed) and `last_run_at`.
+  `compute_next` walks local days to the first matching day whose local time is
+  strictly after now (DST-safe through `zoneinfo`). Recipients must be active
+  staff users who can open the target and have an e-mail address (`400` with the
+  usernames otherwise); only the owner sees or changes a schedule. Sending
+  (`send_due(now)`): every enabled schedule with `next_run_at <= now` is claimed
+  by a conditional `UPDATE … WHERE next_run_at = <read value>` that moves it to
+  its next future run (two senders never send twice; a schedule missed for a while
+  is sent once), then `deliver()` builds one e-mail **per recipient, as that
+  recipient** (`JobRequest` with their language and calendar): each report runs
+  through `run(kind="email")`, so permissions, visibility, row rules, limits and
+  the cache apply, and the run is audited (`ReportLog.Kind.EMAIL`, user = the
+  recipient). Dashboards use their stored default filters. The HTML e-mail
+  (`bi_admin/email/scheduled_report.html` + a text part) has a section per report
+  with the interpretation sentence, KPI cards (value, ▲/▼ change %, previous
+  value) or a table (first `EMAIL_MAX_ROWS` = 50 rows; the attachment has all),
+  formatted on the server by `bi_admin.formatting` like the SPA (measure
+  formats, Jalali/Gregorian bucket names, Persian digits and separators,
+  RTL for `fa`); the subject and dates are in the recipient's language and
+  calendar. Attachments come from `engine.export` (headers in the recipient's
+  language, RTL sheet for `fa`), one per non-empty section. Recipients who can no
+  longer open the target, have no address or are inactive are skipped; a
+  sending error fails only that recipient. Every e-mail is a
+  `bi_admin.ScheduleDelivery` row (schedule, recipient, address, status
+  sent | failed | skipped, trigger schedule | manual, language, calendar,
+  report and attachment counts, error, duration), readable with
+  `view_reportlog` at `GET /api/audit/deliveries` and **Audit log → Email
+  deliveries**; the owner sees the latest 20 per schedule. Runners:
+  `manage.py gozar_send_schedules` (cron; `--dry-run`, `--schedule ID` to send
+  one now) and `gozar_worker` (every 30 s unless `WORKER_SENDS_SCHEDULES` is
+  off); the API's `POST /schedules/{id}/send[?only_me=true]` sends at once
+  without touching the timetable. Uses Django's e-mail framework
+  (`GOZAR["EMAIL_FROM"]` or `DEFAULT_FROM_EMAIL`); `GOZAR["BASE_URL"]` adds an
+  "Open in Gozar" link. The demo writes e-mails to `example_project/.mail` with
+  the file backend.
+- **NL**: the heuristic recognises a comparison cue followed by what to compare
+  with — "compared to/with", "vs", "versus", "against", «نسبت به», «در مقایسه
+  با», «با … مقایسه کن» + "last/previous <unit>", «<unit> قبل/گذشته», «پارسال»,
+  "the previous period", «دوره قبل», "the same period last year", «دوره/مدت
+  مشابه سال قبل», and "year over year", "month over month"… — before the time
+  parser, so "last year" there isn't read as the report's period. A year means
+  `same_period_last_year`, another unit `previous_period`; without a period the
+  question compares the current unit to date ("revenue vs last month" →
+  `this_month` vs the previous one; "compared to last year" → `this_year`); "the
+  previous period" with no period asks which. Follow-ups add or drop it
+  ("compare with last year", «با پارسال مقایسه کن», "without comparison"). The
+  LLM prompt explains `compare_to`; the evaluator compares it in the semantic
+  view; the golden set has 18 more cases (198; the heuristic still scores 1.0).
+- Demo (`seed_demo --users`): saved reports *Revenue by city*, *Monthly revenue vs
+  last year*, *Top 5 customers*, *This month vs last month* and the *Sales
+  overview* dashboard (KPIs with comparison, monthly revenue vs last year, orders
+  by status, revenue by city, top customers; city and status filters), all owned
+  by `manager`, shared with everyone and recreated idempotently; manager's home
+  page; *Weekly sales overview* every Saturday 08:00 Asia/Tehran to manager,
+  tehran and east.
+- Not done: server-side pivot totals (still deferred), sorting/filtering by
+  comparison values, per-viewer saved filter sets on dashboards, scheduling for
+  users outside the system (by design: recipients are users so their scope is
+  known), and a dark theme.
+- Smoke test (2026-10-20, headless Chromium as admin, manager, tehran and east —
+  east in Persian/Jalali): the pinned home dashboard, global period and city
+  filters, drag-and-drop editing, comparison charts/tables/KPIs and comparison
+  drill-down, save as/delete, Ask with a comparison saved from the answer, the
+  schedule dialog, "send me a test", the delivery log and a phone-width layout
+  ran with no console errors or failed requests; region users saw only their
+  cities in every widget and e-mail.
 
 Not yet at contrib.admin parity (deliberately deferred): inlines, file
 uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object

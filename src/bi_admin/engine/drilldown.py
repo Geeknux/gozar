@@ -90,19 +90,58 @@ def _cell_filters(report, cell: dict[str, Any]) -> tuple[list[Filter], list[Spec
     return filters, errors
 
 
+def comparison_target(report, cell: dict[str, Any]) -> tuple[ReportSpec, dict[str, Any]]:
+    """The spec and cell behind a comparison value: the report over its comparison
+    period, with the cell's time buckets moved to the buckets they were compared with."""
+    comparison = report.comparison
+    if comparison is None:
+        raise SpecValidationError(
+            [SpecError("no_comparison", _("This report has no comparison period"), "comparison")]
+        )
+    spec = report.spec
+    span = Filter(
+        field=report.time_dimension.key,
+        op="between",
+        value=[comparison.start.isoformat(), comparison.end.isoformat()],
+    )
+    filters = list(spec.filters)
+    if report.comparison_filter is not None:
+        filters[report.comparison_filter] = span
+    else:
+        filters.append(span)
+    target = spec.model_copy(
+        update={"filters": filters, "relative_period": None, "compare_to": None}
+    )
+    grains = {g.key: g.grain for g in report.groups if g.grain}
+    moved = dict(cell)
+    for key, value in cell.items():
+        if grains.get(key) and value is not None:
+            try:
+                bucket = comparison.to_comparison(jalali.parse_date(value), grains[key])
+            except ValueError:
+                continue  # left as is: the normal cell validation reports it
+            moved[key] = bucket.isoformat() if bucket else value
+    return target, moved
+
+
 def drilldown_queryset(
     spec: ReportSpec,
     cell: dict[str, Any],
     measure: str | None,
     request=None,
     today: dt.date | None = None,
+    comparison: bool = False,
 ):
-    """The filtered queryset of the semantic model behind ``cell``.
+    """The filtered queryset of the semantic model behind ``cell`` (with
+    ``comparison``: behind the cell's comparison value).
 
     Returns ``(queryset, validated_report, scoped_rows)``; raises
     ``SpecValidationError`` with errors addressed as ``cell.<key>`` / ``measure``
     when the cell doesn't fit."""
     report = prepare(spec, request, today)
+    if comparison:
+        spec, cell = comparison_target(report, cell)
+        report = prepare(spec, request, today)
     extra, errors = _cell_filters(report, cell)
     if measure is not None and measure not in {m.key for m in report.measures}:
         errors.append(
@@ -147,16 +186,19 @@ def drilldown(
     page: int = 1,
     page_size: int | None = None,
     today: dt.date | None = None,
+    comparison: bool = False,
 ) -> dict[str, Any]:
     """One page of the records behind ``cell``, serialised like the CRUD list."""
     with audit.record("drilldown", spec, request) as entry:
-        return _drilldown(entry, spec, cell, measure, request, page, page_size, today)
+        return _drilldown(entry, spec, cell, measure, request, page, page_size, today, comparison)
 
 
-def _drilldown(entry, spec, cell, measure, request, page, page_size, today) -> dict[str, Any]:
+def _drilldown(
+    entry, spec, cell, measure, request, page, page_size, today, comparison
+) -> dict[str, Any]:
     from bi_admin.crud import service
 
-    qs, report, source = drilldown_queryset(spec, cell, measure, request, today)
+    qs, report, source = drilldown_queryset(spec, cell, measure, request, today, comparison)
     entry.spec = report.spec.model_dump(mode="json")
     entry.scope = scope_text(source)
     entry.database = alias = reports_database()
@@ -197,6 +239,7 @@ def _drilldown(entry, spec, cell, measure, request, page, page_size, today) -> d
         "linkable": options is not None,
         "cell": cell,
         "measure": measure,
+        "comparison": comparison,
         "filters": [f.model_dump() for f in report.spec.filters],
         "columns": [c.as_dict() for c in cols],
         "rows": rows,

@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Gozar (bi_admin)\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 20:02+0330\n"
+"POT-Creation-Date: 2026-10-19 23:45+0330\n"
 "PO-Revision-Date: 2026-10-18 23:40+0330\n"
 "Last-Translator: Gozar contributors\n"
 "Language-Team: Persian\n"
@@ -15,12 +15,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: api/audit.py:63
+#: api/audit.py:63 api/audit.py:178
 msgid "Permission denied: view the report audit log"
 msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش ممیزی اجرای گزارش‌ها"
 
-#: api/audit.py:85 api/audit.py:157 crud/service.py:518
-#: engine/drilldown.py:183
+#: api/audit.py:85 api/audit.py:157 api/audit.py:193 crud/service.py:518
+#: engine/drilldown.py:225
 #, python-format
 msgid "Page %(page)s does not exist"
 msgstr "صفحهٔ %(page)s وجود ندارد"
@@ -41,6 +41,37 @@ msgstr "نام کاربری یا گذرواژه نادرست است، یا حس�
 msgid "Invalid JSON body"
 msgstr "بدنهٔ JSON نامعتبر است"
 
+#: api/dashboards.py:90
+#, python-format
+msgid "At most %(n)s widgets"
+msgstr "حداکثر %(n)s ویجت"
+
+#: api/dashboards.py:97
+msgid "Choose a saved report or give a report spec"
+msgstr "یک گزارش ذخیره‌شده انتخاب کنید یا مشخصات گزارش را بدهید"
+
+#: api/dashboards.py:101 sharing.py:89
+msgid "Saved report not found"
+msgstr "گزارش ذخیره‌شده پیدا نشد"
+
+#: api/dashboards.py:110
+msgid "Unknown chart type"
+msgstr "نوع نمودار ناشناخته"
+
+#: api/dashboards.py:113
+#, python-format
+msgid "A widget must fit the %(n)s-column grid"
+msgstr "ویجت باید در شبکهٔ %(n)s ستونی جا شود"
+
+#: api/dashboards.py:115
+msgid "Invalid widget height or row"
+msgstr "ارتفاع یا ردیف ویجت نامعتبر است"
+
+#: api/dashboards.py:191 api/saved.py:138
+#, python-format
+msgid "Copy of %(name)s"
+msgstr "رونوشت %(name)s"
+
 #: api/docs.py:81
 msgid "Staff access is required."
 msgstr "دسترسی کارمندی لازم است."
@@ -57,23 +88,73 @@ msgstr "بدنهٔ درخواست باید یک شیء JSON باشد"
 msgid "Validation failed"
 msgstr "اعتبارسنجی ناموفق بود"
 
-#: api/reports.py:134
+#: api/reports.py:144
 msgid "Report job not found"
 msgstr "کار گزارش پیدا نشد"
 
-#: api/reports.py:150 execution/jobs.py:245
+#: api/reports.py:160 execution/jobs.py:245
 msgid "The report failed."
 msgstr "اجرای گزارش ناموفق بود."
 
-#: api/reports.py:154
+#: api/reports.py:164
 msgid "The report job was cancelled"
 msgstr "کار گزارش لغو شد"
 
-#: api/reports.py:156
+#: api/reports.py:166
 msgid "The report job has not finished"
 msgstr "کار گزارش هنوز تمام نشده است"
 
-#: calendar/periods.py:126
+#: api/saved.py:50
+msgid "This field is required."
+msgstr "این فیلد لازم است."
+
+#: api/saved.py:52
+msgid "At most 200 characters."
+msgstr "حداکثر ۲۰۰ نویسه."
+
+#: api/schedules.py:104
+msgid "Schedule not found"
+msgstr "زمان‌بندی پیدا نشد"
+
+#: api/schedules.py:114
+msgid "Choose a weekday (Monday = 0 … Sunday = 6)"
+msgstr "یک روز هفته انتخاب کنید (دوشنبه = ۰ … یکشنبه = ۶)"
+
+#: api/schedules.py:118
+msgid "Choose a day of the month (1–31)"
+msgstr "یک روز از ماه انتخاب کنید (۱ تا ۳۱)"
+
+#: api/schedules.py:120
+msgid "Unknown time zone"
+msgstr "منطقهٔ زمانی ناشناخته"
+
+#: api/schedules.py:125
+msgid "Add at least one recipient"
+msgstr "دست‌کم یک گیرنده اضافه کنید"
+
+#: api/schedules.py:127
+msgid "Recipients must be active users of the system"
+msgstr "گیرندگان باید کاربران فعال سامانه باشند"
+
+#: api/schedules.py:132
+#, python-format
+msgid "Not shared with: %(users)s"
+msgstr "با این کاربران به اشتراک گذاشته نشده: %(users)s"
+
+#: api/schedules.py:137
+#, python-format
+msgid "No e-mail address: %(users)s"
+msgstr "بدون نشانی ایمیل: %(users)s"
+
+#: api/schedules.py:156
+msgid "Choose a saved report or a dashboard"
+msgstr "یک گزارش ذخیره‌شده یا داشبورد انتخاب کنید"
+
+#: api/schedules.py:221
+msgid "Your account has no e-mail address"
+msgstr "حساب شما نشانی ایمیل ندارد"
+
+#: calendar/periods.py:126 dashboards.py:104
 #, python-format
 msgid "Unknown relative period %(name)r"
 msgstr "بازهٔ نسبی ناشناخته: %(name)r"
@@ -97,6 +178,11 @@ msgstr "«past» به عدد نیاز دارد، مثلاً past_3_%(unit)ss"
 #, python-format
 msgid "Count must be between 1 and %(max)s: %(name)r"
 msgstr "عدد باید بین ۱ و %(max)s باشد: %(name)r"
+
+#: calendar/periods.py:298
+#, python-format
+msgid "Unknown comparison %(name)r"
+msgstr "مقایسهٔ ناشناخته: %(name)r"
 
 #: crud/options.py:163
 msgid "Delete selected"
@@ -207,6 +293,51 @@ msgstr "فیلد ناشناخته: %(field)r"
 msgid "%(field)r is not a relation field"
 msgstr "%(field)r فیلد رابطه‌ای نیست"
 
+#: dashboards.py:44
+msgid "The saved report of this widget was deleted."
+msgstr "گزارش ذخیره‌شدهٔ این ویجت حذف شده است."
+
+#: dashboards.py:48
+msgid "This saved report is not shared with you."
+msgstr "این گزارش ذخیره‌شده با شما به اشتراک گذاشته نشده است."
+
+#: dashboards.py:55
+msgid "You don't have access to this widget's data."
+msgstr "به داده‌های این ویجت دسترسی ندارید."
+
+#: dashboards.py:99
+msgid "Filters must be an object"
+msgstr "فیلترها باید یک شیء باشند"
+
+#: dashboards.py:109 dashboards.py:113
+msgid "A date range is [start, end]"
+msgstr "بازهٔ تاریخ به شکل [شروع، پایان] است"
+
+#: dashboards.py:115
+msgid "The range starts after it ends"
+msgstr "شروع بازه بعد از پایان آن است"
+
+#: dashboards.py:117
+msgid "Choose a period or a date range, not both"
+msgstr "یا یک دوره انتخاب کنید یا یک بازهٔ تاریخ، نه هر دو"
+
+#: dashboards.py:122
+msgid "dimensions is a list of dimension keys"
+msgstr "dimensions فهرستی از کلیدهای بُعد است"
+
+#: dashboards.py:126
+msgid "values maps dimension keys to lists of values"
+msgstr "values کلید هر بُعد را به فهرستی از مقدارها نگاشت می‌کند"
+
+#: dashboards.py:133
+#, python-format
+msgid "Invalid values for %(key)s"
+msgstr "مقدارهای نامعتبر برای %(key)s"
+
+#: dashboards.py:200
+msgid "This widget's report spec is invalid."
+msgstr "مشخصات گزارش این ویجت نامعتبر است."
+
 #: engine/drilldown.py:62
 #, python-format
 msgid "%(key)r is not a dimension of this report"
@@ -217,26 +348,50 @@ msgstr "%(key)r از ابعاد این گزارش نیست"
 msgid "%(value)r is not the start of a %(grain)s"
 msgstr "%(value)r آغاز یک %(grain)s نیست"
 
-#: engine/drilldown.py:111
+#: engine/drilldown.py:99
+msgid "This report has no comparison period"
+msgstr "این گزارش دورهٔ مقایسه ندارد"
+
+#: engine/drilldown.py:150
 #, python-format
 msgid "%(key)r is not a measure of this report"
 msgstr "%(key)r از سنجه‌های این گزارش نیست"
 
-#: engine/runner.py:143
+#: engine/runner.py:134
+#, python-format
+msgid "%(measure)s (previous period)"
+msgstr "%(measure)s (دوره قبل)"
+
+#: engine/runner.py:135
+#, python-format
+msgid "%(measure)s (same period last year)"
+msgstr "%(measure)s (دوره مشابه سال قبل)"
+
+#: engine/runner.py:137
+#, python-format
+msgid "%(measure)s change"
+msgstr "تغییر %(measure)s"
+
+#: engine/runner.py:138
+#, python-format
+msgid "%(measure)s change %%"
+msgstr "درصد تغییر %(measure)s"
+
+#: engine/runner.py:187
 #, python-format
 msgid ""
 "The calendar table lacks %(missing)s day(s) between %(start)s and %(end)s; "
 "run `manage.py gozar_calendar`"
 msgstr ""
-"جدول تقویم %(missing)s روز بین %(start)s و %(end)s را ندارد؛ دستور "
-"`manage.py gozar_calendar` را اجرا کنید"
+"جدول تقویم %(missing)s روز بین %(start)s و %(end)s را ندارد؛ دستور `manage.py"
+" gozar_calendar` را اجرا کنید"
 
-#: engine/runner.py:162 engine/validator.py:155
+#: engine/runner.py:206 engine/validator.py:158
 #, python-format
 msgid "Unknown semantic model %(name)r"
 msgstr "مدل معنایی ناشناخته: %(name)r"
 
-#: engine/runner.py:173
+#: engine/runner.py:217
 #, python-format
 msgid "Permission denied: report on %(name)s"
 msgstr "دسترسی به گزارش %(name)s مجاز نیست"
@@ -245,132 +400,141 @@ msgstr "دسترسی به گزارش %(name)s مجاز نیست"
 msgid "Invalid report spec"
 msgstr "مشخصات گزارش نامعتبر است"
 
-#: engine/validator.py:177
-msgid "compare_to is not supported yet (planned for M6)"
-msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"
-
-#: engine/validator.py:205
+#: engine/validator.py:204
 #, python-format
 msgid "%(key)r is a measure, not a dimension"
 msgstr "%(key)r یک سنجه است، نه بُعد"
 
-#: engine/validator.py:213 engine/values.py:46
+#: engine/validator.py:212 engine/values.py:46
 #, python-format
 msgid "Unknown dimension %(key)r on %(model)s"
 msgstr "بُعد ناشناختهٔ %(key)r در %(model)s"
 
-#: engine/validator.py:231
+#: engine/validator.py:230
 msgid "Pick at least one measure"
 msgstr "دست‌کم یک سنجه انتخاب کنید"
 
-#: engine/validator.py:239
+#: engine/validator.py:238
 #, python-format
 msgid "Measure %(key)r is listed twice"
 msgstr "سنجهٔ %(key)r دو بار آمده است"
 
-#: engine/validator.py:248
+#: engine/validator.py:247
 #, python-format
 msgid "%(key)r is a dimension, not a measure"
 msgstr "%(key)r یک بُعد است، نه سنجه"
 
-#: engine/validator.py:256
+#: engine/validator.py:255
 #, python-format
 msgid "Unknown measure %(key)r on %(model)s"
 msgstr "سنجهٔ ناشناختهٔ %(key)r در %(model)s"
 
-#: engine/validator.py:275
+#: engine/validator.py:274
 #, python-format
 msgid "%(model)s has no time dimension"
 msgstr "%(model)s بُعد زمانی ندارد"
 
-#: engine/validator.py:283
+#: engine/validator.py:282
 #, python-format
 msgid "%(key)r is not a time dimension"
 msgstr "%(key)r بُعد زمانی نیست"
 
-#: engine/validator.py:300
+#: engine/validator.py:299
 #, python-format
 msgid "Dimension %(key)r is listed twice"
 msgstr "بُعد %(key)r دو بار آمده است"
 
-#: engine/validator.py:313
+#: engine/validator.py:312
 #, python-format
 msgid "At most %(count)s dimensions per report"
 msgstr "هر گزارش حداکثر %(count)s بُعد می‌تواند داشته باشد"
 
-#: engine/validator.py:341
+#: engine/validator.py:340
 #, python-format
 msgid "At most %(count)s filters per report"
 msgstr "حداکثر %(count)s فیلتر در هر گزارش"
 
-#: engine/validator.py:350
+#: engine/validator.py:349
 #, python-format
 msgid "Filtering on measure %(key)r is not supported; filter on a dimension"
 msgstr "فیلتر روی سنجهٔ %(key)r پشتیبانی نمی‌شود؛ روی یک بُعد فیلتر کنید"
 
-#: engine/validator.py:371
+#: engine/validator.py:370
 msgid "is_null takes true/false"
 msgstr "is_null مقدار true یا false می‌پذیرد"
 
-#: engine/validator.py:376
+#: engine/validator.py:375
 #, python-format
 msgid "%(op)r needs a time or number dimension; %(key)r is %(type)s"
 msgstr "%(op)r به بُعد زمانی یا عددی نیاز دارد؛ %(key)r از نوع %(type)s است"
 
-#: engine/validator.py:386
+#: engine/validator.py:385
 #, python-format
 msgid "'contains' needs a text dimension; %(key)r is %(type)s"
 msgstr "«contains» به بُعد متنی نیاز دارد؛ %(key)r از نوع %(type)s است"
 
-#: engine/validator.py:395
+#: engine/validator.py:394
 #, python-format
 msgid "%(op)r takes a non-empty list"
 msgstr "%(op)r یک فهرست غیرخالی می‌پذیرد"
 
-#: engine/validator.py:399
+#: engine/validator.py:398
 msgid "'between' takes [low, high]"
 msgstr "«between» مقدار [کمینه، بیشینه] می‌پذیرد"
 
-#: engine/validator.py:405
+#: engine/validator.py:404
 msgid "'between' low is greater than high"
 msgstr "در «between» کمینه از بیشینه بزرگ‌تر است"
 
-#: engine/validator.py:409
+#: engine/validator.py:408
 #, python-format
 msgid "%(op)r takes a single value"
 msgstr "%(op)r فقط یک مقدار می‌پذیرد"
 
-#: engine/validator.py:417
+#: engine/validator.py:416
 msgid "Expected a single value"
 msgstr "یک مقدار واحد لازم است"
 
-#: engine/validator.py:425
+#: engine/validator.py:424
 msgid "Expected a date: 2026-03-21 (Gregorian) or 1405/01/01 (Jalali)"
 msgstr "تاریخ لازم است: 2026-03-21 (میلادی) یا 1405/01/01 (شمسی)"
 
-#: engine/validator.py:432 engine/validator.py:437
+#: engine/validator.py:431 engine/validator.py:436
 msgid "Expected a number"
 msgstr "عدد لازم است"
 
-#: engine/validator.py:447
+#: engine/validator.py:446
 msgid "Expected true or false"
 msgstr "true یا false لازم است"
 
-#: engine/validator.py:460
+#: engine/validator.py:459
 #, python-format
 msgid "%(value)r is not a valid %(key)s"
 msgstr "%(value)r مقدار معتبری برای %(key)s نیست"
 
-#: engine/validator.py:477
+#: engine/validator.py:489
+#, python-format
+msgid ""
+"A comparison needs a period: choose a relative period or a date range on "
+"%(field)s"
+msgstr ""
+"مقایسه به یک دوره نیاز دارد: یک دورهٔ نسبی یا بازهٔ تاریخ روی %(field)s "
+"انتخاب کنید"
+
+#: engine/validator.py:490
+msgid "a time dimension"
+msgstr "یک بُعد زمانی"
+
+#: engine/validator.py:506
 #, python-format
 msgid "Sort field %(key)r must be one of the report's measures or dimensions"
 msgstr "فیلد مرتب‌سازی %(key)r باید یکی از سنجه‌ها یا ابعاد گزارش باشد"
 
-#: engine/validator.py:493
+#: engine/validator.py:522
 msgid "limit must be at least 1"
 msgstr "limit باید دست‌کم ۱ باشد"
 
-#: engine/validator.py:496
+#: engine/validator.py:525
 #, python-format
 msgid "limit may not exceed %(max)s"
 msgstr "limit نمی‌تواند از %(max)s بیشتر باشد"
@@ -384,413 +548,615 @@ msgstr "کار گزارش از دست رفت: پردازشگر آن دیگر پ�
 msgid "The report took longer than %(seconds)s seconds and was stopped."
 msgstr "اجرای گزارش بیش از %(seconds)s ثانیه طول کشید و متوقف شد."
 
-#: models.py:12
+#: formatting.py:77
+#, python-format
+msgid "Week of %(date)s"
+msgstr "هفتهٔ %(date)s"
+
+#: formatting.py:87
+#, python-format
+msgid "Q%(quarter)s %(year)s"
+msgstr "فصل %(quarter)s %(year)s"
+
+#: formatting.py:98
+msgid "(empty)"
+msgstr "(خالی)"
+
+#: formatting.py:105
+msgid "Yes"
+msgstr "بله"
+
+#: formatting.py:105
+msgid "No"
+msgstr "خیر"
+
+#: models.py:13
 msgid "Addition"
 msgstr "افزودن"
 
-#: models.py:13
+#: models.py:14
 msgid "Change"
 msgstr "ویرایش"
 
-#: models.py:14
+#: models.py:15
 msgid "Deletion"
 msgstr "حذف"
 
-#: models.py:16 models.py:191 models.py:244
+#: models.py:17 models.py:193 models.py:246 models.py:480
 msgid "time"
 msgstr "زمان"
 
-#: models.py:23 models.py:106 models.py:142 models.py:198 models.py:251
+#: models.py:24 models.py:107 models.py:143 models.py:200 models.py:253
 msgid "user"
 msgstr "کاربر"
 
-#: models.py:25 models.py:264
+#: models.py:26 models.py:266
 msgid "model"
 msgstr "مدل"
 
-#: models.py:26
+#: models.py:27
 msgid "object id"
 msgstr "شناسهٔ شیء"
 
-#: models.py:27
+#: models.py:28
 msgid "object repr"
 msgstr "نمایش شیء"
 
-#: models.py:28
+#: models.py:29
 msgid "action"
 msgstr "عمل"
 
-#: models.py:29
+#: models.py:30
 msgid "changes"
 msgstr "تغییرات"
 
-#: models.py:32
+#: models.py:33
 msgid "change log entry"
 msgstr "سابقهٔ تغییر"
 
-#: models.py:33
+#: models.py:34
 msgid "change log entries"
 msgstr "سوابق تغییرات"
 
-#: models.py:49
+#: models.py:50
 msgid "date"
 msgstr "تاریخ"
 
-#: models.py:50
+#: models.py:51
 msgid "weekday (ISO, Monday=0)"
 msgstr "روز هفته (ISO، دوشنبه=۰)"
 
-#: models.py:52
+#: models.py:53
 msgid "Gregorian year"
 msgstr "سال میلادی"
 
-#: models.py:53
+#: models.py:54
 msgid "Gregorian quarter"
 msgstr "فصل میلادی"
 
-#: models.py:54
+#: models.py:55
 msgid "Gregorian month"
 msgstr "ماه میلادی"
 
-#: models.py:55
+#: models.py:56
 msgid "Gregorian day"
 msgstr "روز میلادی"
 
-#: models.py:56
+#: models.py:57
 msgid "ISO year"
 msgstr "سال ISO"
 
-#: models.py:57
+#: models.py:58
 msgid "ISO week"
 msgstr "هفتهٔ ISO"
 
-#: models.py:58
+#: models.py:59
 msgid "Gregorian week start"
 msgstr "آغاز هفتهٔ میلادی"
 
-#: models.py:59
+#: models.py:60
 msgid "Gregorian month start"
 msgstr "آغاز ماه میلادی"
 
-#: models.py:60
+#: models.py:61
 msgid "Gregorian quarter start"
 msgstr "آغاز فصل میلادی"
 
-#: models.py:61
+#: models.py:62
 msgid "Gregorian year start"
 msgstr "آغاز سال میلادی"
 
-#: models.py:63
+#: models.py:64
 msgid "Jalali year"
 msgstr "سال شمسی"
 
-#: models.py:64
+#: models.py:65
 msgid "Jalali season"
 msgstr "فصل شمسی"
 
-#: models.py:65
+#: models.py:66
 msgid "Jalali month"
 msgstr "ماه شمسی"
 
-#: models.py:66
+#: models.py:67
 msgid "Jalali day"
 msgstr "روز شمسی"
 
-#: models.py:67
+#: models.py:68
 msgid "Jalali weekday (Saturday=0)"
 msgstr "روز هفتهٔ شمسی (شنبه=۰)"
 
-#: models.py:68
+#: models.py:69
 msgid "Jalali week start"
 msgstr "آغاز هفتهٔ شمسی"
 
-#: models.py:69
+#: models.py:70
 msgid "Jalali month start"
 msgstr "آغاز ماه شمسی"
 
-#: models.py:70
+#: models.py:71
 msgid "Jalali season start"
 msgstr "آغاز فصل شمسی"
 
-#: models.py:71
+#: models.py:72
 msgid "Jalali year start"
 msgstr "آغاز سال شمسی"
 
-#: models.py:73
+#: models.py:74
 msgid "weekend"
 msgstr "آخر هفته"
 
-#: models.py:74
+#: models.py:75
 msgid "public holiday"
 msgstr "تعطیل رسمی"
 
-#: models.py:75
+#: models.py:76
 msgid "occasion"
 msgstr "مناسبت"
 
-#: models.py:78
+#: models.py:79
 msgid "calendar day"
 msgstr "روز تقویم"
 
-#: models.py:79
+#: models.py:80
 msgid "calendar days"
 msgstr "روزهای تقویم"
 
-#: models.py:98 nl/interpret.py:261
+#: models.py:99 nl/interpret.py:261
 msgid "Gregorian"
 msgstr "میلادی"
 
-#: models.py:99
+#: models.py:100
 msgid "Jalali (Solar Hijri)"
 msgstr "شمسی (هجری خورشیدی)"
 
-#: models.py:108 models.py:255
+#: models.py:109 models.py:257 models.py:502
 msgid "language"
 msgstr "زبان"
 
-#: models.py:109 models.py:256
+#: models.py:110 models.py:258 models.py:432 models.py:503
 msgid "calendar"
 msgstr "تقویم"
 
-#: models.py:110
+#: models.py:111
 msgid "other options"
 msgstr "سایر گزینه‌ها"
 
-#: models.py:111
+#: models.py:112 models.py:319 models.py:448
 msgid "updated at"
 msgstr "زمان به‌روزرسانی"
 
-#: models.py:114 models.py:115
+#: models.py:115 models.py:116
 msgid "user preferences"
 msgstr "ترجیحات کاربر"
 
-#: models.py:129
+#: models.py:130
 msgid "Queued"
 msgstr "در صف"
 
-#: models.py:130
+#: models.py:131
 msgid "Running"
 msgstr "در حال اجرا"
 
-#: models.py:131
+#: models.py:132
 msgid "Done"
 msgstr "انجام شد"
 
-#: models.py:132 models.py:189 models.py:242
+#: models.py:133 models.py:191 models.py:244 models.py:477
 msgid "Failed"
 msgstr "ناموفق"
 
-#: models.py:133
+#: models.py:134
 msgid "Cancelled"
 msgstr "لغو شده"
 
-#: models.py:144 models.py:202 models.py:259
+#: models.py:145 models.py:204 models.py:261 models.py:333
 msgid "semantic model"
 msgstr "مدل معنایی"
 
-#: models.py:145 models.py:203 models.py:260
+#: models.py:146 models.py:205 models.py:262 models.py:334 models.py:373
 msgid "report spec"
 msgstr "مشخصات گزارش"
 
-#: models.py:146
+#: models.py:147
 msgid "options"
 msgstr "گزینه‌ها"
 
-#: models.py:148 models.py:205 models.py:258
+#: models.py:149 models.py:207 models.py:260 models.py:500
 msgid "status"
 msgstr "وضعیت"
 
-#: models.py:150
+#: models.py:151 models.py:318 models.py:447
 msgid "created at"
 msgstr "زمان ایجاد"
 
-#: models.py:151
+#: models.py:152
 msgid "started at"
 msgstr "زمان شروع"
 
-#: models.py:152
+#: models.py:153
 msgid "finished at"
 msgstr "زمان پایان"
 
-#: models.py:155
+#: models.py:156
 msgid "lease"
 msgstr "اجاره"
 
-#: models.py:156
+#: models.py:157
 msgid "heartbeat"
 msgstr "آخرین نشانهٔ حیات"
 
-#: models.py:157 models.py:265
+#: models.py:158 models.py:267
 msgid "attempts"
 msgstr "تعداد تلاش"
 
-#: models.py:158
+#: models.py:159
 msgid "result"
 msgstr "نتیجه"
 
-#: models.py:159 models.py:207 models.py:269
+#: models.py:160 models.py:209 models.py:271 models.py:506
 msgid "error"
 msgstr "خطا"
 
-#: models.py:160
+#: models.py:161
 msgid "error status"
 msgstr "کد وضعیت خطا"
 
-#: models.py:163
+#: models.py:164
 msgid "report job"
 msgstr "کار گزارش"
 
-#: models.py:164
+#: models.py:165
 msgid "report jobs"
 msgstr "کارهای گزارش"
 
-#: models.py:181
+#: models.py:182
 msgid "Run"
 msgstr "اجرا"
 
-#: models.py:182
+#: models.py:183
 msgid "Export"
 msgstr "خروجی"
 
-#: models.py:183
+#: models.py:184
 msgid "Drill-down"
 msgstr "جزئیات"
 
-#: models.py:186
+#: models.py:185
+msgid "Scheduled email"
+msgstr "ایمیل زمان‌بندی‌شده"
+
+#: models.py:188
 msgid "Succeeded"
 msgstr "موفق"
 
-#: models.py:187
+#: models.py:189
 msgid "Invalid spec"
 msgstr "مشخصات نامعتبر"
 
-#: models.py:188 models.py:241
+#: models.py:190 models.py:243
 msgid "Denied"
 msgstr "رد شده"
 
-#: models.py:200 models.py:253
+#: models.py:202 models.py:255 models.py:498
 msgid "username"
 msgstr "نام کاربری"
 
-#: models.py:201
+#: models.py:203
 msgid "kind"
 msgstr "نوع"
 
-#: models.py:204
+#: models.py:206
 msgid "row-level scope"
 msgstr "محدودهٔ سطرها"
 
-#: models.py:206 models.py:268
+#: models.py:208 models.py:270
 msgid "error code"
 msgstr "کد خطا"
 
-#: models.py:208 models.py:267
+#: models.py:210 models.py:269 models.py:507
 msgid "duration (ms)"
 msgstr "مدت (میلی‌ثانیه)"
 
-#: models.py:209
+#: models.py:211
 msgid "rows"
 msgstr "تعداد سطر"
 
-#: models.py:210 models.py:266
+#: models.py:212 models.py:268
 msgid "served from cache"
 msgstr "از حافظهٔ نهان"
 
-#: models.py:211
+#: models.py:213
 msgid "database"
 msgstr "پایگاه داده"
 
-#: models.py:218
+#: models.py:220
 msgid "job"
 msgstr "کار"
 
-#: models.py:222
+#: models.py:224
 msgid "report log entry"
 msgstr "رکورد ممیزی گزارش"
 
-#: models.py:223
+#: models.py:225
 msgid "report log entries"
 msgstr "رکوردهای ممیزی گزارش"
 
-#: models.py:238
+#: models.py:240
 msgid "Answered"
 msgstr "پاسخ داده شد"
 
-#: models.py:239
+#: models.py:241
 msgid "Clarification asked"
 msgstr "درخواست توضیح"
 
-#: models.py:240
+#: models.py:242
 msgid "No valid spec"
 msgstr "بدون مشخصات معتبر"
 
-#: models.py:254
+#: models.py:256
 msgid "question"
 msgstr "پرسش"
 
-#: models.py:257
+#: models.py:259
 msgid "previous spec"
 msgstr "مشخصات قبلی"
 
-#: models.py:261
+#: models.py:263
 msgid "interpretation"
 msgstr "برداشت"
 
-#: models.py:262
+#: models.py:264
 msgid "clarification"
 msgstr "درخواست توضیح"
 
-#: models.py:263
+#: models.py:265
 msgid "provider"
 msgstr "ارائه‌دهنده"
 
-#: models.py:270
+#: models.py:272
 msgid "transcript"
 msgstr "متن گفتگو"
 
-#: models.py:273
+#: models.py:275
 msgid "question log entry"
 msgstr "رکورد گزارش پرسش"
 
-#: models.py:274
+#: models.py:276
 msgid "question log entries"
 msgstr "رکوردهای گزارش پرسش"
+
+#: models.py:297
+msgid "Only me"
+msgstr "فقط من"
+
+#: models.py:298
+msgid "Specific users and groups"
+msgstr "کاربران و گروه‌های مشخص"
+
+#: models.py:299
+msgid "Everyone who can see the data"
+msgstr "همهٔ کسانی که به داده دسترسی دارند"
+
+#: models.py:305 models.py:408
+msgid "owner"
+msgstr "مالک"
+
+#: models.py:307 models.py:410
+msgid "name"
+msgstr "نام"
+
+#: models.py:308
+msgid "description"
+msgstr "توضیح"
+
+#: models.py:310
+msgid "shared with"
+msgstr "اشتراک با"
+
+#: models.py:313
+msgid "users"
+msgstr "کاربران"
+
+#: models.py:316
+msgid "groups"
+msgstr "گروه‌ها"
+
+#: models.py:337 models.py:371 models.py:417
+msgid "saved report"
+msgstr "گزارش ذخیره‌شده"
+
+#: models.py:338
+msgid "saved reports"
+msgstr "گزارش‌های ذخیره‌شده"
+
+#: models.py:349
+msgid "global filters"
+msgstr "فیلترهای سراسری"
+
+#: models.py:352 models.py:362 models.py:425
+msgid "dashboard"
+msgstr "داشبورد"
+
+#: models.py:353
+msgid "dashboards"
+msgstr "داشبوردها"
+
+#: models.py:364
+msgid "title"
+msgstr "عنوان"
+
+#: models.py:374
+msgid "chart"
+msgstr "نمودار"
+
+#: models.py:381
+msgid "dashboard widget"
+msgstr "ویجت داشبورد"
+
+#: models.py:382
+msgid "dashboard widgets"
+msgstr "ویجت‌های داشبورد"
+
+#: models.py:395
+msgid "Daily"
+msgstr "روزانه"
+
+#: models.py:396
+msgid "Weekly"
+msgstr "هفتگی"
+
+#: models.py:397
+msgid "Monthly"
+msgstr "ماهانه"
+
+#: models.py:400
+msgid "No attachment"
+msgstr "بدون پیوست"
+
+#: models.py:427
+msgid "frequency"
+msgstr "تکرار"
+
+#: models.py:428
+msgid "time of day"
+msgstr "ساعت"
+
+#: models.py:429
+msgid "weekday (Monday=0)"
+msgstr "روز هفته (دوشنبه=۰)"
+
+#: models.py:430
+msgid "day of month"
+msgstr "روز ماه"
+
+#: models.py:437
+msgid "time zone"
+msgstr "منطقهٔ زمانی"
+
+#: models.py:439
+msgid "recipients"
+msgstr "گیرندگان"
+
+#: models.py:442
+msgid "attachment"
+msgstr "پیوست"
+
+#: models.py:444
+msgid "enabled"
+msgstr "فعال"
+
+#: models.py:445
+msgid "next run"
+msgstr "اجرای بعدی"
+
+#: models.py:446
+msgid "last run"
+msgstr "آخرین اجرا"
+
+#: models.py:451
+msgid "email schedule"
+msgstr "زمان‌بندی ایمیل"
+
+#: models.py:452
+msgid "email schedules"
+msgstr "زمان‌بندی‌های ایمیل"
+
+#: models.py:476
+msgid "Sent"
+msgstr "ارسال شد"
+
+#: models.py:478
+msgid "Skipped"
+msgstr "رد شد"
+
+#: models.py:487 models.py:489
+msgid "schedule"
+msgstr "زمان‌بندی"
+
+#: models.py:496
+msgid "recipient"
+msgstr "گیرنده"
+
+#: models.py:499
+msgid "e-mail address"
+msgstr "نشانی ایمیل"
+
+#: models.py:501
+msgid "trigger"
+msgstr "عامل"
+
+#: models.py:504
+msgid "reports"
+msgstr "گزارش‌ها"
+
+#: models.py:505
+msgid "attachments"
+msgstr "پیوست‌ها"
+
+#: models.py:510
+msgid "email delivery"
+msgstr "ارسال ایمیل"
+
+#: models.py:511
+msgid "email deliveries"
+msgstr "ارسال‌های ایمیل"
 
 #: nl/heuristic.py:791
 #, python-format
 msgid "Not used: %(words)s"
 msgstr "استفاده نشد: %(words)s"
 
-#: nl/heuristic.py:791 nl/interpret.py:94 nl/interpret.py:299
+#: nl/heuristic.py:791 nl/interpret.py:94 nl/interpret.py:309
 #: nl/pipeline.py:304
 msgid ", "
 msgstr "، "
 
-#: nl/heuristic.py:864 nl/heuristic.py:871
+#: nl/heuristic.py:866 nl/heuristic.py:873
 #, python-format
 msgid "Which data do you mean: %(options)s?"
 msgstr "منظورتان کدام داده است: %(options)s؟"
 
-#: nl/heuristic.py:882
+#: nl/heuristic.py:884
 #, python-format
 msgid "%(items)s or %(last)s"
 msgstr "%(items)s یا %(last)s"
 
-#: nl/heuristic.py:892
+#: nl/heuristic.py:894
 msgid "There is no data you may report on."
 msgstr "داده‌ای نیست که اجازهٔ گزارش‌گیری از آن را داشته باشید."
 
-#: nl/heuristic.py:973
+#: nl/heuristic.py:975
 #, python-format
 msgid "Did you mean %(options)s?"
 msgstr "منظورتان %(options)s است؟"
 
-#: nl/heuristic.py:1031
+#: nl/heuristic.py:1033
 #, python-format
 msgid "What should I measure? For example: %(options)s."
 msgstr "چه چیزی را بسنجم؟ برای نمونه: %(options)s."
 
-#: nl/heuristic.py:1190
+#: nl/heuristic.py:1192
 #, python-format
 msgid "Top of what? For example: %(options)s."
 msgstr "برترین‌ها از نظر چه؟ برای نمونه: %(options)s."
@@ -883,7 +1249,7 @@ msgstr "%(count)s %(units)s گذشته"
 msgid "the past %(count)s %(units)s, including this %(unit)s"
 msgstr "%(count)s %(units)s اخیر با احتساب %(unit)s جاری"
 
-#: nl/interpret.py:148
+#: nl/interpret.py:148 nl/interpret.py:277
 #, python-format
 msgid "%(start)s – %(end)s"
 msgstr "%(start)s تا %(end)s"
@@ -993,7 +1359,7 @@ msgstr "%(field)s بین %(low)s و %(high)s باشد"
 msgid "%(field)s contains “%(value)s”"
 msgstr "%(field)s شامل «%(value)s» باشد"
 
-#: nl/interpret.py:248 nl/interpret.py:254 nl/interpret.py:274
+#: nl/interpret.py:248 nl/interpret.py:254 nl/interpret.py:284
 msgid "and"
 msgstr "و"
 
@@ -1016,44 +1382,53 @@ msgstr "%(grain)s بر اساس %(field)s"
 msgid "%(period)s by %(field)s"
 msgstr "%(period)s بر اساس %(field)s"
 
-#: nl/interpret.py:275
+#: nl/interpret.py:280
+#, python-format
+msgid "compared with the previous period (%(span)s)"
+msgstr "در مقایسه با دوره قبل (%(span)s)"
+
+#: nl/interpret.py:282
+#, python-format
+msgid "compared with the same period last year (%(span)s)"
+msgstr "در مقایسه با دوره مشابه سال قبل (%(span)s)"
+
+#: nl/interpret.py:285
 #, python-format
 msgid "where %(conditions)s"
 msgstr "به شرط آنکه %(conditions)s"
 
-#: nl/interpret.py:285
+#: nl/interpret.py:295
 #, python-format
 msgid "top %(n)s by %(field)s"
 msgstr "%(n)s مورد برتر از نظر %(field)s"
 
-#: nl/interpret.py:287
+#: nl/interpret.py:297
 #, python-format
 msgid "bottom %(n)s by %(field)s"
 msgstr "%(n)s مورد پایین از نظر %(field)s"
 
-#: nl/interpret.py:292
+#: nl/interpret.py:302
 #, python-format
 msgid "sorted by %(field)s, highest first"
 msgstr "مرتب بر اساس %(field)s، از بیشترین"
 
-#: nl/interpret.py:294
+#: nl/interpret.py:304
 #, python-format
 msgid "sorted by %(field)s, lowest first"
 msgstr "مرتب بر اساس %(field)s، از کمترین"
 
-#: nl/interpret.py:298
+#: nl/interpret.py:308
 #, python-format
 msgid "first %(n)s rows"
 msgstr "%(n)s سطر اول"
 
-#: nl/interpret.py:299
+#: nl/interpret.py:309
 msgid "."
 msgstr "."
 
 #: nl/pipeline.py:207
 #, python-format
-msgid ""
-"Too many questions; try again in a minute (limit: %(limit)s per minute)"
+msgid "Too many questions; try again in a minute (limit: %(limit)s per minute)"
 msgstr ""
 "پرسش‌ها زیاد است؛ یک دقیقهٔ دیگر دوباره بپرسید (حداکثر %(limit)s پرسش در "
 "دقیقه)"
@@ -1093,8 +1468,8 @@ msgstr "به هیچ داده‌ای برای گزارش‌گیری دسترسی 
 
 #: nl/pipeline.py:459
 msgid ""
-"Sorry, I couldn't turn that into a report. Try naming what to measure and "
-"how to group it, e.g. “revenue by city last month”."
+"Sorry, I couldn't turn that into a report. Try naming what to measure and how"
+" to group it, e.g. “revenue by city last month”."
 msgstr ""
 "متأسفانه نتوانستم این را به گزارش تبدیل کنم. بگویید چه چیزی سنجیده و بر چه "
 "اساسی تفکیک شود؛ مثلاً «درآمد به تفکیک شهر در ماه گذشته»."
@@ -1126,17 +1501,99 @@ msgstr "یکی از این‌ها را انتخاب کنید: %(choices)s."
 msgid "Must be an object."
 msgstr "باید یک شیء باشد."
 
+#: scheduling.py:147
+msgid "Widget"
+msgstr "ویجت"
+
+#: scheduling.py:164
+msgid "This report is not available."
+msgstr "این گزارش در دسترس نیست."
+
+#: scheduling.py:212
+msgid "The report was cut off at its row limit."
+msgstr "گزارش در سقف تعداد ردیف‌هایش بریده شد."
+
+#: scheduling.py:241
+#, python-format
+msgid "%(name)s · %(date)s"
+msgstr "%(name)s · %(date)s"
+
+#: sharing.py:96
+msgid "Dashboard not found"
+msgstr "داشبورد پیدا نشد"
+
+#: sharing.py:103
+msgid "Only the owner can change or delete this; duplicate it"
+msgstr "فقط مالک می‌تواند این را تغییر دهد یا حذف کند؛ از آن رونوشت بگیرید"
+
+#: sharing.py:154
+msgid "Please correct the errors."
+msgstr "لطفاً خطاها را اصلاح کنید."
+
+#: sharing.py:168
+msgid "Unknown visibility"
+msgstr "سطح اشتراک ناشناخته"
+
+#: sharing.py:175
+msgid "Share only with active staff users"
+msgstr "فقط با کاربران فعال کارمند می‌توان به اشتراک گذاشت"
+
+#: sharing.py:177
+msgid "Unknown group"
+msgstr "گروه ناشناخته"
+
+#: templates/bi_admin/email/scheduled_report.html:31
+#: templates/bi_admin/email/scheduled_report.txt:3
+#, python-format
+msgid "%(frequency)s report, generated %(generated)s."
+msgstr "گزارش %(frequency)s، تهیه‌شده در %(generated)s."
+
+#: templates/bi_admin/email/scheduled_report.html:46
+#: templates/bi_admin/email/scheduled_report.txt:8
+msgid "was"
+msgstr "قبلاً"
+
+#: templates/bi_admin/email/scheduled_report.html:59
+#: templates/bi_admin/email/scheduled_report.txt:11
+#, python-format
+msgid "…and %(counter)s more row (see the attachment)."
+msgid_plural "…and %(counter)s more rows (see the attachment)."
+msgstr[0] "…و %(counter)s ردیف دیگر (در پیوست)."
+msgstr[1] "…و %(counter)s ردیف دیگر (در پیوست)."
+
+#: templates/bi_admin/email/scheduled_report.html:61
+#: templates/bi_admin/email/scheduled_report.txt:13
+msgid "No data for this report."
+msgstr "این گزارش داده‌ای ندارد."
+
+#: templates/bi_admin/email/scheduled_report.html:65
+#: templates/bi_admin/email/scheduled_report.txt:15
+msgid "Open in Gozar"
+msgstr "باز کردن در گذر"
+
+#: templates/bi_admin/email/scheduled_report.html:66
+#: templates/bi_admin/email/scheduled_report.txt:17
+#, python-format
+msgid ""
+"Sent to %(name)s by Gozar. The numbers reflect what your account may see."
+msgstr ""
+"ارسال‌شده برای %(name)s از گذر. ارقام همان چیزی است که حساب شما اجازهٔ دیدنش "
+"را دارد."
+
 #: templates/bi_admin/index.html:6 templates/bi_admin/index.html:27
 msgid "Gozar"
 msgstr "گذر"
 
 #: templates/bi_admin/index.html:28
 msgid ""
-"The user interface has not been built yet. Run these commands in the "
-"frontend folder:"
+"The user interface has not been built yet. Run these commands in the frontend"
+" folder:"
 msgstr ""
 "رابط کاربری هنوز ساخته نشده است. در پوشهٔ frontend این دستورها را اجرا کنید:"
 
 #: templates/bi_admin/index.html:31
 msgid "The API is available at:"
 msgstr "API در این مسیر در دسترس است:"
+
+#~ msgid "compare_to is not supported yet (planned for M6)"
+#~ msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"

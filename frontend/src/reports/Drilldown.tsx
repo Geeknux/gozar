@@ -17,10 +17,18 @@ type Page = {
   num_pages: number;
 };
 
-type Props = { spec: Spec; cell: Cell; measure: string | null; title: string; onClose: () => void };
+type Props = {
+  spec: Spec;
+  cell: Cell;
+  measure: string | null;
+  /** the records behind the cell's comparison value (the comparison period) */
+  comparison?: boolean;
+  title: string;
+  onClose: () => void;
+};
 
 /** The records behind a clicked report cell (POST /reports/drilldown), linked to CRUD. */
-export default function Drilldown({ spec, cell, measure, title, onClose }: Props) {
+export default function Drilldown({ spec, cell, measure, comparison = false, title, onClose }: Props) {
   const { t, fmt, cap } = useI18n();
   const [page, setPage] = useState(1);
   const [data, setData] = useState<Page | null>(null);
@@ -28,10 +36,10 @@ export default function Drilldown({ spec, cell, measure, title, onClose }: Props
 
   useEffect(() => {
     setError("");
-    api<Page>("/reports/drilldown", { method: "POST", body: { spec, cell, measure, page } })
+    api<Page>("/reports/drilldown", { method: "POST", body: { spec, cell, measure, page, comparison } })
       .then(setData)
       .catch((e: Error) => setError(e.message));
-  }, [spec, cell, measure, page]);
+  }, [spec, cell, measure, page, comparison]);
 
   useEffect(() => {
     const esc = (e: KeyboardEvent) => e.key === "Escape" && onClose();

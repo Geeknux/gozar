@@ -90,14 +90,24 @@ class DrilldownIn(Schema):
     measure: str | None = None
     page: int = 1
     page_size: int | None = None
+    comparison: bool = False
 
 
 @router.post("/drilldown")
 def drill_down(request, data: DrilldownIn):
     """Records behind one report cell: the spec's filters plus the clicked group
     values (time buckets become their date range) and, when ``measure`` is
-    given, that measure's own filter. Paginated, CRUD-style rows."""
-    return drilldown(data.spec, data.cell, data.measure, request, data.page, data.page_size)
+    given, that measure's own filter. Paginated, CRUD-style rows. With
+    ``comparison``, the records behind the cell's comparison value instead."""
+    return drilldown(
+        data.spec,
+        data.cell,
+        data.measure,
+        request,
+        data.page,
+        data.page_size,
+        comparison=data.comparison,
+    )
 
 
 def _download(body: bytes, content_type: str, filename: str) -> HttpResponse:

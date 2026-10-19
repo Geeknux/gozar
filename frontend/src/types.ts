@@ -106,8 +106,9 @@ export type Preferences = {
   language: "en" | "fa";
   calendar: "gregorian" | "jalali";
   options: Record<string, unknown>;
+  timezone: string;
   stored: { language: string; calendar: string };
-  defaults: { language: "en" | "fa"; calendar: "gregorian" | "jalali" };
+  defaults: { language: "en" | "fa"; calendar: "gregorian" | "jalali"; timezone: string };
   available: {
     languages: { value: "en" | "fa"; label: string; dir: "ltr" | "rtl" }[];
     calendars: { value: "gregorian" | "jalali"; label: string }[];

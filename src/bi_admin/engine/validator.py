@@ -97,6 +97,9 @@ class ValidatedReport:
     time_dimension: Dimension | None = None
     time_grain: str | None = None
     period: periods.Period | None = None
+    comparison: periods.Comparison | None = None
+    # index in ``filters`` of the date range the comparison replaces (None: the period)
+    comparison_filter: int | None = None
 
     @property
     def keys(self) -> list[str]:
@@ -171,13 +174,7 @@ class _Validator:
         filters = self.filters()
         sort = self.sort(groups, measures)
         limit = self.limit()
-        if spec.compare_to is not None:
-            self.error(
-                "not_supported",
-                _("compare_to is not supported yet (planned for M6)"),
-                "compare_to",
-                spec.compare_to,
-            )
+        comparison, comparison_filter = self.comparison(time_dim, period, filters)
         if self.errors:
             raise SpecValidationError(self.errors)
         return ValidatedReport(
@@ -192,6 +189,8 @@ class _Validator:
             time_dimension=time_dim,
             time_grain=next((g.grain for g in groups if g.dimension is time_dim), None),
             period=period,
+            comparison=comparison,
+            comparison_filter=comparison_filter,
         )
 
     # -- parts --------------------------------------------------------------------
@@ -464,6 +463,36 @@ class _Validator:
             )
             return _INVALID
         return value
+
+    def comparison(
+        self,
+        time_dim: Dimension | None,
+        period: periods.Period | None,
+        filters: list[ResolvedFilter],
+    ) -> tuple[periods.Comparison | None, int | None]:
+        """``compare_to`` needs a bounded period on the time dimension: the relative
+        period, else a ``between`` (or single-day ``eq``) filter on that dimension."""
+        kind = self.spec.compare_to
+        if kind is None or (self.spec.relative_period and period is None):
+            return None, None  # the period's own error (or missing time dimension) says why
+        if period is not None:
+            found = periods.comparison(kind, period.start, period.end, self.calendar, period.name)
+            return found, None
+        if time_dim is not None:
+            for i, f in enumerate(filters):
+                if f.dimension.key != time_dim.key or f.op not in ("between", "eq"):
+                    continue
+                start, end = (f.value[0], f.value[1]) if f.op == "between" else (f.value, f.value)
+                return periods.comparison(kind, start, end, self.calendar), i
+        self.error(
+            "compare_needs_period",
+            _("A comparison needs a period: choose a relative period or a date range on %(field)s")
+            % {"field": time_dim.key if time_dim is not None else _("a time dimension")},
+            "compare_to",
+            kind,
+            list(periods.EXAMPLES),
+        )
+        return None, None
 
     def sort(self, groups: list[GroupKey], measures: list[Measure]) -> list[tuple[str, str]]:
         selected = {g.key for g in groups} | {m.key for m in measures}

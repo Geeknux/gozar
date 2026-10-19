@@ -9,9 +9,14 @@ It also creates the access-control demo groups (see ``shop/gozar.py``): the
 sales-region groups limited by row rules to their cities, and "Shop managers"
 (all shop data, the finance-only Refunds measure, the report audit log and
 the question log).
-``--users`` adds demo accounts in them, all with the password ``--password``.
+``--users`` adds demo accounts in them, all with the password ``--password``,
+and the M6 demo content owned by ``manager`` and shared with everyone: saved
+reports, the "Sales overview" dashboard (pinned as manager's home page) and a
+weekly e-mail of it to manager, tehran and east — each recipient sees their own
+region (see ``DEMO_REPORTS``/``demo_content``).
 """
 
+import datetime as dt
 import random
 from datetime import timedelta
 from decimal import Decimal
@@ -22,7 +27,9 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from bi_admin import scheduling
 from bi_admin.execution import cache
+from bi_admin.models import Dashboard, DashboardWidget, SavedReport, Schedule, UserPreferences
 from shop.gozar import REGIONS
 from shop.models import City, Customer, Order, OrderItem, Product
 
@@ -90,6 +97,55 @@ DEMO_USERS = [
     ("tehran", ["Sales: Tehran region"], False),
     ("east", ["Sales: East region"], False),
 ]
+
+ORDERS = "order_metrics"
+# name → (description, spec) — saved reports owned by manager, shared with everyone
+DEMO_REPORTS = {
+    "Revenue by city": (
+        "Paid revenue per city over the last three complete months.",
+        {
+            "semantic_model": ORDERS,
+            "measures": ["revenue"],
+            "dimensions": ["city"],
+            "relative_period": "last_3_months",
+            "chart": "bar",
+        },
+    ),
+    "Monthly revenue vs last year": (
+        "Revenue per month for the past 12 months, next to the same months a year earlier.",
+        {
+            "semantic_model": ORDERS,
+            "measures": ["revenue"],
+            "time_grain": "month",
+            "relative_period": "past_12_months",
+            "compare_to": "same_period_last_year",
+            "chart": "line",
+        },
+    ),
+    "Top 5 customers": (
+        "The five customers with the highest revenue last year.",
+        {
+            "semantic_model": ORDERS,
+            "measures": ["revenue", "orders"],
+            "dimensions": ["customer"],
+            "relative_period": "last_year",
+            "sort": [{"field": "revenue", "direction": "desc"}],
+            "limit": 5,
+        },
+    ),
+    "This month vs last month": (
+        "Month-to-date revenue, orders and average order value against the same days "
+        "of last month.",
+        {
+            "semantic_model": ORDERS,
+            "measures": ["revenue", "orders", "aov"],
+            "relative_period": "this_month",
+            "compare_to": "previous_period",
+            "chart": "kpi",
+        },
+    ),
+}
+DASHBOARD = "Sales overview"
 
 STATUSES = ["paid", "paid", "paid", "paid", "paid", "paid", "pending", "cancelled", "refunded"]
 
@@ -200,6 +256,8 @@ class Command(BaseCommand):
         cache.bump_all()  # bulk writes send no signals; drop cached report results
         groups = self.access_groups()
         accounts = self.demo_users(groups, password) if users else []
+        if users:
+            self.demo_content()
 
         self.stdout.write(
             self.style.SUCCESS(
@@ -240,3 +298,84 @@ class Command(BaseCommand):
             user.groups.set([groups[g] for g in group_names])
             names.append(username)
         return names
+
+    def demo_content(self) -> None:
+        """Saved reports, the "Sales overview" dashboard and its weekly e-mail
+        (idempotent: re-running updates them in place)."""
+        User = get_user_model()
+        manager = User.objects.get(username="manager")
+        everyone = SavedReport.Visibility.EVERYONE
+        saved = {}
+        for name, (description, spec) in DEMO_REPORTS.items():
+            saved[name], _created = SavedReport.objects.update_or_create(
+                owner=manager,
+                name=name,
+                defaults={
+                    "description": description,
+                    "semantic_model": spec["semantic_model"],
+                    "spec": spec,
+                    "visibility": everyone,
+                },
+            )
+        board, _created = Dashboard.objects.update_or_create(
+            owner=manager,
+            name=DASHBOARD,
+            defaults={
+                "description": "Revenue, orders and customers at a glance. Use the filters "
+                "above to narrow every widget to a period, city or status.",
+                "visibility": everyone,
+                "filters": {"dimensions": ["city", "status"]},
+            },
+        )
+        board.widgets.all().delete()
+        status_spec = {
+            "semantic_model": ORDERS,
+            "measures": ["orders"],
+            "dimensions": ["status"],
+            "relative_period": "last_3_months",
+            "chart": "pie",
+        }
+        DashboardWidget.objects.bulk_create(
+            [
+                DashboardWidget(
+                    dashboard=board, saved_report=saved["This month vs last month"],
+                    chart="kpi", x=0, y=0, w=12, h=2,
+                ),
+                DashboardWidget(
+                    dashboard=board, saved_report=saved["Monthly revenue vs last year"],
+                    chart="line", x=0, y=2, w=8, h=4,
+                ),
+                DashboardWidget(
+                    dashboard=board, title="Orders by status", spec=status_spec,
+                    chart="pie", x=8, y=2, w=4, h=4,
+                ),
+                DashboardWidget(
+                    dashboard=board, saved_report=saved["Revenue by city"],
+                    chart="bar", x=0, y=6, w=6, h=4,
+                ),
+                DashboardWidget(
+                    dashboard=board, saved_report=saved["Top 5 customers"],
+                    chart="table", x=6, y=6, w=6, h=4,
+                ),
+            ]
+        )  # fmt: skip
+        prefs, _created = UserPreferences.objects.get_or_create(user=manager)
+        prefs.options = {**prefs.options, "home_dashboard": board.pk}
+        prefs.save()
+        schedule, _created = Schedule.objects.update_or_create(
+            owner=manager,
+            dashboard=board,
+            defaults={
+                "name": "Weekly sales overview",
+                "frequency": Schedule.Frequency.WEEKLY,
+                "weekday": 5,  # Saturday, the first day of the Iranian week
+                "time": dt.time(8, 0),
+                "calendar": "gregorian",
+                "timezone": "Asia/Tehran",
+                "attachment": Schedule.Attachment.XLSX,
+                "enabled": True,
+            },
+        )
+        schedule.recipients.set(User.objects.filter(username__in=["manager", "tehran", "east"]))
+        schedule.next_run_at = scheduling.next_run(schedule)
+        schedule.save(update_fields=["next_run_at"])
