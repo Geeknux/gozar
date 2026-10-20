@@ -6,8 +6,8 @@
 > Project name: **Gozar** — subtitle: *Django-Bi-Admin*.
 > Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
 > engine), i18n + per-user preferences, M3 (report UI), M4 (access control +
-> execution), M5 (natural-language interface) and M6 (dashboards and
-> scheduling) done — see §10.
+> execution), M5 (natural-language interface), M6 (dashboards and
+> scheduling) and M6.5 (admin parity and system dashboard) done — see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -389,6 +389,12 @@ Each milestone ends with passing tests and a runnable `example_project`.
 - **M6 — Dashboards & scheduling**: dashboards, global filters, pivot,
   scheduled email reports, comparison periods. *(Done; saved reports came with
   it, the pivot table already shipped in M3.)*
+- **M6.5 — Admin parity & system dashboard**: everything `contrib.admin` offers
+  for everyday data management (inlines, uploads, fieldsets, widgets, list
+  editing, date hierarchy, the user admin, recent actions) plus import/export,
+  bulk edit, saved list views, global search, field-level history and keyboard
+  shortcuts, without weakening M4's rules; a System page for superusers.
+  *(Done.)*
 - **M7 — Scale**: pre-aggregations, DuckDB/ClickHouse backend.
 
 ---
@@ -1166,9 +1172,205 @@ Decided (M6 — dashboards and scheduling, 2026-10-20):
   ran with no console errors or failed requests; region users saw only their
   cities in every widget and e-mail.
 
-Not yet at contrib.admin parity (deliberately deferred): inlines, file
-uploads, `date_hierarchy`, list editing, custom form widgets/fieldsets, object
-tools, permission/user "change password" special forms.
+Decided (M6.5 — admin parity and system dashboard, 2026-10-20):
+
+- **Options follow `ModelAdmin`'s names** (`bi_admin.crud.options`) so admin
+  classes port with few changes. New on `ModelOptions`: `fieldsets` /
+  `add_fieldsets` (admin's tuples; a tuple inside `fields` is one line; classes
+  `collapse`, `description`), `form`, `add_form`, `change_password_form`,
+  `widgets` (Gozar's own: `input textarea select radio rich_select checkbox
+  autocomplete raw_id dual_list chips permissions password file image`) next to
+  admin's `radio_fields`, `raw_id_fields`, `autocomplete_fields`,
+  `filter_horizontal`/`filter_vertical`; `readonly_fields` may name callables,
+  methods of the options or attributes/methods of the model (computed, read-only;
+  a failing one logs and shows empty); `display()` mirrors `admin.display`
+  (and reads its attributes, so `@admin.display` works); `prepopulated_fields`
+  (add form only, Django's slugify incl. `allow_unicode`); `list_editable`,
+  `bulk_edit_fields`, `import_fields`, `date_hierarchy`, `empty_value_display`
+  ("—"), `sortable_by`, `show_full_result_count`, `list_select_related` (False
+  keeps M1's automatic paths), `search_help_text`, `save_as` (+
+  `save_as_continue`), `save_on_top`, `view_on_site` (bool or `fn(obj)`), the
+  `validate_save(request, form, obj)` and `save_formset` hooks and
+  `has_export/import_permission` (default: view / add or change). The first
+  `list_display` column that isn't editable becomes the link (admin raises an
+  error instead). `ModelOptions.check()` reports bad names, widgets, editable
+  columns, hierarchy fields and inline foreign keys as system check
+  `bi_admin.E005`. Image fields are flagged in discovery (`FieldInfo.image`;
+  Django's `ImageField.get_internal_type()` is `"FileField"`), and
+  `allow_unicode` for slugs.
+- **Inlines** (`TabularInline`, `StackedInline`, `crud.inlines`): `model`,
+  `fk_name`, `name` (payload key, default the reverse accessor, e.g. `items`),
+  fields/exclude/readonly/widgets as above, `extra` (3), `min_num`, `max_num`,
+  `can_delete`, `show_change_link`, `ordering`, `get_queryset`. A save sends
+  `"__inlines__": {"items": [{"pk": …|null, "values": {…}, "delete": bool}]}`
+  (`__` can't clash with a field name). The server builds a Django
+  `inlineformset_factory` formset over **every visible row** of the parent —
+  submitted values merged over the stored ones, new rows over the model's
+  defaults (also sent to the SPA as `defaults`), rows left out unchanged — so
+  `min_num`/`max_num`, cross-row unique checks and `has_changed()` behave as in
+  admin; untouched extra rows are skipped. The parent form and every formset are
+  validated before anything is written; then parent, many-to-many and inlines
+  save in one transaction. Errors: `inline_errors: {name: {rows: {"<index>":
+  {field: [msg]}}, non_form: [msg]}}`. Permissions are the inline model's
+  (view, add for new rows, change for changed rows, delete; an auto-created
+  through model follows the parent's change permission); a missing permission
+  is a row error, no view permission hides the inline (403 when submitted).
+  **Scope**: an inline lists only rows of its model the user may see (`hidden`
+  counts the rest, which saving never touches; a hidden pk can't be addressed),
+  relation fields only accept rows in scope, deletions run the normal deletion
+  plan, and a saved row that ends up outside the scope rolls the whole save back
+  (`403 out_of_scope`). The change log gets one entry on the parent with an
+  `inlines` summary (added, changed with diffs, deleted) plus an entry per row.
+- **Uploads** (`crud.forms`): a save is JSON, or `multipart/form-data` with the
+  same JSON in `__payload__` and one part per upload (`image`, or
+  `<inline>.<row index>.<field>`); PATCH/PUT multipart is parsed by the API
+  (Django only parses it for POST). A file field left out — or sent back as the
+  `{"name", "filename", "url"}` it was read as — keeps the file, `null` clears
+  it (an error for a required one), a part replaces it; Django's form fields
+  validate (images through Pillow, an optional `images` extra) and the field's
+  storage stores (`STORAGES["default"]`). `UPLOAD_MAX_BYTES` (10 MB) per file.
+  Replaced files aren't deleted (Django's behaviour). "Save as new"
+  (`__save_as__: <pk>`) reuses a file only when its name is the copied object's
+  (or a copied inline row's) own file, so a payload can't point at arbitrary
+  storage paths.
+- **Lists** (`service.list_objects`, `crud.hierarchy`, `crud.bulk`): columns
+  carry `boolean`, `empty_value`, `editable`, `image`; callables sort by their
+  `admin_order_field`; `sortable_by` limits both the columns and the ordering
+  parameter. `show_full_result_count = False` returns `total: null`.
+  `?columns=a,b` picks columns from `list_display` plus the visible, listable
+  fields (never passwords or excluded ones). **Date hierarchy**: `dh_year`,
+  `dh_month`, `dh_day` and `dh_calendar` (default the user's) become a
+  half-open local-date range; the next level's buckets come from one
+  conditional-aggregate query between the data's first and last date — Jalali
+  years/months/days are real Jalali ranges (`calendar.jalali`), not Gregorian
+  ones relabelled; the response has the selection's `start` date for labels.
+  **List editing**: `PATCH /crud/<model>/ {"rows": [{"pk", "values"}]}`, each row
+  through `save_object` limited to `list_editable`, all or nothing
+  (`row_errors` by pk). Rows carry their raw editable values in `edit` (only for
+  users who may change). **Bulk edit** (`POST …/bulk-edit {"pks" | "all" +
+  "params", "values"}`) and every action accept a selection by pks or "all rows
+  matching the list" (`BULK_EDIT_MAX_ROWS` 1 000, `400 too_many_rows`), always
+  intersected with the scope; each row goes through `save_object` (validation,
+  scope check, change log with `source: bulk`), all or nothing.
+- **Import/export** (`crud.transfer`): export (`GET …/export?format=csv|xlsx&…list
+  params…&pks=`) runs the list's own query and writes what the list shows
+  (choice labels, related rows by label, `Restricted` for out-of-scope cells,
+  headers in the user's language; XLSX typed cells, frozen header, RTL for
+  `fa`), capped at `CRUD_EXPORT_MAX_ROWS` (50 000; `X-Gozar-Truncated`). Import
+  (`POST …/import?dry_run=true`, multipart `file`) reads CSV (UTF-8 with or
+  without BOM, cp1256 fallback, `,`/`;`/tab sniffed) or the first XLSX sheet;
+  headers match field names or verbose names in English or Persian (`id`/`pk`
+  for the primary key; unknown columns are reported and ignored). Cells are
+  coerced like a person would write them: Persian digits and separators,
+  Jalali or Gregorian dates, yes/no in both languages, choice values or labels,
+  relations by pk or by the unique label of a row *in the user's scope*
+  (out-of-scope = "not found"), many-to-many lists. Each row goes through
+  `save_object` with the importable fields present (change log `source: import`;
+  unchanged updates are `skip`) inside one transaction that a dry run — or any
+  row with an error — rolls back. `CRUD_IMPORT_MAX_ROWS` 5 000; the report lists
+  the first 500 rows. `import-template` downloads the headers.
+- **Saved list views** (`bi_admin.SavedListView`, `/api/list-views`): owner,
+  model, name, the list's query string (`params`, minus `page`) and `columns`;
+  private (another user's view is a 404); one default per user and model, which
+  the SPA opens for a bare list URL. Applying one is just loading its query, so
+  the list's permission, scope and validation apply as always.
+- **Global search** (`GET /api/search?q=`): every model in the menu the user may
+  view and that has `search_fields`, searched with its own rules (Arabic/Persian
+  letter variants) over its scoped queryset; per model a count (capped at
+  1 000) and the first `GLOBAL_SEARCH_PER_MODEL` (5) hits.
+- **History**: `ChangeLog.changes` gains `diff` — `{field: {old, new}}` of the
+  saved fields (relations as refs with the label of the time, many-to-many as
+  ref lists, files as names, long text cut at 500 characters, passwords never)
+  and `source` (list, bulk, import), `inlines`, `copied_from`. The history API
+  turns choices into labels and shows refs to rows the viewer can't see *now* as
+  `restricted`. `GET /api/meta/recent-actions` lists the user's own latest
+  entries for models they still view; rows now outside their scope are left out.
+- **User admin**: `auth.user` options use admin's fieldsets, the
+  `AdminUserCreationForm` add form (username, `usable_password`, two passwords;
+  used when the payload names one of its fields — API clients may still send the
+  regular field set with `password`), `AdminPasswordChangeForm` at `POST
+  /crud/auth/user/<pk>/password` (`update_session_auth_hash` for your own),
+  `password_status` (usable, algorithm — never the hash) on the change form, a
+  dual list for groups and a permission tree (`…/permission-tree?field=`: app →
+  model → view/add/change/delete, custom permissions by name, translated) for
+  user and group permissions. Stricter than admin: only superusers change or
+  delete superusers or grant superuser status, and a non-superuser can't grant a
+  permission they lack or add a group carrying one (`validate_save`).
+- **Autocomplete** takes `inline=` (an inline's relation field), `limit` (up to
+  200, for the dual list) and `pk=` (a scoped lookup by id, for `raw_id`).
+- **SPA**: the form renders fieldsets (collapsible as `<details>`, multi-field
+  lines), every widget above, file inputs with preview/clear/undo, inlines
+  (tabular rows or stacked cards, add/remove, per-row errors, change links),
+  computed values, prepopulated slugs, the buttons on top when `save_on_top`,
+  "Save as new", "View on site", the password status with its page, and a
+  history with before/after tables. The list adds editable cells with one Save
+  bar, boolean icons, thumbnails, the hierarchy bar, select-all-matching, bulk
+  edit, the export menu (all or selection), the import dialog (check → import),
+  the views menu with a column chooser. The top bar has global search; the home
+  page shows recent actions. Shortcuts (`useShortcuts`): Ctrl/⌘+S saves (the
+  form's "save and continue", the list's edits), `/` focuses the list search,
+  Ctrl/⌘+K the global search, `?` the help. All strings in en/fa; logical CSS
+  properties mirror the layout in RTL.
+- **System page** (`bi_admin.system`, `/api/system`, SPA `/system`, `/auth/me`
+  `permissions.system`): active staff with `bi_admin.view_system` (held by the
+  table-less, unmanaged `bi_admin.SystemDashboard`) or superusers. It shows the
+  server, never credentials — engine, version, host, port and database name
+  (SQLite: the file name, not its path); USER, PASSWORD and OPTIONS are never
+  read, caches are listed by alias and class only. Database statistics
+  (`system.db.database_stats`) run on `REPORTS_DATABASE` when set (the payload
+  names the alias). PostgreSQL: `pg_class`/`pg_namespace` (`relkind` r/p,
+  `current_schemas(false)`), `pg_table_size`, `pg_indexes_size`,
+  `pg_total_relation_size`, `pg_database_size`, estimated rows from `reltuples`
+  (or `pg_stat_user_tables.n_live_tup` when never analysed, −1), scans and last
+  vacuum/analyze, indexes from `pg_index` with columns and sizes. SQLite: the
+  `dbstat` virtual table (index pages attributed via `sqlite_master.tbl_name`),
+  else the total from `page_count × page_size` with a note; estimates from
+  `sqlite_stat1`; indexes from `PRAGMA index_list`/`index_info`. Other backends:
+  introspected tables and constraints with null sizes and a note. Tables are
+  matched to models through `db_table` (auto-created M2M tables too) and
+  classified model / m2m / unmanaged / django / other. Exact counts are on
+  demand per table (the name must be in the introspected list and is quoted
+  with `ops.quote_name`), under the report statement timeout. Database
+  statistics, the overview and the checks are cached for `SYSTEM_CACHE_TIMEOUT`
+  (60 s) in the report cache (per section, alias and language; `?refresh=true`
+  recomputes; payloads carry `generated_at`/`cached`); the cache hit check and
+  the job queue are live. Also: unapplied migrations and conflicts (default and
+  reports alias), `run_checks(include_deployment_checks=True)` with levels and a
+  `deployment` flag, versions and installed apps, the job queue (stale = running
+  with a heartbeat older than `JOB_LEASE_SECONDS`) and last heartbeat, users,
+  staff, superusers and unexpired sessions ("not available" without database
+  sessions), ChangeLog activity per day and action (30 days), report usage from
+  `ReportLog` (most used, slowest by average, 30 days), the latest e-mail
+  deliveries and media usage (a capped walk of `MEDIA_ROOT` for
+  `FileSystemStorage`, else `storage.size` of referenced files, capped).
+- Demo: `Tag`, `ProductImage` and new `Product` fields (slug, active,
+  description, datasheet, tags; `get_absolute_url` → a public product page at
+  `/shop/products/<pk>/`). Order: tabular items inline, `list_editable` status,
+  date hierarchy, raw-id customer, radio status, a collapsed *Payment* fieldset,
+  a computed items total, a boolean *paid* column, `save_on_top`. Product: a
+  stacked images inline (`max_num` 6), prepopulated slug, dual-list tags,
+  searchable category, editable price/active, `sortable_by`, `save_as`.
+  `seed_demo` draws product pictures (Pillow) and a PDF datasheet through the
+  storage API (`--no-media` skips them; the test fixtures do) and adds tags.
+- Smoke test (2026-10-20, headless Chromium): admin (English) — list editing
+  with Ctrl+S, bulk edit, CSV/XLSX export, a default saved view with chosen
+  columns, CSV import (dry run then commit), a product with an uploaded
+  datasheet and an inline image, save as new (image copied), the history diff,
+  the hierarchy down to a month, an order with changed and added inline rows,
+  the add-user form (mismatch rejected), permission tree, groups dual list,
+  password page, global search, shortcuts help and the System page; manager —
+  read-only products, editable order status, export; tehran — export and
+  search limited to the region; east — Persian/Jalali RTL lists, Jalali
+  hierarchy, read-only forms, and a 390 px phone width without horizontal
+  scrolling. No console errors or failed requests apart from the deliberately
+  rejected password.
+
+Not yet at contrib.admin parity: admin's custom `list_filter` classes
+(`SimpleListFilter`), `formfield_overrides`, per-object `get_*` hooks for
+fieldsets/inlines/readonly fields (the class attributes only), generic
+relations and generic inlines, and admin's object-tools template blocks (Gozar
+has no server templates to override; view on site, history and the password
+page cover the stock tools).
 
 Still open:
 

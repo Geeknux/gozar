@@ -4,16 +4,19 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M6 (dashboards and scheduling) done — save reports and share them
-(each viewer sees their own rows), compare with the previous period or the same
-period last year (in both calendars, also by asking "compared to last year" /
-«نسبت به سال قبل»), build dashboards with drag-and-drop widgets and global
-filters, pin one as your home page, and e-mail reports or dashboards daily,
-weekly or monthly — every recipient gets their own scope, language and calendar.
-On top of M5's natural-language interface (English and Persian, offline or with
-any OpenAI-compatible model), M4's row-level rules, semantic visibility, audit
-log, limits, cache, replica routing and background jobs, and M3's report
-builder, charts, pivot, drill-down and export.
+**Status:** M6.5 (admin parity and system dashboard) done — everyday data
+management now matches `django.contrib.admin` and goes beyond it: inlines,
+file and image uploads, fieldsets and widgets, list editing, the date
+hierarchy (in Gregorian or Jalali), the proper user admin, CSV/XLSX import with
+a dry run and export of any list, bulk edit, saved list views, global search,
+field-level history and keyboard shortcuts — all under the same row-level rules
+as the reports. A **System** page shows the database (tables, sizes, row
+counts, indexes), migrations, checks, the job queue and activity. On top of M6's
+dashboards, comparisons, saved reports and scheduled e-mail, M5's
+natural-language interface (English and Persian, offline or with any
+OpenAI-compatible model), M4's row-level rules, semantic visibility, audit log,
+limits, cache, replica routing and background jobs, and M3's report builder,
+charts, pivot, drill-down and export.
 
 ## Development
 
@@ -45,6 +48,10 @@ weekly e-mail of it to `manager`, `tehran` and `east`. Send it now with
 `GOZAR_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend` to print
 them), and each recipient's numbers differ by region.
 
+The demo also has product pictures and a datasheet (written to
+`example_project/media/` through Django's storage API; `seed_demo --no-media`
+skips them), tags, and order items and product images as inlines.
+
 Frontend hot reload: run `npm run dev` in `frontend/` and start Django with
 `GOZAR_VITE_DEV_SERVER=http://localhost:5173`.
 
@@ -66,23 +73,96 @@ urlpatterns += [path("gozar/", include("bi_admin.urls"))]
 ```
 
 Every model is discovered automatically. Customise one in a `gozar.py` module
-inside any app (auto-discovered, like `admin.py`):
+inside any app (auto-discovered, like `admin.py`). The options are
+`ModelAdmin`'s, so admin classes port over with few changes:
 
 ```python
-from bi_admin.crud import ModelOptions, action, register
+from bi_admin.crud import ModelOptions, StackedInline, TabularInline, action, display, register
+
+class ItemInline(TabularInline):
+    model = OrderItem
+    extra = 1
+    autocomplete_fields = ["product"]
 
 @register(Order)
 class OrderOptions(ModelOptions):
-    list_display = ["__str__", "customer", "customer__city__name", "status", "amount"]
+    list_display = ["__str__", "customer", "customer__city__name", "status", "amount", "is_paid"]
+    list_editable = ["status"]
     search_fields = ["customer__name", "^customer__phone"]
+    search_help_text = "Search by customer name or phone number."
     list_filter = ["status", "created_at", "customer__city"]
+    date_hierarchy = "created_at"
+    raw_id_fields = ["customer"]
+    radio_fields = {"status": "horizontal"}
+    fieldsets = [
+        (None, {"fields": ["customer", "status", ("amount", "created_at")]}),
+        ("Payment", {"fields": ["paid_at"], "classes": ["collapse"]}),
+    ]
     readonly_fields = ["paid_at"]
+    inlines = [ItemInline]
     actions = ["mark_cancelled"]
+
+    @display(description="paid", boolean=True, ordering="paid_at")
+    def is_paid(self, order):
+        return order.status == "paid"
 
     @action("Cancel selected orders")
     def mark_cancelled(self, request, queryset):
         return {"updated": queryset.filter(status="pending").update(status="cancelled")}
 ```
+
+### Data management (admin parity and beyond)
+
+- **Forms**: `fieldsets` (several fields per line, `collapse`, descriptions),
+  `widgets` (`textarea`, `radio`, `select`, `rich_select`, `raw_id`,
+  `autocomplete`, `dual_list`, `permissions`…) plus admin's `radio_fields`,
+  `raw_id_fields`, `autocomplete_fields`, `filter_horizontal`/`filter_vertical`,
+  `readonly_fields` with computed callables, `prepopulated_fields`, `form`,
+  `add_form`/`add_fieldsets`, `save_as`, `save_on_top` and `view_on_site`
+  (`get_absolute_url`). Misconfigurations are system check `bi_admin.E005`.
+- **Inlines**: `TabularInline` / `StackedInline` with `extra`, `min_num`,
+  `max_num`, `can_delete`, `show_change_link` and the inline model's own
+  permissions; the parent and every row are validated as Django formsets and
+  saved in one transaction.
+- **Files and images**: `FileField`/`ImageField` upload, preview, replace and
+  clear through Django's storage API (`STORAGES["default"]`), limited by
+  `GOZAR["UPLOAD_MAX_BYTES"]` (10 MB). `ImageField` needs Pillow
+  (`pip install "gozar[images]"`). Serve `MEDIA_URL` as for any Django project.
+- **Lists**: `list_editable` (one Save, all or nothing), boolean icons,
+  `empty_value_display`, `sortable_by`, `show_full_result_count`,
+  `list_select_related`, `search_help_text`, the date hierarchy in the user's
+  calendar, and select-all-matching for actions.
+- **Users**: the two-password add form, a change-password page with the
+  validators, a dual list for groups and a permission tree (app → model →
+  view/add/change/delete). Non-superusers can't touch superusers or grant
+  permissions they don't hold.
+- **Beyond admin**: CSV/XLSX **export** of any filtered list (or a selection),
+  CSV/XLSX **import** with a dry-run report (rows matched by ID update, the rest
+  are added; headers by field name or label in English or Persian; nothing is
+  saved while any row has an error), **bulk edit** of chosen fields, per-user
+  **saved views** (search, filters, ordering, columns; one can be the
+  default), **global search** across every model you may view (Ctrl+K),
+  field-level **diffs** in the history, **recent actions** on the home page and
+  keyboard shortcuts (Ctrl+S saves, `/` searches the list, `?` lists them).
+
+Row-level rules apply everywhere: inline rows, relation pickers, list
+editing, bulk edit, import (a row outside your scope is "not found"), export,
+search, history diffs (a related row you can't see shows as *Restricted*) and
+recent actions.
+
+### System page
+
+Superusers, and staff with the `bi_admin.view_system` permission, get
+**System** in the sidebar: database engine, version, host and name (never
+credentials), total size, every table with its model or kind, estimated and
+exact (on demand) row counts, table/index/total size and indexes (PostgreSQL
+through `pg_class` and the size functions, SQLite through `dbstat` or
+`page_count × page_size`), the largest tables, unapplied migrations, Django's
+system checks including the deployment checks, versions, installed apps, a
+cache check, the report job queue and worker heartbeat, users and sessions,
+change-log activity, report usage, recent e-mail deliveries and media usage.
+Statistics run on `GOZAR["REPORTS_DATABASE"]` when set and are cached for
+`GOZAR["SYSTEM_CACHE_TIMEOUT"]` (60 s); **Refresh** recomputes them.
 
 ### Reports: semantic models
 
@@ -398,7 +478,9 @@ Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [.
 "REPORTS_DATABASE": None, "REPORT_CACHE": "default", "REPORT_CACHE_TIMEOUT": 300,
 "REPORT_ASYNC": False, "JOB_BACKEND": "bi_admin.execution.jobs.DatabaseBackend",
 "JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff", "NL": {…},
-"EMAIL_FROM": None, "EMAIL_MAX_ROWS": 50, "BASE_URL": None, "WORKER_SENDS_SCHEDULES": True}`.
+"EMAIL_FROM": None, "EMAIL_MAX_ROWS": 50, "BASE_URL": None, "WORKER_SENDS_SCHEDULES": True,
+"UPLOAD_MAX_BYTES": 10485760, "CRUD_EXPORT_MAX_ROWS": 50000, "CRUD_IMPORT_MAX_ROWS": 5000,
+"BULK_EDIT_MAX_ROWS": 1000, "GLOBAL_SEARCH_PER_MODEL": 5, "SYSTEM_CACHE_TIMEOUT": 60}`.
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs` (Swagger UI; schema at `/gozar/api/openapi.json`). The docs are
@@ -411,7 +493,11 @@ for staff only by default — anonymous visitors are sent to the login first; se
 
 - `src/bi_admin/` — the installable app:
   - `discovery/` — registry built from `_meta`, relation graph, lookup-path validation;
-  - `crud/` — `ModelOptions` (the `ModelAdmin` counterpart) and the CRUD service;
+  - `crud/` — `ModelOptions` and inlines (the `ModelAdmin` counterparts), the
+    CRUD service, forms and uploads, inline formsets, the date hierarchy, list
+    editing and bulk edit, import/export, saved views, global search and the
+    user admin's pages;
+  - `system/` — the System page's database statistics (per backend) and checks;
   - `semantic/` — `Semantic`, `Dimension`, `Measure`, `@register`, the catalog;
   - `engine/` — `ReportSpec`, validator, ORM compiler, runner, drill-down,
     export (CSV/XLSX), dimension values;
@@ -434,12 +520,16 @@ for staff only by default — anonymous visitors are sent to the login first; se
   `src/reports/` the report builder, results, ECharts charts, drill-down and
   the Ask box (`AskBox.tsx`, `AskPanel.tsx`) and saved reports,
   `src/dashboards/` the dashboard view, grid editor and global filters,
-  `src/schedules/` e-mail schedules,
+  `src/schedules/` e-mail schedules, `src/system/` the System page,
+  `src/pages/list/` the list's hierarchy bar, views menu, import and bulk-edit
+  dialogs, `src/components/FieldInput.tsx` (with `InlineEditor`, `DualList`,
+  `PermissionTree`, `FileInput`, `RawIdInput`) the form widgets,
   `src/components/DatePicker.tsx` the Gregorian/Jalali date picker.
-- `example_project/` — demo project with the `shop` app (City, Customer,
-  Product, Order, OrderItem), its `gozar.py` (CRUD options + `OrderMetrics`),
+- `example_project/` — demo project with the `shop` app (City, Customer, Tag,
+  Product, ProductImage, Order, OrderItem), its `gozar.py` (CRUD options with
+  inlines + `OrderMetrics`), a public product page (the "View on site" target)
   and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,
-  `--flush`, `--locale en|fa`, `--users`, `--password`). The default English data set uses real Iranian
+  `--flush`, `--locale en|fa`, `--users`, `--password`, `--no-media`). The default English data set uses real Iranian
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search
   (`seed_demo --flush --locale fa`).
