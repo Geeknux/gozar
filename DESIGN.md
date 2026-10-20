@@ -7,7 +7,8 @@
 > Status: M0 (skeleton), M1 (discovery + CRUD), M2 (semantic layer + query
 > engine), i18n + per-user preferences, M3 (report UI), M4 (access control +
 > execution), M5 (natural-language interface), M6 (dashboards and
-> scheduling) and M6.5 (admin parity and system dashboard) done — see §10.
+> scheduling), M6.5 (admin parity and system dashboard) and M7 (scale:
+> pre-aggregations and the DuckDB engine) done — the roadmap is complete; see §10.
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -209,8 +210,10 @@ connection alias, `SET statement_timeout`, row limit, audited.
 - Database router sends report queries to a read replica when configured.
 - Result cache keyed by (normalized spec, user's row-level scope, data version).
 - Pre-aggregation: materialized views / summary tables for hot reports.
+  *(M7: declarative summary tables answered from only when provably exact.)*
 - Later: optional columnar engine (DuckDB to start, ClickHouse at scale) fed by
-  periodic sync; the engine picks the backend per semantic model.
+  periodic sync; the engine picks the backend per semantic model. *(M7: DuckDB
+  ships as an optional extra; ClickHouse has an interface, no implementation.)*
 
 ### 3.5 Access control
 
@@ -326,7 +329,7 @@ user text (fa/en)
 | Schemas            | pydantic v2                                          |
 | Background jobs    | Celery + Redis (or Django tasks framework)           |
 | DB                 | PostgreSQL primary (others best-effort)              |
-| Analytics engine   | DuckDB (later ClickHouse), optional                  |
+| Analytics engine   | DuckDB (optional `duckdb` extra; M7), ClickHouse later |
 | Frontend           | React + TypeScript, Vite                             |
 | Charts             | Apache ECharts                                       |
 | Grid / pivot       | AG Grid community or TanStack Table                  |
@@ -395,7 +398,10 @@ Each milestone ends with passing tests and a runnable `example_project`.
   bulk edit, saved list views, global search, field-level history and keyboard
   shortcuts, without weakening M4's rules; a System page for superusers.
   *(Done.)*
-- **M7 — Scale**: pre-aggregations, DuckDB/ClickHouse backend.
+- **M7 — Scale**: pre-aggregations, DuckDB/ClickHouse backend. *(Done: exact
+  pre-aggregations with incremental refresh and staleness tracking, the DuckDB
+  engine with ORM parity tests, a benchmark command and the System page's Scale
+  section; ClickHouse is left as an interface.)*
 
 ---
 
@@ -1371,6 +1377,275 @@ fieldsets/inlines/readonly fields (the class attributes only), generic
 relations and generic inlines, and admin's object-tools template blocks (Gozar
 has no server templates to override; view on site, history and the password
 page cover the stock tools).
+
+Decided (M7 — scale, 2026-10-20):
+
+- Package `bi_admin.scale`: `PreAggregation` (declarations), `additive` (measure
+  decomposition), `matcher`, `planner`, `refresh`, `state` (freshness and change
+  records), `scope` (row-level scope carried over), `columnar` (the backend
+  interface) and `columnar.duckdb`. One state model, `bi_admin.Materialization`
+  (kind preaggregation | columnar, name, definition hash, current table and
+  generation, status, rows, size, build/refresh times and mode, captured source
+  data versions and the models read, `stale_since`, change records
+  `dirty_from`/`dirty_to`/`needs_rebuild`/`changes`, hits, last error, a build
+  lease, details); no Django permissions — the System page's
+  `bi_admin.view_system` governs it.
+- **Declaration**: `Semantic.pre_aggregations = [PreAggregation(name,
+  measures=[…], dimensions=[…], time_dimension=None (the model's), time_grain="day"
+  (None: no time column; a model without a time dimension gets none),
+  calendar=None, scope_fields=[…], refresh_every, rebuild_every,
+  incremental_window, max_staleness, label, description)]`, bound (and checked)
+  with the semantic model, so mistakes are `ImproperlyConfigured` → system check
+  `bi_admin.E001`. Refused at binding, because the result could not be exact:
+  distinct counts (no approximate opt-in — a HyperLogLog sketch would be a new,
+  explicitly approximate measure type; deferred), aggregates other than
+  Sum/Count/Avg/Min/Max, floating-point sums and averages, any dimension,
+  measure (its `filter=` included) or scope field reading across a to-many
+  relation (a summary row would count a base row more than once), time
+  dimensions other than the bucketed one, and coarse grains with an unknown
+  calendar (default `DEFAULT_CALENDAR`).
+- **Additive parts** (`additive.decompose`): each aggregate leaf of a measure
+  expression becomes stored parts and a re-aggregation — `Sum` → `Sum(part)`;
+  `Count` → `Coalesce(Sum(part), 0)`; `Avg` → `Sum(s) / NULLIF(Sum(c), 0)`;
+  `Min`/`Max` → `Min`/`Max` of the part; `default=` → `Coalesce`. Arithmetic
+  around the leaves (`Sum(a) / Count(b)`, `Coalesce(…)`) is kept. Identical parts
+  of different measures share a column (revenue's sum is the average's
+  numerator). **Exactness** is by construction and verified by tests: every
+  re-aggregation keeps the original leaf's output field (same Django converters),
+  part columns keep the source's decimal places (38 digits, sums grow), and the
+  average divides the way the database's own `AVG` does — PostgreSQL
+  `numeric / numeric` (which is what `AVG(numeric)` computes, same scale rules),
+  SQLite `CAST(sum AS REAL) / count` (its `avg()` divides the exact integer sum
+  as a double).
+- **Storage**: one table per pre-aggregation, `gozar_pa_<semantic>_<name>_<hash8>_<generation>`,
+  created with Django's schema editor from an unmanaged model in Gozar's own app
+  registry (migrations, checks, discovery and signals never see it; the DDL is
+  collected and executed directly because the SQLite schema editor refuses to run
+  inside a transaction). The hash covers everything the rows depend on (model,
+  table, base queryset, `TIME_ZONE`, grain and calendar, column definitions,
+  part expressions), so a changed definition is never read before it is rebuilt.
+  Columns: `t_bucket` (the bucket's start date, indexed), `d_<key>` per
+  dimension, `s_<i>` per scope field, `m_<i>` per part; all nullable, typed from
+  the source field (relations as their key). A rebuild fills a new generation with
+  one `INSERT … SELECT` of the grouped ORM query (`compiler.as_sql()`, columns
+  from `compiler.select`, values as parameters), switches the state row to it and
+  drops the previous table and orphans; readers that raced a drop fall back to
+  the ORM (a savepoint around the attempt). `PREAGG_DATABASE` ("default") is
+  where tables are written; they are read on `REPORTS_DATABASE` (a replica gets
+  them by replication).
+- **Matching** (`matcher.find`, for the report and its comparison report
+  together): every measure stored; every group-by a stored dimension or the time
+  dimension at a grain its buckets nest in (`Grain.serves`: day buckets serve
+  every grain in both calendars; month → season → year within one calendar; weeks
+  only weeks; a Jalali month never answers a Gregorian one); every filter on a
+  stored dimension or the time dimension; every date range — filters (`eq`,
+  `in` per day), the relative period, the comparison period — on bucket
+  boundaries (`aligned`); scope translatable; built from the current definition;
+  fresh or stale within `max_staleness`. The smallest match (rows) wins. Refusals
+  are reported with codes: `measure_not_included`, `dimension_not_included`,
+  `filter_not_included`, `time_dimension_not_included`, `grain_not_compatible`,
+  `range_not_aligned`, `not_built`, `definition_changed`, `stale`,
+  `custom_queryset`, `scope_not_covered`, `scope_expression`, `scope_to_many`,
+  `scope_lookup`, `scope_value`. **Retargeting** instead of a second compiler:
+  the validated report is copied onto a shadow semantic model whose dimensions are
+  the summary columns (the time dimension becomes the `t_bucket` date, so grains
+  are `Trunc` of it or the `CalendarDay` lookup) and whose measures are the
+  re-aggregations; `compile_report(…, source=)` then builds it exactly like the
+  ORM path — grouping, null buckets, Jalali boundaries, filters, default and
+  explicit sorting with group-key tie-breakers, `LIMIT`, the calendar check.
+- **Row-level scope** (`scope`): a pre-aggregation is built from
+  `Semantic.get_queryset(None)` (trusted rows). It answers a user only when their
+  `get_queryset(request)` selects the same rows (`scope_key` equal; else
+  `custom_queryset`) and every condition of their combined rule `Q` reads a stored
+  path — a dimension or a `scope_fields` column — with a plain value (instances →
+  keys, querysets → subqueries); `Q(pk__in=[])` (deny all) needs no column.
+  Connectors and negation are kept, so Django generates the same null-aware SQL.
+  Anything else refuses (never "ignores"): unscoped totals are never served to a
+  scoped user. Superusers bypass rules as before. The demo stores
+  `customer__city__name_en` in `daily_sales` (regional users are served from it)
+  but not in `monthly_status` (they get `daily_sales` or the ORM instead).
+- **Freshness** (`state`): a build captures the data versions (the result
+  cache's, §M4) of every model its SQL reads *before* reading them; the copy is
+  fresh while they are unchanged. Stale copies answer only within `max_staleness`
+  (`PREAGG_MAX_STALENESS`, default 0 = never), are flagged in the response
+  (`stale`, `stale_since`, `lag_seconds`) and their rows are never put in the
+  result cache. **Change records** hook into the data-version mechanism
+  (`cache.listeners`): a saved/deleted row of the pre-aggregation's own model
+  widens `dirty_from`/`dirty_to` by its local date — old and new (a `pre_save`
+  reads the stored time when the row exists and the field may change, only for
+  models with incremental pre-aggregations); a related model, `cache.bump()` (bulk
+  writes) or `bump_all()` sets `needs_rebuild`. Records are written by
+  `on_commit` (one conditional `UPDATE` with `LEAST`/`GREATEST`, no lost updates,
+  nothing for rolled-back writes, no lock held inside the writer's transaction);
+  stale without records (a rollback, an evicted version, a write that only bumped)
+  means a full rebuild. Writes Django doesn't see (raw SQL) are as invisible as
+  they are to the result cache: call `bump()`.
+- **Refresh** (`refresh`): `rebuild`, or `incremental` (declared
+  `incremental_window` days back from today, widened to the recorded dirty
+  range and to whole buckets, plus the null bucket: delete and re-insert in one
+  transaction); `auto` picks incremental when declared and safe. A build lease on
+  the state row (`PREAGG_BUILD_LEASE_SECONDS`) keeps builders apart (`BuildBusy`);
+  records that arrive during a refresh are kept. Failures are recorded
+  (`last_error`, status failed when there is no table) and not retried before
+  `refresh_every`. **Schedule** (`refresh.due`): not built, definition changed or
+  `rebuild_every` (`PREAGG_REBUILD_EVERY`, a day) elapsed → rebuild; stale and
+  `refresh_every` (`PREAGG_REFRESH_EVERY`, 10 min; the demo uses 1 min) since the
+  last refresh → auto. `gozar_worker` runs due refreshes and syncs every 30 s
+  (`WORKER_REFRESHES`); `manage.py gozar_preaggregate [names] [--rebuild |
+  --incremental | --due | --list] [--drop-orphans]` does it by hand. Calendar
+  coverage is checked at build time for Jalali coarse grains (`409
+  calendar_not_populated`, like reports).
+- **Planner** (`planner.execute`, called by `run()` after validation, the cache
+  lookup and the audit entry are set up): a matching pre-aggregation, else the
+  semantic model's columnar engine, else the ORM; `PREAGGREGATIONS = False` turns
+  the first off. `run(..., engine="orm" | "preaggregation" | "duckdb")` forces one
+  (no cache; `409 engine_unavailable` with the refusals) — for tests and the
+  benchmark, not exposed in the API. The response gets `execution: {engine,
+  pre_aggregation, stale, stale_since, lag_seconds, considered: [{engine, code,
+  detail, pre_aggregation}]}`; `ReportLog` gets `engine` and `pre_aggregation`
+  (for a cache hit: the engine that computed the cached rows, which the cache
+  entry keeps). Cache keys are unchanged (the ORM-compiled SQL's dependencies):
+  every engine's fresh result is the same rows. Hits are counted per
+  pre-aggregation/copy when it actually answers (not for cache hits).
+- **Columnar engine** (`columnar`): `Semantic.engine = "duckdb"`, overridden by
+  `GOZAR["SEMANTIC_ENGINES"] = {"order_metrics": "duckdb"}`; backends by name in
+  `COLUMNAR_BACKENDS`; `ColumnarBackend` = `available()`, `synced_labels()`,
+  `sync()`, `execute(reports, request)` → rows per report or `Unsupported(code)`,
+  `status()`, `sync_every()`. A ClickHouse backend would implement exactly these
+  (and live in `COLUMNAR_BACKENDS`); none ships.
+- **DuckDB** (`columnar.duckdb`, extra `gozar[duckdb]`, settings
+  `GOZAR["DUCKDB"]`: `PATH`, `MAX_STALENESS` 0, `SYNC_EVERY` 600, `THREADS`,
+  `MEMORY_LIMIT`). *Sync* copies the tables the models using it read (their own
+  model, every model a dimension or measure joins to through to-one relations,
+  `CalendarDay`) from the reports database, all concrete columns, plus
+  `<column>__ld` for datetime columns — the local date computed by the primary
+  database with the ORM's own `TruncDate`, so day boundaries and time zones are
+  identical by construction. Text dimensions get **rank tables** (distinct values
+  in the primary database's `ORDER BY` order): DuckDB compares bytes, PostgreSQL's
+  `en_US` collation does not ("Ali Z" vs "Alia", "پ" vs "ت", "É" vs "e"), and a
+  test proves the sort differs without them. Rows stream through a CSV file into
+  `COPY` (~140× faster than parameterised inserts without pyarrow/pandas;
+  quoting, `\N` nulls with `allow_quoted_nulls = false`) into a new file that
+  replaces the old one atomically (`os.replace`; readers reopen when the file's
+  identity changes; one sync at a time via the lease). The file stores the
+  captured versions, models, vendor and time zone, and refuses to answer for
+  another database or zone. *Queries* are generated from the validated spec only:
+  identifiers from model metadata (quoted), every value a `?` parameter, joins
+  along to-one paths (`LEFT` for nullable keys, as Django), filters on local
+  dates, negations as `(…) IS NOT TRUE` (Django's null-aware `exclude`),
+  `icontains` as the primary database does it (SQLite folds ASCII letters only;
+  PostgreSQL `upper()`), Gregorian buckets with `date_trunc` (ISO weeks, quarters
+  as seasons), Jalali ones from the synced calendar, `NULLS LAST`, the same
+  default sort and tie-breakers, `LIMIT limit + 1`, the same `409
+  calendar_not_populated` payload, and the statement timeout through
+  `connection.interrupt()` → `504`. Measures: single aggregates (`Sum`, `Count`
+  incl. **distinct** — exact here, unlike pre-aggregations —, `Avg`, `Min`/`Max`
+  of numbers, with `filter=`, over fields or `+ - *` of fields; `Coalesce(agg,
+  constant)`), values converted as the primary database and Django return them
+  (`columnar.numbers`: SQLite's 15-digit `Decimal` context for decimal
+  aggregates; PostgreSQL's `numeric_div` scale rules reproduced exactly for
+  averages — 3 000 random cases matched PostgreSQL 16 digit for digit, and the
+  PostgreSQL test run checks 400 more). Other
+  measures, expression dimensions, a custom `get_queryset`, and row rules that
+  can't be translated (expressions, to-many paths, lookups beyond
+  exact/in/comparisons/range/isnull) raise `Unsupported` → ORM. Query values from
+  queryset-valued rules are evaluated on the primary database first.
+- **Parity tests** run every spec on both engines and compare rows exactly: 44
+  pre-aggregation equivalence specs (both calendars, every grain, the Jalali and
+  Gregorian year boundaries, all filter operators, sorts, limits, comparisons),
+  14 more for DuckDB (distinct counts, customers, text sorts, contains, numbers,
+  another time dimension), scoped users on both, collation, quoting/nulls,
+  staleness, timeouts — green on SQLite and PostgreSQL 16. CI: the 3.13 jobs
+  install the `duckdb` extra and fail if its tests skip; the 3.12 jobs run
+  without it.
+- **System page → Scale** (`system.scale`, `GET /api/system/scale`, `POST
+  /api/system/scale/preaggregations/<key>/refresh?mode=auto|incremental|rebuild`,
+  `POST /api/system/scale/columnar/<name>/sync`, `GET
+  /api/system/scale/jobs/<id>`; System page permission): per pre-aggregation its
+  definition, table, rows, size (`pg_total_relation_size` / `dbstat`), last
+  refresh and mode, duration, freshness (fresh, stale for N min, needs rebuild,
+  changed days, definition changed, failed), what is due, hits and last hit, the
+  last error and **Refresh**/**Rebuild** buttons; per columnar engine whether it
+  is installed and used, the file *name* (never its path) and size, last sync,
+  freshness, tables and rows, hits and **Sync now**; the latest refresh jobs.
+  Buttons queue `ReportJob`s of the new kinds `preaggregate` / `columnar_sync`
+  (target and mode in `options`, outcome in `result`) that the worker runs as the
+  clicking user, re-checking System access then; they never show up among a
+  user's report jobs. Summary tables are listed in the database statistics as kind
+  "Gozar summary table". The results line of a report says "From pre-aggregation
+  “daily_sales”" / "From DuckDB" (and the lag when stale), the audit log shows the
+  engine. All strings in en/fa.
+- **Benchmark**: `manage.py gozar_benchmark [--orders 1000000] [--customers]
+  [--days] [--repeat] [--seed] [--file | --postgres-db NAME] [--reseed] [--json]`
+  seeds into `example_project/.benchmark/` (or a dedicated PostgreSQL database)
+  by re-running itself in a child process pointed there — it refuses the demo's
+  `db.sqlite3` —, builds the pre-aggregations, syncs DuckDB and times ten reports
+  per engine (median, cache off), checking the rows are identical.
+- Demo: `OrderMetrics.pre_aggregations` = `daily_sales` (revenue, orders, paid
+  orders, AOV, refunds by city, province and status per day; scope column
+  `customer__city__name_en`; 7-day incremental window) and `monthly_status`
+  (revenue, orders, paid orders, AOV by status per Gregorian month). The *Sales
+  overview* dashboard is answered from them except *Top 5 customers* (customer
+  isn't stored): the KPIs, revenue by city and the monthly comparison from
+  `daily_sales`, orders by status from `monthly_status` (for region users from
+  `daily_sales`). `GOZAR_DUCKDB=1` puts `OrderMetrics` on DuckDB for the rest.
+- Upgrading: restart `gozar_worker` together with the web processes. A worker
+  still running pre-M7 code claims the new maintenance jobs and runs them as
+  reports, so they fail ("The report failed."); seen once in the smoke test, with
+  an old worker left running against the demo database.
+- Smoke test (2026-10-20, headless Chromium against `runserver` + `gozar_worker`
+  with `GOZAR_DUCKDB=1`, 23 checks): admin — the Scale section in English and
+  Persian, Rebuild/Refresh/Sync now as jobs, revenue by city "From
+  pre-aggregation “daily_sales”" and top customers "From DuckDB"; editing an order
+  made both copies stale (the ORM answered, with `stale` among the reasons), and
+  the worker brought `daily_sales` back with an incremental refresh and re-synced
+  DuckDB within a minute; manager — the pinned *Sales overview*: three widgets
+  from `daily_sales`, orders by status from `monthly_status`, top customers from
+  DuckDB, no System page (`403` on the API), the engine in the audit log; tehran —
+  revenue by city from `daily_sales` with only their cities, `monthly_status`
+  refused with `scope_not_covered`; east in Persian/Jalali — the dashboard and a
+  Jalali monthly report from `daily_sales`. No console errors or failed requests
+  apart from the deliberate `403`. It also found that the System page's report
+  usage tables overflowed at phone width (pre-existing; fixed).
+- Not done: approximate distinct counts (HLL) in pre-aggregations, pre-aggregations
+  over pre-aggregations (rollups of rollups) and partitioned builds, DuckDB
+  reading the summary tables instead of the base tables, incremental DuckDB
+  syncs, ClickHouse.
+
+Measured (local, 2026-10-20 — this machine, not a reference benchmark):
+
+`manage.py gozar_benchmark --orders 1000000 --repeat 5` (20 000 customers, two
+years of orders skewed towards recent dates, no order items), medians of five
+runs with the result cache off, on a laptop: Intel Core i7-8559U (4 cores / 8
+threads, 2.7 GHz), 15 GB RAM, Linux 7.2, Python 3.12.15, Django 5.2.18, DuckDB
+1.5.6; SQLite 3.53.1 (122 MB file) and PostgreSQL 16.15 in a local Docker
+container with default settings. Every engine returned identical rows for every
+report on both databases. "—": the pre-aggregations can't answer it exactly (the
+customer isn't stored; distinct counts aren't additive), so the ORM would.
+
+| Report (milliseconds) | SQLite ORM | pre-agg | DuckDB | PostgreSQL ORM | pre-agg | DuckDB |
+|---|---:|---:|---:|---:|---:|---:|
+| Revenue, orders, AOV — last 12 months (KPI) | 1 299 | 51 | 24 | 105 | 18 | 15 |
+| Revenue by city — last 3 months | 614 | 31 | 27 | 91 | 17 | 24 |
+| Monthly revenue and orders — past 12 months | 5 431 | 66 | 38 | 315 | 22 | 26 |
+| Monthly revenue vs last year (Jalali, comparison) | 12 409 | 73 | 46 | 1 800 | 71 | 52 |
+| Orders by province and status by Jalali season | 17 872 | 81 | 92 | 3 591 | 97 | 82 |
+| AOV by city by week — last 3 months | 1 874 | 44 | 30 | 458 | 20 | 27 |
+| Orders by status — all time | 461 | 27 | 25 | 113 | 16 | 22 |
+| Top 10 customers by revenue — last year | 1 522 | — | 37 | 174 | — | 31 |
+| Distinct customers by month — past 12 months | 5 107 | — | 40 | 495 | — | 41 |
+| Revenue by city — Tehran region user (row rules) | 1 977 | 33 | 36 | 478 | 20 | 26 |
+
+Building: `daily_sales` 29 108 rows in 7.9 s (SQLite) / 29 107 in 3.6 s
+(PostgreSQL — seeded at another time of day, so the buckets differ by one), `monthly_status` 100 rows
+in 6.9 s / 0.7 s; the DuckDB sync (1 027 680 rows: orders, customers, cities,
+the calendar, rank tables) 27 s / 23 s; seeding 190 s / 59 s. Readings: the ORM
+path is dominated by the per-row work the semantic model asks for — the Jalali
+buckets' correlated calendar lookup, `TruncDate` in the time zone — which is
+exactly what the summary tables and the precomputed local dates remove; times
+under ~30 ms are mostly Django, validation and serialisation overhead, the same
+for every engine. These are local measurements on one machine, not a
+reference.
 
 Still open:
 

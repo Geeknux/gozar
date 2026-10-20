@@ -4,15 +4,16 @@ A from-scratch replacement for `django.contrib.admin` with BI-grade reporting
 and a natural-language (Persian-first) report interface. See
 [DESIGN.md](DESIGN.md) for the full design.
 
-**Status:** M6.5 (admin parity and system dashboard) done — everyday data
-management now matches `django.contrib.admin` and goes beyond it: inlines,
-file and image uploads, fieldsets and widgets, list editing, the date
-hierarchy (in Gregorian or Jalali), the proper user admin, CSV/XLSX import with
-a dry run and export of any list, bulk edit, saved list views, global search,
-field-level history and keyboard shortcuts — all under the same row-level rules
-as the reports. A **System** page shows the database (tables, sizes, row
-counts, indexes), migrations, checks, the job queue and activity. On top of M6's
-dashboards, comparisons, saved reports and scheduled e-mail, M5's
+**Status:** M7 (scale) done — the roadmap is complete. Reports are answered
+from **pre-aggregations** (summary tables declared on a semantic model, built and
+kept fresh by Gozar) whenever that is provably the same as querying the base
+rows — row-level rules included — and, optionally, from a **DuckDB** copy of the
+data, with parity tests holding both to the ORM's exact numbers; the System page
+shows and refreshes them, and a benchmark command measures the difference. Below
+that: M6.5's admin parity (inlines, uploads, fieldsets and widgets, list editing,
+the Gregorian/Jalali date hierarchy, the user admin, CSV/XLSX import and export,
+bulk edit, saved views, global search, field-level history, shortcuts) and System
+page, M6's dashboards, comparisons, saved reports and scheduled e-mail, M5's
 natural-language interface (English and Persian, offline or with any
 OpenAI-compatible model), M4's row-level rules, semantic visibility, audit log,
 limits, cache, replica routing and background jobs, and M3's report builder,
@@ -25,6 +26,7 @@ uv sync                                          # install deps + dev tools
 uv run python example_project/manage.py migrate
 uv run python example_project/manage.py seed_demo --users  # English data + demo accounts
 uv run python example_project/manage.py gozar_calendar  # calendar table (Jalali reports)
+uv run python example_project/manage.py gozar_preaggregate  # build the summary tables
 ./scripts/build-frontend.sh                      # React SPA → src/bi_admin/static/bi_admin/spa
 uv run python example_project/manage.py runserver  # open http://127.0.0.1:8000/gozar/
 uv run pytest
@@ -61,6 +63,21 @@ SQLite is used by default. For PostgreSQL (16+):
 uv sync --extra postgres
 GOZAR_DB=postgres POSTGRES_HOST=localhost uv run pytest
 ```
+
+`manage.py gozar_worker` runs background report jobs and e-mail schedules and
+keeps the pre-aggregations fresh. The optional DuckDB engine (and its parity
+tests) needs the extra; then put the demo's `OrderMetrics` on it:
+
+```sh
+uv sync --extra duckdb                     # add --extra postgres as needed
+GOZAR_DUCKDB=1 uv run python example_project/manage.py gozar_columnar_sync
+GOZAR_DUCKDB=1 uv run python example_project/manage.py runserver
+```
+
+`manage.py gozar_benchmark` seeds a million orders (`--orders`) into
+`example_project/.benchmark/` — never `db.sqlite3` — or into a dedicated
+PostgreSQL database (`--postgres-db gozar_bench`), and times ten reports on the
+ORM, the pre-aggregations and DuckDB (measured numbers: DESIGN.md §10, M7).
 
 ## Using it in a project
 
@@ -162,7 +179,10 @@ system checks including the deployment checks, versions, installed apps, a
 cache check, the report job queue and worker heartbeat, users and sessions,
 change-log activity, report usage, recent e-mail deliveries and media usage.
 Statistics run on `GOZAR["REPORTS_DATABASE"]` when set and are cached for
-`GOZAR["SYSTEM_CACHE_TIMEOUT"]` (60 s); **Refresh** recomputes them.
+`GOZAR["SYSTEM_CACHE_TIMEOUT"]` (60 s); **Refresh** recomputes them. Its
+**Scale** section lists the pre-aggregations (rows, size, last refresh,
+freshness, hits) and columnar engines (file, last sync) with **Refresh**,
+**Rebuild** and **Sync now** buttons, which queue jobs for the worker.
 
 ### Reports: semantic models
 
@@ -376,6 +396,52 @@ status, error code and cache hit. Users with `bi_admin.view_reportlog` get
   another `JOB_BACKEND` (e.g. one that enqueues a Celery task calling
   `bi_admin.execution.jobs.execute(job_id)`).
 
+### Scale: pre-aggregations and DuckDB
+
+Declare summary tables on a semantic model; Gozar creates them (no migrations),
+answers every report they can answer *exactly* from them, and falls back to the
+ORM for the rest:
+
+```python
+from bi_admin.scale import PreAggregation
+
+@semantic.register
+class OrderMetrics(semantic.Semantic):
+    ...
+    pre_aggregations = [
+        PreAggregation(
+            "daily_sales",
+            measures=["revenue", "orders", "aov"],  # sums, counts, averages, min/max
+            dimensions=["city", "status"],
+            time_grain="day",                       # day buckets serve every grain, both calendars
+            scope_fields=["customer__city__name_en"],  # what the row rules read
+            incremental_window=7,                   # scheduled refreshes recompute recent days
+        ),
+    ]
+```
+
+- **When it is used**: every measure and group-by stored, filters only on stored
+  dimensions or the time dimension, date ranges (and the comparison period) on
+  bucket boundaries, a compatible grain and calendar, and the user's row rules
+  expressible on stored columns — otherwise it steps aside. Distinct counts and
+  anything crossing a to-many relation are refused when the class is loaded.
+  The response's `execution` (`engine`, `pre_aggregation`, `considered` with the
+  reasons) and the audit log say which path ran; the report page shows it.
+- **Freshness**: a table is fresh until a model it read changes (the result
+  cache's data versions); stale ones answer only within `max_staleness`
+  (`GOZAR["PREAGG_MAX_STALENESS"]`, default 0). Writes record which days changed,
+  so refreshes can be incremental; `gozar_worker` refreshes what is due
+  (`PREAGG_REFRESH_EVERY`, `PREAGG_REBUILD_EVERY`), `manage.py gozar_preaggregate
+  [--rebuild|--incremental|--due|--list]` does it by hand.
+- **DuckDB** (`pip install "gozar[duckdb]"`): `engine = "duckdb"` on the
+  semantic model or `GOZAR["SEMANTIC_ENGINES"] = {"order_metrics": "duckdb"}`,
+  `GOZAR["DUCKDB"] = {"PATH": BASE_DIR / "gozar.duckdb"}`, then `manage.py
+  gozar_columnar_sync` (or the worker, every `SYNC_EVERY` when stale). SQL is
+  generated from the validated spec only; results equal the ORM's, including
+  sort order under your database's collation; whatever it can't reproduce
+  exactly goes to the ORM. `bi_admin.scale.columnar.ColumnarBackend` is the
+  interface for other engines (ClickHouse is not implemented).
+
 ### Asking questions (natural language)
 
 The **Ask** box on the home page and at the top of **Reports** takes a question
@@ -497,13 +563,17 @@ for staff only by default — anonymous visitors are sent to the login first; se
     CRUD service, forms and uploads, inline formsets, the date hierarchy, list
     editing and bulk edit, import/export, saved views, global search and the
     user admin's pages;
-  - `system/` — the System page's database statistics (per backend) and checks;
+  - `system/` — the System page's database statistics (per backend), checks and
+    Scale section;
   - `semantic/` — `Semantic`, `Dimension`, `Measure`, `@register`, the catalog;
   - `engine/` — `ReportSpec`, validator, ORM compiler, runner, drill-down,
     export (CSV/XLSX), dimension values;
   - `calendar/` — Jalali helpers, `CalendarDay` table builder, relative periods;
   - `access/` — row-level rules and the report audit log;
   - `execution/` — statement timeout, result cache, replica router, background jobs;
+  - `scale/` — pre-aggregations (declaration, additive parts, matcher, refresh,
+    freshness and change records, scope translation), the engine planner and the
+    columnar engines (`columnar/duckdb.py`);
   - `api/` — auth, metadata, CRUD, report, job, audit, preferences, saved-report,
     dashboard and schedule endpoints;
   - `sharing.py`, `dashboards.py`, `scheduling.py`, `formatting.py` — who may
@@ -529,7 +599,8 @@ for staff only by default — anonymous visitors are sent to the login first; se
   Product, ProductImage, Order, OrderItem), its `gozar.py` (CRUD options with
   inlines + `OrderMetrics`), a public product page (the "View on site" target)
   and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,
-  `--flush`, `--locale en|fa`, `--users`, `--password`, `--no-media`). The default English data set uses real Iranian
+  `--flush`, `--locale en|fa`, `--users`, `--password`, `--no-media`) and
+  `gozar_benchmark`. The default English data set uses real Iranian
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search
   (`seed_demo --flush --locale fa`).
