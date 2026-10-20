@@ -5,8 +5,9 @@ import datetime as dt
 from decimal import Decimal
 
 import pytest
+from conftest import TODAY, tehran
 from django.core.exceptions import ImproperlyConfigured
-from django.db.models import Avg, Count, F, Max, Min, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum
 
 from bi_admin.engine import ReportError, run
 from bi_admin.execution import cache
@@ -15,7 +16,6 @@ from bi_admin.scale import PreAggregation, refresh, state
 from bi_admin.scale.preaggregations import get
 from bi_admin.semantic import Dimension, Measure, Semantic, semantic_site
 from shop.models import Order
-from conftest import TODAY, tehran
 
 M = "order_metrics"
 DAILY = "order_metrics.daily_sales"
@@ -433,8 +433,9 @@ class TestScope:
 
     @pytest.mark.parametrize("outcome", ["false", "raises"])
     def test_rule_denying_everything(self, seeded_built, make_staff, outcome):
-        from bi_admin.access import rules
         from conftest import SHOP_VIEW
+
+        from bi_admin.access import rules
 
         def deny(user):
             if outcome == "raises":
