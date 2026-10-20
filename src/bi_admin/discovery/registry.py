@@ -105,6 +105,7 @@ class FieldInfo:
     choices: list[tuple[Any, str]] | None = None
     related_model: str | None = None  # model label for fk/o2o/m2m
     db_index: bool = False
+    image: bool = False  # an ImageField (its internal type is "FileField")
 
     @property
     def is_relation(self) -> bool:
@@ -196,6 +197,7 @@ def _field_info(f: models.Field) -> FieldInfo:
         choices=choices,
         related_model=model_label(f.related_model) if f.is_relation and f.related_model else None,
         db_index=bool(getattr(f, "db_index", False)),
+        image=isinstance(f, models.ImageField),
     )
 
 

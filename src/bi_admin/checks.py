@@ -17,6 +17,24 @@ def check_semantic_models(app_configs=None, **kwargs):
     return errors
 
 
+@checks.register()
+def check_model_options(app_configs=None, **kwargs):
+    """CRUD options (``ModelOptions``, inlines) must name real fields and widgets."""
+    from bi_admin.crud import site
+    from bi_admin.discovery import get_registry
+
+    errors = []
+    for label in site.registered():
+        if label not in get_registry():
+            continue
+        try:
+            problems = site.options_for(label).check()
+        except Exception as exc:  # e.g. an inline without a foreign key to the model
+            problems = [f"{label}: {exc}"]
+        errors += [checks.Error(p, obj=label, id="bi_admin.E005") for p in problems]
+    return errors
+
+
 @checks.register(checks.Tags.database)
 def check_reports_database(app_configs=None, **kwargs):
     from django.conf import settings

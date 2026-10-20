@@ -5,8 +5,8 @@ from django.utils.translation import gettext_lazy as _
 
 from bi_admin import semantic
 from bi_admin.access import rule
-from bi_admin.crud import ModelOptions, action, register
-from shop.models import City, Customer, Order, OrderItem
+from bi_admin.crud import ModelOptions, StackedInline, TabularInline, action, display, register
+from shop.models import City, Customer, Order, OrderItem, Product, ProductImage
 
 # --- row-level rules -----------------------------------------------------------------
 # Staff in a sales-region group see only their region's cities — and so only those
@@ -44,20 +44,95 @@ rule(City, in_region(""))
 rule(OrderItem, in_region("order__customer__city"))
 
 
+class OrderItemInline(TabularInline):
+    model = OrderItem
+    extra = 1
+    autocomplete_fields = ["product"]
+    readonly_fields = ["line_total"]
+
+    @display(description=_("line total"))
+    def line_total(self, item):
+        return item.quantity * item.unit_price
+
+
 @register(Order)
 class OrderOptions(ModelOptions):
-    list_display = ["__str__", "customer", "customer__city__name", "status", "amount", "created_at"]
+    list_display = [
+        "__str__",
+        "customer",
+        "customer__city__name",
+        "status",
+        "amount",
+        "is_paid",
+        "created_at",
+    ]
+    list_editable = ["status"]
     search_fields = ["customer__name", "customer__phone"]
+    search_help_text = _("Search by customer name or phone number.")
     list_filter = ["status", "created_at", "paid_at", "customer__city"]
+    date_hierarchy = "created_at"
     ordering = ["-created_at"]
-    readonly_fields = ["paid_at"]
+    raw_id_fields = ["customer"]
+    radio_fields = {"status": "horizontal"}
+    fieldsets = [
+        (None, {"fields": ["customer", "status", ("amount", "created_at")]}),
+        (
+            _("Payment"),
+            {
+                "fields": ["paid_at", "items_total"],
+                "classes": ["collapse"],
+                "description": _("Set when the payment gateway confirms the order."),
+            },
+        ),
+    ]
+    readonly_fields = ["paid_at", "items_total"]
+    inlines = [OrderItemInline]
+    save_on_top = True
     actions = ["mark_cancelled"]
     row_rules = [in_region("customer__city")]
+
+    @display(description=_("paid"), boolean=True, ordering="paid_at")
+    def is_paid(self, order):
+        return order.status == Order.Status.PAID
+
+    @display(description=_("items total"))
+    def items_total(self, order):
+        return sum(i.quantity * i.unit_price for i in order.items.all())
 
     @action(_("Cancel selected orders"), permission="change")
     def mark_cancelled(self, request, queryset):
         updated = queryset.filter(status=Order.Status.PENDING).update(status=Order.Status.CANCELLED)
         return {"updated": updated}
+
+
+class ProductImageInline(StackedInline):
+    model = ProductImage
+    extra = 1
+    max_num = 6
+    fields = ["image", "caption", "position"]
+
+
+@register(Product)
+class ProductOptions(ModelOptions):
+    list_display = ["name", "category", "price", "is_active", "image_count"]
+    list_display_links = ["name"]
+    list_editable = ["price", "is_active"]
+    list_filter = ["category", "is_active", "tags"]
+    search_fields = ["name", "slug", "description"]
+    sortable_by = ["name", "category", "price"]
+    fieldsets = [
+        (None, {"fields": ["name", "slug", ("category", "price"), "is_active"]}),
+        (_("Details"), {"fields": ["description", "tags", "datasheet"]}),
+    ]
+    prepopulated_fields = {"slug": ["name"]}
+    filter_horizontal = ["tags"]
+    widgets = {"category": "rich_select"}
+    inlines = [ProductImageInline]
+    save_as = True
+
+    @display(description=_("images"), empty_value="—")
+    def image_count(self, product):
+        return product.images.count() or None
 
 
 @register(Customer)

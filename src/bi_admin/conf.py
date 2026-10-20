@@ -8,6 +8,12 @@ from django.conf import settings
 
 DEFAULTS: dict[str, Any] = {
     "API_DOCS": "staff",  # who may open <api>/docs and openapi.json: "staff" | "public"
+    # data management (M6.5)
+    "UPLOAD_MAX_BYTES": 10 * 1024 * 1024,  # per uploaded file; 0/None: no limit
+    "CRUD_EXPORT_MAX_ROWS": 50_000,  # rows in a list export (the rest is cut off)
+    "CRUD_IMPORT_MAX_ROWS": 5_000,  # rows in one import file
+    "BULK_EDIT_MAX_ROWS": 1_000,  # rows changed by one bulk edit or select-all action
+    "GLOBAL_SEARCH_PER_MODEL": 5,  # hits listed per model in the global search
     # access control (M4)
     "ROW_RULES_BYPASS_SUPERUSER": True,
     "AUDIT_REPORTS": True,

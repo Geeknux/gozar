@@ -61,7 +61,14 @@ def test_models_index_respects_permissions(client, make_staff, seeded):
     apps = client.get(f"{API}/meta/models").json()["apps"]
     labels = {m["label"]: m["permissions"] for a in apps for m in a["models"]}
     assert set(labels) == {"shop.order", "shop.customer"}
-    assert labels["shop.order"] == {"view": True, "add": False, "change": False, "delete": False}
+    assert labels["shop.order"] == {
+        "view": True,
+        "add": False,
+        "change": False,
+        "delete": False,
+        "export": True,
+        "import": False,
+    }
     assert labels["shop.customer"]["view"] is True  # change implies view
 
     assert client.get(crud("shop.order")).status_code == 200

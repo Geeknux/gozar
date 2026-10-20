@@ -3,7 +3,8 @@ from django.utils.text import capfirst
 from django.utils.translation import gettext as _
 from ninja import Router
 
-from bi_admin.crud import service
+from bi_admin.crud import inlines, service, users
+from bi_admin.crud.forms import form_field_meta
 from bi_admin.discovery import get_registry
 
 router = Router(tags=["meta"])
@@ -63,15 +64,40 @@ def model_detail(request, app_label: str, model_name: str):
         if f["name"] in opts.password_fields:
             f["kind"] = "password"
             f["required"] = False
+    names = {f["name"] for f in info["fields"]}
+    for name, fn in opts.computed_fields().items():
+        if name not in names:
+            info["fields"].append(inlines.computed_meta(name, fn))
+    add_fields = opts.get_add_fields()
+    if opts.add_form is not None:
+        for name, ffield in opts.add_form.base_fields.items():
+            if name not in names and name in add_fields:
+                info["fields"].append(form_field_meta(name, ffield))
+    form_names = set(opts.get_fields()) | set(add_fields)
+    widgets = {n: opts.widget_for(n) for n in form_names}
+    for f in info["fields"]:
+        if f.get("radio") and f["name"] not in opts.widgets:
+            widgets[f["name"]] = {"type": "radio", "orientation": "vertical"}
+    columns = service.list_columns(opts, service.available_columns(opts))
+    dh = opts.date_hierarchy
     return {
         **info,
         "permissions": opts.permissions(request),
         "list": {
             "columns": [c.as_dict() for c in service.list_columns(opts)],
+            "available_columns": [{"name": c.name, "label": c.label} for c in columns],
             "search_fields": opts.get_search_fields(),
+            "search_help_text": force_str(opts.search_help_text or ""),
             "filters": service.filter_specs(opts, request),
             "ordering": opts.get_ordering(),
             "per_page": opts.list_per_page,
+            "editable": opts.get_list_editable(),
+            "bulk_edit_fields": opts.get_bulk_edit_fields(),
+            "import_fields": opts.get_import_fields(),
+            "date_hierarchy": (
+                {"field": dh, "label": service.path_label(opts.model, dh)} if dh else None
+            ),
+            "show_full_result_count": opts.show_full_result_count,
             "actions": [
                 {
                     "name": a.name,
@@ -86,8 +112,30 @@ def model_detail(request, app_label: str, model_name: str):
             "fields": opts.get_fields(),
             "readonly_fields": opts.get_readonly_fields(),
             "password_fields": opts.password_fields,
+            "fieldsets": opts.get_fieldsets(),
+            "widgets": widgets,
+            "prepopulated": dict(opts.prepopulated_fields),
+            "save_as": opts.save_as,
+            "save_as_continue": opts.save_as_continue,
+            "save_on_top": opts.save_on_top,
+            "change_password": opts.change_password_form is not None,
+            "password_help": (
+                users.password_help() if opts.password_fields or opts.add_form is not None else []
+            ),
+            "add": {
+                "fields": add_fields,
+                "fieldsets": opts.get_fieldsets(add=True),
+                "custom_form": opts.add_form is not None,
+            },
+            "inlines": inlines.meta(opts, request),
         },
     }
+
+
+@router.get("/recent-actions")
+def recent_actions(request, limit: int = 10):
+    """The current user's latest edits (the home page's "Recent actions")."""
+    return {"entries": service.recent_actions(request, max(1, min(limit, 50)))}
 
 
 @router.get("/graph")

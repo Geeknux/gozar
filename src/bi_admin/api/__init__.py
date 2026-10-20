@@ -4,6 +4,7 @@ import bi_admin
 from bi_admin.api.audit import router as audit_router
 from bi_admin.api.auth import router as auth_router
 from bi_admin.api.crud import router as crud_router
+from bi_admin.api.crud import search_router, views_router
 from bi_admin.api.dashboards import router as dashboards_router
 from bi_admin.api.docs import GozarAPI, GozarSwagger, docs_access
 from bi_admin.api.meta import router as meta_router
@@ -50,6 +51,8 @@ def health(request):
 api.add_router("/auth", auth_router)
 api.add_router("/meta", meta_router)
 api.add_router("/crud", crud_router)
+api.add_router("/list-views", views_router)
+api.add_router("/search", search_router)
 api.add_router("/reports", reports_router)
 api.add_router("/preferences", preferences_router)
 api.add_router("/audit", audit_router)

@@ -164,6 +164,7 @@ def test_drilldown_pagination_and_rows(admin_client, orders):
         "customer__city__name",
         "status",
         "amount",
+        "is_paid",
         "created_at",
     ]
     assert drill(admin_client, {}, page_size=4, page=9).status_code == 404
