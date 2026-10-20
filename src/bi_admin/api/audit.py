@@ -41,6 +41,8 @@ def entry(log: ReportLog) -> dict:
         "row_count": log.row_count,
         "cache_hit": log.cache_hit,
         "database": log.database,
+        "engine": log.engine,
+        "pre_aggregation": log.pre_aggregation,
         "job": str(log.job_id) if log.job_id else None,
     }
 

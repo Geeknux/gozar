@@ -30,6 +30,7 @@ from django.utils.translation import gettext as _
 from bi_admin.conf import setting
 
 DJANGO_TABLES = {"django_migrations"}  # Django bookkeeping without a model
+PREAGG_PREFIX = "gozar_pa_"  # bi_admin.scale.preaggregations.TABLE_PREFIX
 
 
 def database_alias() -> str:
@@ -117,6 +118,8 @@ def classify(table: str, known: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if table in known:
         return dict(known[table])
     kind = "django" if table in DJANGO_TABLES else "other"
+    if table.startswith(PREAGG_PREFIX):
+        kind = "preaggregation"  # a summary table Gozar maintains (M7)
     return {
         "model": None,
         "app": None,

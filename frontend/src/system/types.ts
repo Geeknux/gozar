@@ -1,6 +1,6 @@
 /** Shapes of GET /system/overview, /system/database, /system/checks. */
 
-export type TableKind = "model" | "m2m" | "unmanaged" | "django" | "other";
+export type TableKind = "model" | "m2m" | "unmanaged" | "django" | "other" | "preaggregation";
 
 export type IndexInfo = { name: string; columns: string[]; unique: boolean; primary: boolean; size: number | null };
 
@@ -128,3 +128,96 @@ export type Check = {
 export type Checks = { checks: Check[]; counts: Record<string, number>; debug: boolean; generated_at: string; cached: boolean };
 
 export type Count = { table: string; alias: string; rows: number; duration_ms: number };
+
+/** GET /system/scale (M7). */
+export type Freshness = { fresh: boolean; stale_since: string | null; lag_seconds: number | null };
+
+export type MaterializationState = {
+  status: "empty" | "ready" | "failed";
+  table: string;
+  generation: number;
+  rows: number | null;
+  size_bytes: number | null;
+  built_at: string | null;
+  refreshed_at: string | null;
+  refresh_mode: string;
+  duration_ms: number | null;
+  freshness: Freshness | null;
+  needs_rebuild: boolean;
+  dirty_from: string | null;
+  dirty_to: string | null;
+  hits: number;
+  last_hit_at: string | null;
+  last_error: string;
+  building: boolean;
+  window: [string, string] | null;
+  definition_current?: boolean;
+};
+
+export type PreAggregationInfo = {
+  key: string;
+  name: string;
+  semantic_model: string;
+  label: { en: string; fa: string };
+  description: { en: string; fa: string };
+  measures: string[];
+  dimensions: string[];
+  time_dimension: string | null;
+  time_grain: string | null;
+  calendar: "gregorian" | "jalali" | null;
+  scope_fields: string[];
+  incremental_window: number | null;
+  refresh_every: number;
+  rebuild_every: number;
+  max_staleness: number;
+  state: MaterializationState | null;
+  due: "rebuild" | "auto" | null;
+};
+
+export type ColumnarInfo = {
+  name: string;
+  label: string;
+  installed?: boolean;
+  configured?: boolean;
+  file?: string | null;
+  exists?: boolean;
+  size_bytes?: number | null;
+  semantic_models?: string[];
+  max_staleness?: number;
+  sync_every?: number;
+  in_use: boolean;
+  error?: string;
+  state?: {
+    status: string;
+    synced_at: string | null;
+    duration_ms: number | null;
+    rows: number | null;
+    tables: Record<string, number>;
+    last_error: string;
+    hits: number;
+    last_hit_at: string | null;
+    freshness: Freshness | null;
+  } | null;
+};
+
+export type ScaleJob = {
+  id: string;
+  kind: "preaggregate" | "columnar_sync";
+  status: "queued" | "running" | "done" | "failed" | "cancelled";
+  target: string;
+  mode: string | null;
+  user: string | null;
+  created_at: string;
+  finished_at: string | null;
+  error: { detail?: string; code?: string } | null;
+  outcome: { rows?: number; mode?: string; duration_ms?: number } | null;
+};
+
+export type Scale = {
+  enabled: boolean;
+  database: string;
+  worker_refreshes: boolean;
+  preaggregations: PreAggregationInfo[];
+  columnar: ColumnarInfo[];
+  jobs: ScaleJob[];
+};

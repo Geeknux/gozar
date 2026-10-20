@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from "react";
 
 import { ApiError } from "../api";
 import { config } from "../config";
+import { engineLabel } from "../engine";
 import { type MessageKey, useI18n } from "../i18n";
 import Chart from "./Chart";
 import Drilldown from "./Drilldown";
@@ -189,6 +190,17 @@ export default function Results({ result, spec, jobId, chart, onChart, compact =
         {result.cache?.hit && result.cache.stored_at
           ? t("report.cached", { time: fmt.date(result.cache.stored_at) })
           : t("report.duration", { ms: result.duration_ms })}
+        {result.execution && result.execution.engine !== "orm" && (
+          <>
+            {" · "}
+            <span title={result.execution.pre_aggregation ?? undefined}>
+              {t("report.answeredBy", { engine: engineLabel(t, result.execution.engine, result.execution.pre_aggregation) })}
+            </span>
+            {result.execution.stale && result.execution.lag_seconds != null && (
+              <> {t("report.staleBy", { minutes: fmt.number(Math.max(1, Math.round(result.execution.lag_seconds / 60))) })}</>
+            )}
+          </>
+        )}
         {result.comparison && (
           <>
             {" · "}

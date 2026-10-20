@@ -134,12 +134,13 @@ def submit_job(request, spec: ReportSpec, cache: bool = True):
 @router.get("/jobs")
 def list_jobs(request):
     """The current user's 20 most recent jobs."""
-    mine = ReportJob.objects.filter(user=request.user).defer("result")[:20]
+    mine = ReportJob.objects.filter(user=request.user, kind=ReportJob.Kind.REPORT)
+    mine = mine.defer("result")[:20]
     return {"jobs": [jobs.payload(j) for j in mine]}
 
 
 def _job(request, job_id: UUID) -> ReportJob:
-    job = ReportJob.objects.filter(pk=job_id, user=request.user).first()
+    job = ReportJob.objects.filter(pk=job_id, user=request.user, kind=ReportJob.Kind.REPORT).first()
     if job is None:  # someone else's job is indistinguishable from a missing one
         raise ReportError(404, "job_not_found", _("Report job not found"))
     return job

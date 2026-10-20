@@ -1,5 +1,7 @@
 """Run queued background report jobs (``GOZAR["JOB_BACKEND"]`` = DatabaseBackend)
-and, unless ``GOZAR["WORKER_SENDS_SCHEDULES"]`` is off, send due e-mail schedules."""
+and, unless ``GOZAR["WORKER_SENDS_SCHEDULES"]`` is off, send due e-mail schedules;
+unless ``GOZAR["WORKER_REFRESHES"]`` is off, refresh due pre-aggregations and
+columnar copies (M7)."""
 
 import datetime as dt
 import time
@@ -9,6 +11,7 @@ from django.core.management.base import BaseCommand
 from bi_admin import scheduling
 from bi_admin.conf import setting
 from bi_admin.execution import jobs
+from bi_admin.scale import columnar, refresh
 
 
 class Command(BaseCommand):
@@ -32,7 +35,15 @@ class Command(BaseCommand):
         last_purge: float | None = None
         last_recovery: float | None = None
         last_schedules: float | None = None
+        last_refresh: float | None = None
         while True:
+            if setting("WORKER_REFRESHES") and (
+                last_refresh is None or time.monotonic() - last_refresh > 30
+            ):
+                for o in [*refresh.refresh_due(), *columnar.sync_due()]:
+                    state = o.get("error") or o.get("skipped") or f"{o.get('rows')} rows"
+                    self.stdout.write(f"Refresh {o['name']} ({o.get('mode')}): {state}")
+                last_refresh = time.monotonic()
             if setting("WORKER_SENDS_SCHEDULES") and (
                 last_schedules is None or time.monotonic() - last_schedules > 30
             ):

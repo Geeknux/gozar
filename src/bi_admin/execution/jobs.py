@@ -115,6 +115,23 @@ def submit(spec, request, *, use_cache: bool = True) -> ReportJob:
     return job
 
 
+def submit_maintenance(request, kind: str, options: dict[str, Any]) -> ReportJob:
+    """Queue a pre-aggregation refresh or a columnar sync (System page). It runs as
+    the submitting user, whose System page access is checked again when it runs."""
+    from bi_admin.semantic.base import active_language
+
+    job = ReportJob.objects.create(
+        user=request.user,
+        kind=kind,
+        semantic_model=str(options.get("semantic_model", ""))[:100],
+        spec={},
+        options={**options, "language": active_language()},
+    )
+    get_backend().submit(job)
+    job.refresh_from_db()
+    return job
+
+
 def lease_seconds() -> float:
     return float(setting("JOB_LEASE_SECONDS") or 60)
 
@@ -218,6 +235,32 @@ def execute(job_id) -> ReportJob | None:
     return run_job(job) if job is not None else None
 
 
+def run_maintenance(job: ReportJob) -> dict[str, Any]:
+    """A pre-aggregation refresh or columnar sync; ``ReportError`` when refused."""
+    from bi_admin import system
+    from bi_admin.engine import ReportError
+    from bi_admin.scale import columnar, refresh
+    from bi_admin.scale.preaggregations import get
+
+    if not system.can_view(job.user):
+        raise ReportError(
+            403, "permission_denied", _("You don't have access to the system dashboard.")
+        )
+    options = job.options or {}
+    try:
+        if job.kind == ReportJob.Kind.PREAGGREGATE:
+            return refresh.refresh(get(options["target"]), options.get("mode", "auto"))
+        backend = columnar.get(options["target"])
+        if backend is None:
+            raise LookupError(options["target"])
+        return backend.sync()
+    except LookupError:
+        raise ReportError(404, "not_found", _("Unknown target %(name)r") % {
+            "name": options.get("target")}) from None  # fmt: skip
+    except refresh.BuildBusy:
+        raise ReportError(409, "busy", _("It is being refreshed already.")) from None
+
+
 def run_job(job: ReportJob, *, heartbeat: bool = True) -> ReportJob:
     """Run a claimed job; with ``heartbeat`` its lease is kept fresh meanwhile."""
     from bi_admin.engine import ReportError, SpecValidationError, run
@@ -232,17 +275,23 @@ def run_job(job: ReportJob, *, heartbeat: bool = True) -> ReportJob:
         if pulse is not None:
             pulse.__enter__()
         try:
-            result = run(job.spec, request, use_cache=options.get("cache", True), job=job)
-            outcome["result"] = result.as_dict()
+            if job.kind != ReportJob.Kind.REPORT:
+                outcome["result"] = run_maintenance(job)
+            else:
+                result = run(job.spec, request, use_cache=options.get("cache", True), job=job)
+                outcome["result"] = result.as_dict()
         except SpecValidationError as exc:
             outcome.update(status=Status.FAILED, error=exc.as_dict(), error_status=422)
         except ReportError as exc:
             outcome.update(status=Status.FAILED, error=exc.payload, error_status=exc.status)
-        except Exception:
+        except Exception as exc:
             logger.exception("Report job %s failed", job.pk)
+            detail = _("The report failed.")
+            if job.kind != ReportJob.Kind.REPORT:  # shown on the System page only
+                detail = f"{type(exc).__name__}: {exc}"[:500]
             outcome.update(
                 status=Status.FAILED,
-                error={"detail": _("The report failed."), "code": "internal_error"},
+                error={"detail": detail, "code": "internal_error"},
                 error_status=500,
             )
         finally:
@@ -278,8 +327,9 @@ def payload(job: ReportJob) -> dict[str, Any]:
     def iso(value):
         return value.isoformat() if value else None
 
-    return {
+    out = {
         "id": str(job.pk),
+        "kind": job.kind,
         "status": job.status,
         "status_display": job.get_status_display(),
         "semantic_model": job.semantic_model,
@@ -291,3 +341,9 @@ def payload(job: ReportJob) -> dict[str, Any]:
         "error_status": job.error_status,
         "attempts": job.attempts,
     }
+    if job.kind != ReportJob.Kind.REPORT:
+        options = job.options or {}
+        out["target"], out["mode"] = options.get("target"), options.get("mode")
+        out["outcome"] = job.result if job.status == Status.DONE else None
+        out["user"] = job.user.get_username() if job.user_id else None
+    return out

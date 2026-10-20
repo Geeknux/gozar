@@ -3,13 +3,14 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { type MessageKey, useI18n } from "../i18n";
 import BarChart from "./BarChart";
+import ScaleSection from "./ScaleSection";
 import type { Check, Checks, Count, Database, Overview, TableInfo, TableKind } from "./types";
 
 type SortKey = "name" | "model" | "kind" | "estimated_rows" | "exact" | "table_size" | "index_size" | "total_size" | "indexes";
 type CountState = number | "loading" | "error";
 
 const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
-const KINDS: TableKind[] = ["model", "m2m", "unmanaged", "django", "other"];
+const KINDS: TableKind[] = ["model", "m2m", "unmanaged", "django", "preaggregation", "other"];
 const LEVELS: Check["level_name"][] = ["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"];
 
 /** "12.5 MB" in the user's digits. */
@@ -112,6 +113,8 @@ export default function SystemPage() {
           ))}
         </>
       )}
+
+      {overview && <ScaleSection bytes={bytes} />}
 
       {database && <TableCharts database={database} counts={counts} bytes={bytes} />}
 

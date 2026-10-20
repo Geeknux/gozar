@@ -685,6 +685,9 @@ class DuckDBBackend(ColumnarBackend):
             out["memory_limit"] = str(duckdb_setting("MEMORY_LIMIT"))
         return out
 
+    def sync_every(self) -> float:
+        return float(duckdb_setting("SYNC_EVERY") or 0)
+
     def synced_labels(self) -> set[str]:
         sems = self.semantic_models()
         key = tuple(id(s) for s in sems)
@@ -701,7 +704,6 @@ class DuckDBBackend(ColumnarBackend):
         target = self.path()
         if target is None:
             raise RuntimeError('Set GOZAR["DUCKDB"]["PATH"] to use the DuckDB engine')
-        import duckdb
 
         row = states.ensure_state(Materialization.Kind.COLUMNAR, self.name)
         started = time.monotonic()
@@ -712,6 +714,23 @@ class DuckDBBackend(ColumnarBackend):
         versions = cache.versions(labels)  # before reading anything
         changes = row.changes
         target.parent.mkdir(parents=True, exist_ok=True)
+        from bi_admin.scale import refresh
+
+        token = refresh.acquire(row)  # one sync at a time (BuildBusy otherwise)
+        try:
+            return self._sync(row, target, alias, sems, plans, labels, versions, changes, started)
+        except Exception as exc:
+            Materialization.objects.filter(pk=row.pk).update(
+                last_error=f"{type(exc).__name__}: {exc}"[:2000],
+                **({} if row.status == Materialization.Status.READY else {"status": "failed"}),
+            )
+            raise
+        finally:
+            refresh.release(row, token)
+
+    def _sync(self, row, target, alias, sems, plans, labels, versions, changes, started):
+        import duckdb
+
         tmp = target.with_name(f".{target.name}.{uuid.uuid4().hex}.tmp")
         staging = target.with_name(f".{target.name}.{uuid.uuid4().hex}.csv")
         counts: dict[str, int] = {}

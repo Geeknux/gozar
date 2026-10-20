@@ -2,6 +2,7 @@ import { type FormEvent, Fragment, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { api } from "../api";
+import { engineLabel } from "../engine";
 import { useI18n } from "../i18n";
 
 type Entry = {
@@ -21,6 +22,8 @@ type Entry = {
   row_count: number | null;
   cache_hit: boolean;
   database: string;
+  engine: string;
+  pre_aggregation: string;
   job: string | null;
 };
 
@@ -199,6 +202,12 @@ export default function AuditLog() {
                           )}
                           <dt>{t("audit.database")}</dt>
                           <dd className="mono">{e.database || "—"}</dd>
+                          {e.engine && (
+                            <>
+                              <dt>{t("audit.engine")}</dt>
+                              <dd>{engineLabel(t, e.engine, e.pre_aggregation)}</dd>
+                            </>
+                          )}
                           {e.job && (
                             <>
                               <dt>{t("audit.job")}</dt>

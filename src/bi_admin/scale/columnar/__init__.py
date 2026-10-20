@@ -65,6 +65,10 @@ class ColumnarBackend:
     def status(self) -> dict[str, Any]:
         raise NotImplementedError
 
+    def sync_every(self) -> float:
+        """Seconds between syncs of a stale copy by ``gozar_worker`` (0: never)."""
+        return 0.0
+
 
 _instances: dict[str, ColumnarBackend] = {}
 
@@ -109,4 +113,34 @@ def synced_labels() -> dict[str, set[str]]:
             out[backend.name] = backend.synced_labels()
         except Exception:  # an unbindable model shows up in the system checks
             continue
+    return out
+
+
+def sync_due(now=None) -> list[dict[str, Any]]:
+    """Sync every backend in use whose copy is missing, or stale for longer than its
+    ``sync_every`` since the last sync (``gozar_worker``)."""
+    import logging
+
+    from django.utils import timezone
+
+    from bi_admin.models import Materialization
+    from bi_admin.scale import state as states
+
+    now = now or timezone.now()
+    out = []
+    for backend in in_use():
+        if not backend.available():
+            continue
+        row = states.get_state(Materialization.Kind.COLUMNAR, backend.name)
+        every = backend.sync_every()
+        if row is not None and row.status == Materialization.Status.READY:
+            if not every or states.freshness(row, now).fresh:
+                continue
+            if row.refreshed_at and (now - row.refreshed_at).total_seconds() < every:
+                continue
+        try:
+            out.append(backend.sync())
+        except Exception as exc:
+            logging.getLogger("bi_admin.scale").exception("Syncing %s failed", backend.name)
+            out.append({"name": backend.name, "mode": "sync", "error": str(exc)})
     return out

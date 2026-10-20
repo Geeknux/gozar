@@ -85,6 +85,17 @@ export type Result = {
   truncated: boolean;
   duration_ms: number;
   cache: { enabled: boolean; hit: boolean; stored_at: string | null };
+  execution?: Execution;
+};
+
+/** Which engine computed the rows (M7): the ORM, a pre-aggregation or a columnar copy. */
+export type Execution = {
+  engine: string;
+  pre_aggregation: string | null;
+  stale?: boolean;
+  stale_since?: string | null;
+  lag_seconds?: number | null;
+  considered?: { engine: string; code: string; detail: string; pre_aggregation?: string }[];
 };
 
 export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";

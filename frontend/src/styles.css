@@ -356,6 +356,13 @@ table.grid { width: 100%; border-collapse: collapse; }
 .sys-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .sys-tools input { min-width: 12rem; }
 .sys-chart { width: 100%; }
+.sys-scale h3 { margin: 1.25rem 0 0.5rem; }
+.sys-preaggs td { vertical-align: top; }
+.sys-actions { white-space: nowrap; }
+.sys-actions button + button { margin-inline-start: 0.4rem; }
+.sys-dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 0.75rem; margin: 0.5rem 0; }
+.sys-dl dt { color: var(--muted, #667085); }
+.sys-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .sys-tables td.num, .sys-tables th.num, .system-page td.num, .system-page th.num { text-align: end; font-variant-numeric: tabular-nums; }
 .sys-indexes > td { background: #fafbfc; padding: 0.5rem 1rem; }
 .sys-indexes .grid th, .sys-indexes .grid td { padding: 0.3rem 0.5rem; }
