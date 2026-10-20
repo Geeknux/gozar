@@ -359,7 +359,8 @@ table.grid { width: 100%; border-collapse: collapse; }
 .sys-scale h3 { margin: 1.25rem 0 0.5rem; }
 .sys-preaggs td { vertical-align: top; }
 .sys-actions { white-space: nowrap; }
-.sys-actions button + button { margin-inline-start: 0.4rem; }
+.sys-actions button { display: block; width: 100%; }
+.sys-actions button + button { margin-top: 0.3rem; }
 .sys-dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 0.75rem; margin: 0.5rem 0; }
 .sys-dl dt { color: var(--muted, #667085); }
 .sys-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }

@@ -78,6 +78,7 @@ class TestParity:
     def test_engine_selected_by_setting(self, synced):
         r = run(spec(dimensions=["customer"]), today=TODAY)
         assert r.execution["engine"] == "duckdb"
+        assert Materialization.objects.get(kind="columnar", name="duckdb").hits == 1
         log = ReportLog.objects.latest("id")
         assert log.engine == "duckdb"
 

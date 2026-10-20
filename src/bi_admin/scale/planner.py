@@ -108,6 +108,9 @@ def execute(report, compiled, request, alias: str, engine: str = "auto"):
             if engine == backend.name:
                 raise unavailable(engine, info.considered) from None
         else:
+            row = states.get_state(states.Kind.COLUMNAR, backend.name)
+            if row is not None:
+                states.record_hit(row)
             info.engine = backend.name
             info.stale = bool(meta.get("stale"))
             info.stale_since, info.lag_seconds = meta.get("stale_since"), meta.get("lag_seconds")

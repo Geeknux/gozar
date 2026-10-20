@@ -620,6 +620,7 @@ function Reports({ overview }: { overview: Overview }) {
     <div>
       <h3>{title}</h3>
       {rows.length ? (
+        <div className="table-wrap">
         <table className="grid">
           <thead>
             <tr>
@@ -647,6 +648,7 @@ function Reports({ overview }: { overview: Overview }) {
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
         <p className="muted">{t("system.reports.none")}</p>
       )}
