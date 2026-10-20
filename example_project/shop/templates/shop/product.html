@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ product.name }}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    img { max-width: 100%; border-radius: 6px; }
+    .images { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .75rem; }
+  </style>
+</head>
+<body>
+  <h1 dir="auto">{{ product.name }}</h1>
+  <p>{{ product.get_category_display }} · {{ product.price }}</p>
+  {% if product.description %}<p dir="auto">{{ product.description|linebreaksbr }}</p>{% endif %}
+  {% if images %}
+  <div class="images">
+    {% for image in images %}<figure><img src="{{ image.image.url }}" alt="{{ image.caption }}"><figcaption dir="auto">{{ image.caption }}</figcaption></figure>{% endfor %}
+  </div>
+  {% endif %}
+  {% if product.datasheet %}<p><a href="{{ product.datasheet.url }}">Datasheet</a></p>{% endif %}
+</body>
+</html>

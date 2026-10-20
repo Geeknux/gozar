@@ -98,10 +98,11 @@ def test_model_meta_describes_list_and_form(admin_client, seeded):
 
 
 def test_default_options_for_undeclared_model(admin_client, seeded):
-    meta = admin_client.get(f"{API}/meta/models/shop/product").json()
-    assert [c["name"] for c in meta["list"]["columns"]] == ["__str__", "name", "category", "price"]
-    assert meta["list"]["search_fields"] == ["name"]
-    assert [f["name"] for f in meta["list"]["filters"]] == ["category"]
+    meta = admin_client.get(f"{API}/meta/models/shop/city").json()
+    columns = [c["name"] for c in meta["list"]["columns"]]
+    assert columns == ["__str__", "name", "name_en", "province"]
+    assert meta["list"]["search_fields"] == ["name", "name_en", "province"]
+    assert meta["list"]["filters"] == []
 
 
 def test_user_password_is_write_only(admin_client, admin_user):

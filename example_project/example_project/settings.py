@@ -128,3 +128,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+
+# Uploads (FileField/ImageField) go through Django's storage API: the default
+# FileSystemStorage here, any configured STORAGES["default"] backend elsewhere.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.environ.get("GOZAR_MEDIA_ROOT") or BASE_DIR / "media"

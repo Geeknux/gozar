@@ -1,6 +1,7 @@
 """Demo domain used by tests and the semantic-layer examples in DESIGN.md."""
 
 from django.db import models
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 
@@ -34,6 +35,18 @@ class Customer(models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    name = models.CharField(_("name"), max_length=50, unique=True)
+
+    class Meta:
+        verbose_name = _("tag")
+        verbose_name_plural = _("tags")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Product(models.Model):
     class Category(models.TextChoices):
         ELECTRONICS = "electronics", _("Electronics")
@@ -43,8 +56,15 @@ class Product(models.Model):
         HOME = "home", _("Home & kitchen")
 
     name = models.CharField(_("name"), max_length=200)
+    slug = models.SlugField(_("slug"), max_length=200, blank=True, allow_unicode=True)
     category = models.CharField(_("category"), max_length=20, choices=Category.choices)
     price = models.DecimalField(_("price"), max_digits=14, decimal_places=0)
+    is_active = models.BooleanField(_("active"), default=True)
+    description = models.TextField(_("description"), blank=True)
+    datasheet = models.FileField(
+        _("datasheet"), upload_to="products/datasheets/", blank=True, max_length=255
+    )
+    tags = models.ManyToManyField(Tag, blank=True, related_name="products", verbose_name=_("tags"))
 
     class Meta:
         verbose_name = _("product")
@@ -52,6 +72,26 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_absolute_url(self):
+        return reverse("shop:product", args=[self.pk])
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="images", verbose_name=_("product")
+    )
+    image = models.ImageField(_("image"), upload_to="products/images/", max_length=255)
+    caption = models.CharField(_("caption"), max_length=200, blank=True)
+    position = models.PositiveSmallIntegerField(_("position"), default=0)
+
+    class Meta:
+        verbose_name = _("product image")
+        verbose_name_plural = _("product images")
+        ordering = ["position", "pk"]
+
+    def __str__(self):
+        return self.caption or self.image.name.rsplit("/", 1)[-1]
 
 
 class Order(models.Model):

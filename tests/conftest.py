@@ -20,6 +20,12 @@ def _fast_hashing(settings):
 
 
 @pytest.fixture(autouse=True)
+def _media_root(settings, tmp_path):
+    """Uploads in tests go to a temporary directory, never example_project/media."""
+    settings.MEDIA_ROOT = tmp_path / "media"
+
+
+@pytest.fixture(autouse=True)
 def _fresh_cache(settings):
     """Report results and data versions must not leak between tests."""
     from django.core.cache import cache

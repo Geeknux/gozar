@@ -514,3 +514,59 @@ class ScheduleDelivery(models.Model):
 
     def __str__(self):
         return f"{self.schedule_name} → {self.username} ({self.status})"
+
+
+# --- M6.5: admin parity and the system dashboard -------------------------------------
+
+
+class SavedListView(models.Model):
+    """A user's named view of a CRUD list: search, filters, ordering and columns.
+
+    ``params`` is the list's query string as a dict (``{"q": "…", "status": "paid",
+    "ordering": "-created_at"}``); ``columns`` the chosen column names in order
+    (empty: the model's ``list_display``). Views are private to their owner."""
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="+",
+        verbose_name=_("owner"),
+    )
+    model_label = models.CharField(_("model"), max_length=200)
+    name = models.CharField(_("name"), max_length=100)
+    params = models.JSONField(_("filters and search"), default=dict, blank=True)
+    columns = models.JSONField(_("columns"), default=list, blank=True)
+    is_default = models.BooleanField(_("default view"), default=False)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("saved list view")
+        verbose_name_plural = _("saved list views")
+        ordering = ["name", "pk"]
+        default_permissions = ()  # private to the owner
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "model_label", "name"], name="bi_admin_listview_unique_name"
+            )
+        ]
+        indexes = [models.Index(fields=["owner", "model_label"])]
+
+    def __str__(self):
+        return self.name
+
+
+class SystemDashboard(models.Model):
+    """No table: holds the ``bi_admin.view_system`` permission for the System page
+    (database statistics, migrations, checks, job queue). Superusers have it
+    implicitly; grant it to others like any permission."""
+
+    class Meta:
+        managed = False
+        verbose_name = _("system dashboard")
+        verbose_name_plural = _("system dashboard")
+        default_permissions = ()
+        permissions = [("view_system", _("Can view the system dashboard"))]
+
+    def __str__(self):
+        return str(self._meta.verbose_name)
