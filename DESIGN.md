@@ -253,6 +253,11 @@ connection alias, `SET statement_timeout`, row limit, audited.
 
 ## 5. Natural-language interface
 
+Reference for the implemented interface (pipeline, privacy, providers,
+configuration, connecting a model, evaluation, next steps):
+[docs/nl-interface.md](docs/nl-interface.md). This section is the original
+design; the decisions taken are in §10 (M5, M6).
+
 ### 5.1 Pipeline
 
 ```
@@ -851,6 +856,8 @@ Decided (bug-fix round before manual testing, 2026-10-19):
 
 Decided (M5 — natural-language interface, 2026-10-19):
 
+(Maintained reference: [docs/nl-interface.md](docs/nl-interface.md).)
+
 - Package `bi_admin.nl`; entry point `pipeline.ask(question, request, previous=,
   today=, provider=, use_cache=, rate_limit=)` → `Answer` (`status` ok |
   clarification | invalid, `spec`, `interpretation`, `clarification`,
@@ -1170,6 +1177,8 @@ Still open:
 - Default LLM provider: M5 ships none — the offline interpreter is the default
   and any OpenAI-compatible model (hosted or local) is opt-in by configuration.
   Which model to recommend needs `gozar_nl_eval` runs against real candidates.
+  The steps to settle it are the "Next time" checklist in
+  [docs/nl-interface.md](docs/nl-interface.md#8-status-known-gaps-and-next-time).
 
 ---
 

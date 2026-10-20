@@ -373,8 +373,12 @@ warnings, …}` (with `execute`, also the report `result` or a background
 `job`); `GET /api/nl/status`; `POST /api/nl/interpret {"spec"}`.
 `POST /api/reports/validate` returns the `interpretation` too.
 
-**Evaluation**: `tests/nl_golden/` holds 179 questions (122 Persian, 37 English,
-20 follow-ups) with their expected specs. CI scores them against the offline
+The full reference — pipeline, privacy guarantees, providers, every setting,
+recipes for OpenAI, Claude, gateways and Ollama/vLLM, evaluation and the open
+work — is [docs/nl-interface.md](docs/nl-interface.md).
+
+**Evaluation**: `tests/nl_golden/` holds 198 questions (130 Persian, 44 English,
+24 follow-ups) with their expected specs. CI scores them against the offline
 interpreter and a stub model; score a real model with
 
 ```sh
@@ -439,6 +443,8 @@ for staff only by default — anonymous visitors are sent to the login first; se
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search
   (`seed_demo --flush --locale fa`).
+- `docs/` — reference documents (`nl-interface.md`: the natural-language
+  interface).
 - `tests/` — pytest suite; `tests/nl_golden/` holds the NL golden set
   (question → expected ReportSpec, JSON).
 
