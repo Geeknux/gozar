@@ -18,6 +18,8 @@ dependencies = [
 postgres = ["psycopg[binary]>=3.2"]
 # ImageField uploads (validation, dimensions); the demo project uses it
 images = ["pillow>=10"]
+# Columnar report engine (M7): semantic models with engine = "duckdb"
+duckdb = ["duckdb>=1.1"]
 
 [dependency-groups]
 dev = [

@@ -6,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from bi_admin import semantic
 from bi_admin.access import rule
 from bi_admin.crud import ModelOptions, StackedInline, TabularInline, action, display, register
+from bi_admin.scale import PreAggregation
 from shop.models import City, Customer, Order, OrderItem, Product, ProductImage
 
 # --- row-level rules -----------------------------------------------------------------
@@ -220,6 +221,35 @@ class OrderMetrics(semantic.Semantic):
                 "chart": "bar",
             },
         },
+    ]
+
+    # M7: summary tables Gozar answers matching reports from (System → Scale shows
+    # them; `manage.py gozar_preaggregate` or the worker builds them). Day buckets
+    # serve every grain in both calendars; the region rules read
+    # customer__city__name_en, so it is stored too and regional users are served
+    # from daily_sales with their scope applied. monthly_status has no such column:
+    # regional users get the ORM for it, everyone else the smaller table.
+    pre_aggregations = [
+        PreAggregation(
+            "daily_sales",
+            measures=["revenue", "orders", "paid_orders", "aov", "refunds"],
+            dimensions=["city", "province", "status"],
+            time_grain="day",
+            scope_fields=["customer__city__name_en"],
+            incremental_window=7,
+            label={
+                "en": "Daily sales by city and status",
+                "fa": "فروش روزانه به تفکیک شهر و وضعیت",
+            },
+        ),
+        PreAggregation(
+            "monthly_status",
+            measures=["revenue", "orders", "paid_orders", "aov"],
+            dimensions=["status"],
+            time_grain="month",
+            calendar="gregorian",
+            label={"en": "Monthly orders by status", "fa": "سفارش‌های ماهانه به تفکیک وضعیت"},
+        ),
     ]
 
     dimensions = {

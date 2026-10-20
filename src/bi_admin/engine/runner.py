@@ -52,6 +52,7 @@ class ReportResult:
     duration_ms: int
     cache: dict[str, Any] | None = None  # {"enabled", "hit", "stored_at"}
     scope: str = ""
+    execution: dict[str, Any] | None = None  # engine, pre-aggregation, staleness (M7)
 
     def as_dict(self) -> dict[str, Any]:
         r = self.report
@@ -71,6 +72,7 @@ class ReportResult:
             "truncated": self.truncated,
             "duration_ms": self.duration_ms,
             "cache": self.cache or {"enabled": False, "hit": False, "stored_at": None},
+            "execution": self.execution or {"engine": "orm", "pre_aggregation": None},
         }
 
 
@@ -253,14 +255,21 @@ def run(
     kind: str = "run",
     job=None,
     cache_only: bool = False,
+    engine: str = "auto",
 ) -> ReportResult | None:
     """Validate and execute ``spec``. ``request`` (when given) drives permissions,
     visibility, row rules and the semantic model's ``get_queryset``; ``None``
     means trusted code (no restrictions). ``today`` pins relative periods;
     ``use_cache=False`` bypasses (but refreshes) the result cache;
-    ``cache_only=True`` returns ``None`` instead of executing on a cache miss."""
+    ``cache_only=True`` returns ``None`` instead of executing on a cache miss.
+    ``engine`` forces ``orm``, ``preaggregation`` or a columnar backend (no cache
+    then; ``409 engine_unavailable`` when it can't answer) instead of choosing."""
+    from bi_admin.scale import planner
+
     if isinstance(spec, dict):
         spec = ReportSpec.model_validate(spec)
+    if engine != "auto":
+        use_cache = False
     with audit.record(kind, spec, request, job=job) as entry:
         report = prepare(spec, request, today)
         entry.spec = report.spec.model_dump(mode="json")
@@ -269,11 +278,14 @@ def run(
         alias = reports_database()
         entry.scope, entry.database = scope, alias
 
-        key = cache_key(compiled, alias) if cache.enabled() else None
+        key = cache_key(compiled, alias) if cache.enabled() and engine == "auto" else None
         if key is not None and use_cache:
             hit = cache.get(key)
             if hit is not None:
                 entry.cache_hit, entry.row_count = True, len(hit["rows"])
+                execution = hit.get("execution") or {"engine": "orm", "pre_aggregation": None}
+                entry.engine = execution["engine"]
+                entry.pre_aggregation = execution.get("pre_aggregation") or ""
                 info = {"enabled": True, "hit": True, "stored_at": hit["stored_at"]}
                 return ReportResult(
                     report,
@@ -283,6 +295,7 @@ def run(
                     hit["duration_ms"],
                     info,
                     scope,
+                    execution,
                 )
         if cache_only:
             entry.skip = True
@@ -290,15 +303,13 @@ def run(
 
         started = time.monotonic()
         with reporting(alias), statement_timeout(alias):
-            rows, truncated = execute(compiled, alias)
-            if report.comparison is not None:
-                previous = compile_report(comparison_report(report), request)
-                previous_rows, _truncated = execute(previous, alias)
-                merge_comparison(report, rows, previous_rows)
+            rows, truncated, plan = planner.execute(report, compiled, request, alias, engine)
         duration = int((time.monotonic() - started) * 1000)
         entry.row_count = len(rows)
+        entry.engine, entry.pre_aggregation = plan.engine, plan.pre_aggregation or ""
+        execution = plan.as_dict()
         info = {"enabled": key is not None, "hit": False, "stored_at": None}
-        if key is not None:
+        if key is not None and not plan.stale:  # a stale copy's rows are never cached
             info["stored_at"] = timezone.now().isoformat()
             cache.put(
                 key,
@@ -307,9 +318,12 @@ def run(
                     "truncated": truncated,
                     "duration_ms": duration,
                     "stored_at": info["stored_at"],
+                    "execution": execution,
                 },
             )
-        return ReportResult(report, columns(report), rows, truncated, duration, info, scope)
+        return ReportResult(
+            report, columns(report), rows, truncated, duration, info, scope, execution
+        )
 
 
 def execute(compiled: CompiledReport, alias: str) -> tuple[list[dict], bool]:

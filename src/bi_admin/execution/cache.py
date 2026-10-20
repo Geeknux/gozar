@@ -19,6 +19,8 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import Any
 
@@ -40,6 +42,7 @@ UNTRACKED = {
     "bi_admin.reportjob",
     "bi_admin.changelog",
     "bi_admin.userpreferences",
+    "bi_admin.materialization",
     "sessions.session",
 }
 UNTRACKED_APPS = {"sessions", "admin", "contenttypes", "messages"}
@@ -66,16 +69,42 @@ def _label(model_or_label) -> str:
     return model_label(model_or_label)
 
 
+# Called after data versions change: fn(labels, changes, using). ``changes`` lists
+# the saved/deleted rows (``Change``) when a signal reported them, ``None`` for a bulk
+# write (``bump``) whose rows are unknown. Pre-aggregations and the columnar copy
+# use this to record what became stale (bi_admin.scale.state).
+listeners: list[Callable[[set[str], list[Change] | None, str | None], None]] = []
+
+
+@dataclass
+class Change:
+    model: type
+    instance: Any
+    deleted: bool = False
+
+
+def _set_versions(labels: set[str]) -> None:
+    if labels:
+        backend().set_many({VERSION_PREFIX + label: uuid.uuid4().hex for label in labels}, None)
+
+
+def _notify(labels: set[str], changes: list[Change] | None, using: str | None = None) -> None:
+    for listener in listeners:
+        listener(labels, changes, using)
+
+
 def bump(*targets) -> None:
     """Invalidate cached reports reading these models (classes or labels)."""
     labels = {_label(t) for t in targets} - UNTRACKED
     if labels:
-        backend().set_many({VERSION_PREFIX + label: uuid.uuid4().hex for label in labels}, None)
+        _set_versions(labels)
+        _notify(labels, None)
 
 
 def bump_all() -> None:
     """Invalidate every cached report (e.g. after a bulk import)."""
     backend().set(EPOCH_KEY, uuid.uuid4().hex, None)
+    _notify({"*"}, None)
 
 
 def versions(labels: list[str]) -> dict[str, str]:
@@ -110,11 +139,15 @@ def dependencies(sql: str, alias: str, always: list[str]) -> list[str]:
 
 
 def _on_change(sender, **kwargs) -> None:
+    labels = {_label(sender)} - UNTRACKED
     if kwargs.get("raw"):  # loaddata
         bump(sender)
         return
-    bump(sender)
-    transaction.on_commit(lambda: bump(sender), using=kwargs.get("using"))
+    using = kwargs.get("using")
+    _set_versions(labels)
+    instance = kwargs.get("instance")
+    _notify(labels, [Change(sender, instance, "created" not in kwargs)], using)
+    transaction.on_commit(lambda: _set_versions(labels), using=using)
 
 
 def _on_m2m(sender, instance, action, model, **kwargs) -> None:

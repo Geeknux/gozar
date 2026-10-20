@@ -133,9 +133,19 @@ class ReportJob(models.Model):
         FAILED = "failed", _("Failed")
         CANCELLED = "cancelled", _("Cancelled")
 
+    class Kind(models.TextChoices):
+        REPORT = "report", _("Report")
+        PREAGGREGATE = "preaggregate", _("Pre-aggregation refresh")
+        COLUMNAR_SYNC = "columnar_sync", _("Columnar engine sync")
+
     FINISHED = (Status.DONE, Status.FAILED, Status.CANCELLED)
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    # M7: maintenance jobs (pre-aggregation refreshes, columnar syncs) share the queue;
+    # their target and mode are in ``options`` and their outcome in ``result``.
+    kind = models.CharField(
+        _("kind"), max_length=20, choices=Kind.choices, default=Kind.REPORT, db_index=True
+    )
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -211,6 +221,10 @@ class ReportLog(models.Model):
     row_count = models.PositiveIntegerField(_("rows"), null=True, blank=True)
     cache_hit = models.BooleanField(_("served from cache"), default=False)
     database = models.CharField(_("database"), max_length=100, blank=True)
+    # M7: which engine computed the rows (orm, preaggregation, duckdb) and from which
+    # pre-aggregation; for a cache hit, the engine that computed the cached result.
+    engine = models.CharField(_("engine"), max_length=20, blank=True)
+    pre_aggregation = models.CharField(_("pre-aggregation"), max_length=100, blank=True)
     job = models.ForeignKey(
         ReportJob,
         on_delete=models.SET_NULL,
@@ -570,3 +584,68 @@ class SystemDashboard(models.Model):
 
     def __str__(self):
         return str(self._meta.verbose_name)
+
+
+class Materialization(models.Model):
+    """State of a table Gozar maintains for fast reports (M7): a pre-aggregation's
+    summary table in the database, or the columnar engine's synced copy.
+
+    Freshness is the data-version mechanism of the result cache: ``source_versions``
+    holds the versions of every model the build read, taken before it read them, so
+    any later write makes the copy stale. Writes also record *what* changed
+    (``dirty_from``/``dirty_to`` local dates of the base model's rows, or
+    ``needs_rebuild`` when it can't be narrowed down), which incremental refreshes
+    use. Visible on the System page; there are no Django permissions."""
+
+    class Kind(models.TextChoices):
+        PREAGGREGATION = "preaggregation", _("Pre-aggregation")
+        COLUMNAR = "columnar", _("Columnar engine")
+
+    class Status(models.TextChoices):
+        EMPTY = "empty", _("Not built")
+        READY = "ready", _("Ready")
+        FAILED = "failed", _("Failed")
+
+    kind = models.CharField(_("kind"), max_length=20, choices=Kind.choices)
+    name = models.CharField(_("name"), max_length=200)  # "<semantic>.<name>" or the backend
+    semantic_model = models.CharField(_("semantic model"), max_length=100, blank=True)
+    definition = models.CharField(_("definition hash"), max_length=64, blank=True)
+    table = models.CharField(_("table"), max_length=255, blank=True)
+    generation = models.PositiveIntegerField(_("generation"), default=0)
+    status = models.CharField(
+        _("status"), max_length=10, choices=Status.choices, default=Status.EMPTY
+    )
+    row_count = models.BigIntegerField(_("rows"), null=True, blank=True)
+    size_bytes = models.BigIntegerField(_("size (bytes)"), null=True, blank=True)
+    built_at = models.DateTimeField(_("last full build"), null=True, blank=True)
+    refreshed_at = models.DateTimeField(_("last refresh"), null=True, blank=True)
+    refresh_mode = models.CharField(_("last refresh mode"), max_length=20, blank=True)
+    duration_ms = models.PositiveIntegerField(
+        _("last refresh duration (ms)"), null=True, blank=True
+    )
+    # data versions of the models read, captured before the last build/refresh read them
+    source_versions = models.JSONField(_("source data versions"), default=dict, blank=True)
+    sources = models.TextField(_("source models"), blank=True)  # ",app.model,app.other,"
+    stale_since = models.DateTimeField(_("stale since"), null=True, blank=True)
+    needs_rebuild = models.BooleanField(_("needs a full rebuild"), default=False)
+    dirty_from = models.DateField(_("changed from"), null=True, blank=True)
+    dirty_to = models.DateField(_("changed to"), null=True, blank=True)
+    changes = models.PositiveBigIntegerField(_("change counter"), default=0)
+    hits = models.PositiveBigIntegerField(_("hits"), default=0)
+    last_hit_at = models.DateTimeField(_("last hit"), null=True, blank=True)
+    last_error = models.TextField(_("last error"), blank=True)
+    building_token = models.CharField(_("build lease"), max_length=64, blank=True)
+    building_since = models.DateTimeField(_("building since"), null=True, blank=True)
+    details = models.JSONField(_("details"), default=dict, blank=True)
+
+    class Meta:
+        verbose_name = _("materialization")
+        verbose_name_plural = _("materializations")
+        ordering = ["kind", "name"]
+        default_permissions = ()  # managed from the System page (bi_admin.view_system)
+        constraints = [
+            models.UniqueConstraint(fields=["kind", "name"], name="bi_admin_materialization_unique")
+        ]
+
+    def __str__(self):
+        return f"{self.get_kind_display()} {self.name}"

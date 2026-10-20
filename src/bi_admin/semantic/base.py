@@ -338,6 +338,11 @@ class Semantic:
     # Few-shot examples for the NL interface: [{"question": str, "spec": {...}}]. Only
     # examples whose keys the user may see are shown to the model (and offered in the UI).
     nl_examples: list[dict[str, Any]] = []
+    # M7: summary tables reports are answered from when that is provably exact
+    # (bi_admin.scale.PreAggregation), and the engine for everything else: None/"orm",
+    # or a columnar backend such as "duckdb" (GOZAR["SEMANTIC_ENGINES"] overrides it).
+    pre_aggregations: list = []
+    engine: str | None = None
 
     def __init__(self):
         cls = type(self)
@@ -374,6 +379,10 @@ class Semantic:
             raise ImproperlyConfigured(
                 f"{self.name}.time_dimension {self.time_dimension!r} is not a time dimension"
             )
+        self.pre_aggregations = [p.bind(self) for p in cls.pre_aggregations]
+        names = [p.name for p in self.pre_aggregations]
+        if len(set(names)) != len(names):
+            raise ImproperlyConfigured(f"{self.name}: pre-aggregation names must be unique")
 
     # -- hooks --------------------------------------------------------------------
 

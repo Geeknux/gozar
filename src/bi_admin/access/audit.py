@@ -34,6 +34,8 @@ class Entry:
     database: str = ""
     row_count: int | None = None
     cache_hit: bool = False
+    engine: str = ""
+    pre_aggregation: str = ""
     skip: bool = False  # set when nothing was executed (a cache-only lookup missed)
     status: str = ReportLog.Status.OK
     error_code: str = ""
@@ -97,5 +99,7 @@ def _create(entry: Entry, user, job, duration_ms: int) -> None:
         row_count=entry.row_count,
         cache_hit=entry.cache_hit,
         database=entry.database,
+        engine=entry.engine[:20],
+        pre_aggregation=entry.pre_aggregation[:100],
         job=job,
     )

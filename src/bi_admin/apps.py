@@ -17,3 +17,7 @@ class BiAdminConfig(AppConfig):
         from bi_admin.execution import cache
 
         cache.connect_signals()  # result-cache data versions
+
+        from bi_admin.scale import state
+
+        state.connect()  # change records for pre-aggregations and columnar copies

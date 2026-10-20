@@ -140,9 +140,11 @@ def filter_q(f: ResolvedFilter, lookup: str) -> Q:
     raise ValueError(f"Unsupported operator {op!r}")
 
 
-def compile_report(report: ValidatedReport, request=None) -> CompiledReport:
+def compile_report(report: ValidatedReport, request=None, source=None) -> CompiledReport:
+    """``source`` replaces the semantic model's scoped rows (a pre-aggregation's
+    summary rows, already in the user's scope)."""
     sem = report.semantic
-    qs = source = semantic_queryset(sem, request)
+    qs = source = semantic_queryset(sem, request) if source is None else source
 
     # Expression dimensions get an alias so filters and buckets can address them.
     used = {f.dimension.key for f in report.filters} | {g.key for g in report.groups}

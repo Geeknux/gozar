@@ -37,9 +37,34 @@ DEFAULTS: dict[str, Any] = {
     "WORKER_SENDS_SCHEDULES": True,  # gozar_worker also sends due e-mail schedules
     # System page (M6.5): seconds its database statistics and checks stay cached
     "SYSTEM_CACHE_TIMEOUT": 60,
+    # scale (M7): pre-aggregations
+    "PREAGGREGATIONS": True,  # answer reports from matching pre-aggregations
+    "PREAGG_DATABASE": "default",  # where summary tables are written (read on REPORTS_DATABASE)
+    "PREAGG_MAX_STALENESS": 0,  # seconds a stale pre-aggregation may still answer (0: never)
+    "PREAGG_REFRESH_EVERY": 600,  # seconds between refreshes of a stale pre-aggregation
+    "PREAGG_REBUILD_EVERY": 86_400,  # seconds between full rebuilds (0: only when needed)
+    "PREAGG_BUILD_LEASE_SECONDS": 3600,  # a build older than this no longer blocks another
+    "WORKER_REFRESHES": True,  # gozar_worker refreshes due pre-aggregations and syncs
+    # scale (M7): columnar engines, per semantic model ({"order_metrics": "duckdb"});
+    # a Semantic's ``engine`` attribute is the default, this setting overrides it
+    "SEMANTIC_ENGINES": {},
+    "COLUMNAR_BACKENDS": {"duckdb": "bi_admin.scale.columnar.duckdb.DuckDBBackend"},
+    "DUCKDB": {},  # PATH, MAX_STALENESS, SYNC_EVERY, THREADS, MEMORY_LIMIT (see DUCKDB_DEFAULTS)
+}
+
+DUCKDB_DEFAULTS: dict[str, Any] = {
+    "PATH": None,  # the DuckDB file; required once a semantic model uses the engine
+    "MAX_STALENESS": 0,  # seconds a stale copy may still answer (0: never)
+    "SYNC_EVERY": 600,  # seconds between syncs of a stale copy by gozar_worker
+    "THREADS": None,  # DuckDB's threads setting (None: DuckDB's default)
+    "MEMORY_LIMIT": None,  # e.g. "1GB"
 }
 
 
 def setting(name: str) -> Any:
     config = getattr(settings, "GOZAR", None) or {}
     return config.get(name, DEFAULTS.get(name))
+
+
+def duckdb_setting(name: str) -> Any:
+    return {**DUCKDB_DEFAULTS, **(setting("DUCKDB") or {})}.get(name)
