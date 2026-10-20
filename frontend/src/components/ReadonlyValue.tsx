@@ -27,9 +27,11 @@ export default function ReadonlyValue({ field, value, empty }: { field?: FieldMe
       </span>
     );
   }
+  const choice = field?.choices?.find((c) => String(c.value) === String(value));
+  const numeric = typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value) && field?.kind !== "string";
   return (
     <span className="readonly">
-      <bdi>{fmt.cell(value, field?.kind)}</bdi>
+      <bdi>{choice ? choice.label : numeric ? fmt.number(value as string) : fmt.cell(value, field?.kind)}</bdi>
     </span>
   );
 }

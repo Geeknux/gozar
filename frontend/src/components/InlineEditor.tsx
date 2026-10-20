@@ -66,7 +66,9 @@ export function inlinePayload(
       keys.push(row.key);
       continue;
     }
-    if (!saveAsNew && !row.dirty.size) continue; // untouched rows (and empty extra rows) stay as they are
+    // untouched rows stay as they are; empty extra rows are never sent (save as new
+    // copies the stored rows, not the blank ones)
+    if (!row.dirty.size && (row.pk === null || !saveAsNew)) continue;
     const index = out.length;
     const values: Values = {};
     for (const name of editable) {
@@ -171,7 +173,7 @@ export default function InlineEditor({ meta, model, rows, hidden, readOnly, erro
             <thead>
               <tr>
                 {names.map((n) => (
-                  <th key={n} className={fields[n].required && !ro.has(n) ? "required" : ""}>
+                  <th key={n} className={fields[n].required && !ro.has(n) && !readOnly ? "required" : ""}>
                     {cap(fields[n].verbose_name)}
                   </th>
                 ))}

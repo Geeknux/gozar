@@ -76,7 +76,6 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
           >
             <input
               ref={searchBox}
-              dir="auto"
               type="search"
               aria-label={t("search.title")}
               placeholder={t("search.placeholder")}

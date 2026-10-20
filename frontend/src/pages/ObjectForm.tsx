@@ -54,8 +54,10 @@ export default function ObjectForm() {
     setHistory(null);
     setLoadError("");
     touchedSlugs.current = new Set();
+    let stale = false; // a newer load (another pk, a reload) supersedes this one
     api<ObjectData>(crudPath(label, isNew ? "new" : pk))
       .then((o) => {
+        if (stale) return;
         setObj(o);
         const v: Values = {};
         for (const f of meta.fields) if (f.name in o.values) v[f.name] = fromApi(f, o.values[f.name]);
@@ -65,7 +67,10 @@ export default function ObjectForm() {
           Object.fromEntries(meta.form.inlines.map((m) => [m.name, inlineState(m, o.inlines?.[m.name]?.rows, true)])),
         );
       })
-      .catch((e: Error) => setLoadError(e.message));
+      .catch((e: Error) => !stale && setLoadError(e.message));
+    return () => {
+      stale = true;
+    };
   }, [meta, label, pk, isNew, reload]);
 
   useShortcuts({ "mod+s": () => formRef.current?.requestSubmit(document.getElementById("save-continue") as HTMLButtonElement) });
@@ -142,7 +147,6 @@ export default function ObjectForm() {
           setReload((r) => r + 1);
           setMessage(msg);
         }
-        if (create) setReload((r) => r + 1);
       } else if (then === "another") {
         navigate(`/${app}/${model}/add`);
         setReload((r) => r + 1);
@@ -365,7 +369,7 @@ export default function ObjectForm() {
               onChange={(rows) => setInlineRows((all) => ({ ...all, [im.name]: rows }))}
             />
           ))}
-        <div className="card form-footer">
+        <div className={`card form-footer${canEdit || (!isNew && meta.permissions.delete) ? "" : " empty"}`}>
           {buttons(false)}
           {canEdit && <small className="muted shortcut-hint">{t("shortcuts.saveHint")}</small>}
         </div>

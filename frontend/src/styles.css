@@ -401,6 +401,7 @@ details.fieldset[open] > summary { margin-bottom: 0.5rem; }
 .shortcut-hint { white-space: nowrap; }
 .radios { display: flex; flex-direction: column; gap: 0.3rem; padding-top: 0.35rem; }
 .radios.horizontal { flex-direction: row; flex-wrap: wrap; gap: 0.4rem 1rem; }
+.form-input input[type="radio"], input[type="radio"] { width: auto; max-width: none; padding: 0; border: 0; margin: 0; }
 .password-status { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 .password-help { margin: 0.2rem 0 0; padding-inline-start: 1.1rem; font-size: 0.85rem; }
 
@@ -464,7 +465,7 @@ button.link.danger-link { color: var(--danger); }
 .inline-table .num-input { text-align: end; }
 .inline-table .relation-select { min-width: 12rem; }
 .inline-table td.inline-delete, .inline-table th.inline-delete { width: 4rem; min-width: 4rem; text-align: center; }
-.inline-table td.inline-delete { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.inline-table td.inline-delete a { display: block; font-size: 0.8rem; margin-top: 0.2rem; }
 .inline-table tr.deleted td { opacity: 0.5; text-decoration: line-through; }
 .inline-table tr.new-row td { background: #fcfcff; }
 .inline-table tr.row-errors td { background: #fdeeee; border-bottom: 0; }
@@ -547,6 +548,8 @@ kbd { font-family: ui-monospace, monospace; font-size: 0.75rem; border: 1px soli
 .home-recent[open] > summary { margin-bottom: 0.5rem; }
 
 @media (max-width: 900px) {
+  /* stacked, the list column must take the page width (its table scrolls inside) */
+  .list-layout { align-items: stretch; }
   .home.home-index { grid-template-columns: 1fr; }
   .home-aside { position: static; }
   .form-cell, .form-row.multi .form-cell:not(:first-child) { grid-template-columns: 1fr; gap: 0.3rem; }
@@ -560,3 +563,4 @@ kbd { font-family: ui-monospace, monospace; font-size: 0.75rem; border: 1px soli
   .kbd-hint { display: none; }
   .form-footer { flex-direction: column; align-items: stretch; }
 }
+.form-footer.empty { display: none; }
