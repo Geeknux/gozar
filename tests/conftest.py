@@ -50,13 +50,15 @@ def _fresh_registry():
 @pytest.fixture
 def seeded(db):
     """The demo data set in the default (English) locale."""
-    call_command("seed_demo", customers=20, orders=60, seed=7, stdout=StringIO())
+    call_command("seed_demo", customers=20, orders=60, seed=7, media=False, stdout=StringIO())
 
 
 @pytest.fixture
 def seeded_fa(db):
     """The same demo data set with Persian names (``seed_demo --locale fa``)."""
-    call_command("seed_demo", customers=20, orders=60, seed=7, locale="fa", stdout=StringIO())
+    call_command(
+        "seed_demo", customers=20, orders=60, seed=7, locale="fa", media=False, stdout=StringIO()
+    )
 
 
 @pytest.fixture

@@ -23,15 +23,17 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.text import slugify
 
 from bi_admin import scheduling
 from bi_admin.execution import cache
 from bi_admin.models import Dashboard, DashboardWidget, SavedReport, Schedule, UserPreferences
 from shop.gozar import REGIONS
-from shop.models import City, Customer, Order, OrderItem, Product
+from shop.models import City, Customer, Order, OrderItem, Product, ProductImage, Tag
 
 LOCALES = ("en", "fa")
 
@@ -66,6 +68,23 @@ PRODUCTS = [
     ("سرویس قابلمه", "Cookware set", "home", 7_500_000),
     ("سماور برقی", "Electric samovar", "home", 3_900_000),
 ]
+
+# (English, Persian) tag names and the products (by index in PRODUCTS) they label
+TAGS = [
+    (("Bestseller", "پرفروش"), [0, 2, 9]),
+    (("Gift idea", "پیشنهاد هدیه"), [1, 9, 11]),
+    (("Made in Iran", "تولید ایران"), [7, 8, 9, 11]),
+    (("Seasonal", "فصلی"), [6]),
+]
+DESCRIPTIONS = {
+    "electronics": ("Ships with a one-year warranty.", "با یک سال گارانتی ارسال می‌شود."),
+    "books": ("Paperback, in stock in every city.", "جلد شومیز، موجود در همه شهرها."),
+    "clothing": ("Available in sizes S to XL.", "در اندازه‌های S تا XL موجود است."),
+    "grocery": ("Packed fresh every week.", "هر هفته تازه بسته‌بندی می‌شود."),
+    "home": ("Free delivery in Tehran.", "ارسال رایگان در تهران."),
+}
+# Product pictures drawn at seed time (files in MEDIA_ROOT through the storage API)
+IMAGE_COLORS = ["#5b4bdb", "#1f8a4c", "#c93636", "#d98e04", "#1b7a9c", "#7a4b9c"]
 
 # Parallel lists: the same random draws pick the same person in either locale.
 FIRST_NAMES = {
@@ -166,6 +185,12 @@ class Command(BaseCommand):
             "--users", action="store_true", help="create the demo accounts (see module doc)"
         )
         parser.add_argument("--password", default="gozar-demo", help="password of demo accounts")
+        parser.add_argument(
+            "--no-media",
+            dest="media",
+            action="store_false",
+            help="skip the product pictures and datasheet (faster; tests use it)",
+        )
 
     @transaction.atomic
     def handle(
@@ -179,6 +204,7 @@ class Command(BaseCommand):
         locale="en",
         users=False,
         password="gozar-demo",
+        media=True,
         **options,
     ):
         if locale not in LOCALES:  # call_command() kwargs skip argparse's choices
@@ -253,6 +279,7 @@ class Command(BaseCommand):
             ),
             batch_size=2000,
         )
+        self.catalogue(products, fa, media)
         cache.bump_all()  # bulk writes send no signals; drop cached report results
         groups = self.access_groups()
         accounts = self.demo_users(groups, password) if users else []
@@ -266,6 +293,42 @@ class Command(BaseCommand):
                 f"{len(groups)} groups" + (f", users: {', '.join(accounts)}." if accounts else ".")
             )
         )
+
+    def catalogue(self, products: list[Product], fa: bool, media: bool = True) -> None:
+        """Slugs, descriptions, tags, a datasheet and pictures for the demo's product
+        pages, inlines and file fields (idempotent: existing ones are kept)."""
+        tags = []
+        for (en_name, fa_name), indexes in TAGS:
+            tag, _created = Tag.objects.get_or_create(name=fa_name if fa else en_name)
+            tags.append((tag, indexes))
+        for i, product in enumerate(products):
+            if not product.slug:
+                product.slug = slugify(product.name, allow_unicode=True)
+            if not product.description:
+                en_text, fa_text = DESCRIPTIONS[product.category]
+                product.description = fa_text if fa else en_text
+            if media and i == 2 and not product.datasheet:
+                product.datasheet.save(
+                    "laptop-datasheet.pdf", ContentFile(_pdf(product.name)), save=False
+                )
+            product.save()
+            product.tags.add(*[tag for tag, indexes in tags if i in indexes])
+            if media and i < 8 and not product.images.exists():
+                for position in range(1 + (i % 2)):
+                    color = IMAGE_COLORS[(i + position) % len(IMAGE_COLORS)]
+                    image = ProductImage(product=product, position=position)
+                    image.caption = (
+                        ["Front", "Side"][position] if not fa else ["روبه‌رو", "کنار"][position]
+                    )
+                    data = _picture(product.name, color, position)
+                    if data is None:
+                        break  # Pillow isn't installed: no pictures
+                    image.image.save(
+                        f"{product.slug or product.pk}-{position}.png",
+                        ContentFile(data),
+                        save=False,
+                    )
+                    image.save()
 
     def access_groups(self) -> dict[str, Group]:
         """The region groups (view shop data, limited by row rules) and managers."""
@@ -379,3 +442,48 @@ class Command(BaseCommand):
         schedule.recipients.set(User.objects.filter(username__in=["manager", "tehran", "east"]))
         schedule.next_run_at = scheduling.next_run(schedule)
         schedule.save(update_fields=["next_run_at"])
+
+
+def _picture(name: str, color: str, variant: int) -> bytes | None:
+    """A small PNG with the product's initials (needs Pillow, the demo's dependency)."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError:
+        return None
+    import io
+
+    img = Image.new("RGB", (320, 240), color)
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([16, 16, 303, 223], outline="white", width=3 if variant == 0 else 1)
+    initials = "".join(w[0] for w in name.split()[:2] if w[:1].isascii()).upper() or "#"
+    draw.text((160, 120), initials, fill="white", anchor="mm", font_size=72)
+    buf = io.BytesIO()
+    img.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def _pdf(title: str) -> bytes:
+    """A one-page PDF datasheet."""
+    text = f"{title} datasheet".encode("ascii", "replace").decode()
+    stream = f"BT /F1 24 Tf 72 720 Td ({text}) Tj ET".encode()
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R "
+        b"/Resources << /Font << /F1 5 0 R >> >> >>",
+        b"<< /Length %d >>\nstream\n" % len(stream) + stream + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    out = b"%PDF-1.4\n"
+    offsets = []
+    for i, body in enumerate(objects, start=1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n" % i + body + b"\nendobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objects) + 1)
+    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
+    out += b"trailer\n<< /Size %d /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (
+        len(objects) + 1,
+        xref,
+    )
+    return out

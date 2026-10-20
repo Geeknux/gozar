@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Gozar demo shop\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-18 23:37+0330\n"
+"POT-Creation-Date: 2026-10-20 20:34+0330\n"
 "PO-Revision-Date: 2026-10-18 23:40+0330\n"
 "Last-Translator: Gozar contributors\n"
 "Language-Team: Persian\n"
@@ -14,104 +14,215 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: apps.py:7
 msgid "Shop"
 msgstr "فروشگاه"
 
+#: gozar.py:53
+msgid "line total"
+msgstr "جمع ردیف"
+
+#: gozar.py:71
+msgid "Search by customer name or phone number."
+msgstr "با نام یا شمارهٔ تلفن مشتری جست‌وجو کنید."
+
+#: gozar.py:80
+msgid "Payment"
+msgstr "پرداخت"
+
+#: gozar.py:84
+msgid "Set when the payment gateway confirms the order."
+msgstr "هنگامی که درگاه پرداخت سفارش را تأیید کند پر می‌شود."
+
+#: gozar.py:94
+msgid "paid"
+msgstr "پرداخت‌شده"
+
+#: gozar.py:98
+msgid "items total"
+msgstr "جمع اقلام"
+
+#: gozar.py:102
 msgid "Cancel selected orders"
 msgstr "لغو سفارش‌های انتخاب‌شده"
 
+#: gozar.py:125
+msgid "Details"
+msgstr "جزئیات"
+
+#: gozar.py:133
+msgid "images"
+msgstr "تصویرها"
+
+#: models.py:9 models.py:23 models.py:39 models.py:58
 msgid "name"
 msgstr "نام"
 
+#: models.py:10
 msgid "English name"
 msgstr "نام انگلیسی"
 
+#: models.py:11
 msgid "province"
 msgstr "استان"
 
+#: models.py:14 models.py:26
 msgid "city"
 msgstr "شهر"
 
+#: models.py:15
 msgid "cities"
 msgstr "شهرها"
 
+#: models.py:24
 msgid "phone"
 msgstr "تلفن"
 
+#: models.py:28
 msgid "joined at"
 msgstr "تاریخ عضویت"
 
+#: models.py:31 models.py:105
 msgid "customer"
 msgstr "مشتری"
 
+#: models.py:32
 msgid "customers"
 msgstr "مشتریان"
 
+#: models.py:42
+msgid "tag"
+msgstr "برچسب"
+
+#: models.py:43 models.py:67
+msgid "tags"
+msgstr "برچسب‌ها"
+
+#: models.py:52
 msgid "Electronics"
 msgstr "الکترونیک"
 
+#: models.py:53
 msgid "Books"
 msgstr "کتاب"
 
+#: models.py:54
 msgid "Clothing"
 msgstr "پوشاک"
 
+#: models.py:55
 msgid "Grocery"
 msgstr "خواربار"
 
+#: models.py:56
 msgid "Home & kitchen"
 msgstr "خانه و آشپزخانه"
 
+#: models.py:59
+msgid "slug"
+msgstr "نامک"
+
+#: models.py:60
 msgid "category"
 msgstr "دسته"
 
+#: models.py:61
 msgid "price"
 msgstr "قیمت"
 
+#: models.py:62
+msgid "active"
+msgstr "فعال"
+
+#: models.py:63
+msgid "description"
+msgstr "توضیحات"
+
+#: models.py:65
+msgid "datasheet"
+msgstr "برگهٔ مشخصات"
+
+#: models.py:70 models.py:82 models.py:127
 msgid "product"
 msgstr "محصول"
 
+#: models.py:71
 msgid "products"
 msgstr "محصولات"
 
+#: models.py:84
+msgid "image"
+msgstr "تصویر"
+
+#: models.py:85
+msgid "caption"
+msgstr "توضیح تصویر"
+
+#: models.py:86
+msgid "position"
+msgstr "ترتیب"
+
+#: models.py:89
+msgid "product image"
+msgstr "تصویر کالا"
+
+#: models.py:90
+msgid "product images"
+msgstr "تصویرهای کالا"
+
+#: models.py:99
 msgid "Awaiting payment"
 msgstr "در انتظار پرداخت"
 
+#: models.py:100
 msgid "Paid"
 msgstr "پرداخت‌شده"
 
+#: models.py:101
 msgid "Cancelled"
 msgstr "لغوشده"
 
+#: models.py:102
 msgid "Refunded"
 msgstr "مرجوعی"
 
+#: models.py:108
 msgid "status"
 msgstr "وضعیت"
 
+#: models.py:110
 msgid "amount"
 msgstr "مبلغ"
 
+#: models.py:111
 msgid "created at"
 msgstr "تاریخ ثبت"
 
+#: models.py:112
 msgid "paid at"
 msgstr "تاریخ پرداخت"
 
+#: models.py:115 models.py:124
 msgid "order"
 msgstr "سفارش"
 
+#: models.py:116
 msgid "orders"
 msgstr "سفارش‌ها"
 
+#: models.py:129
 msgid "quantity"
 msgstr "تعداد"
 
+#: models.py:130
 msgid "unit price"
 msgstr "قیمت واحد"
 
+#: models.py:133
 msgid "order item"
 msgstr "قلم سفارش"
 
+#: models.py:134
 msgid "order items"
 msgstr "اقلام سفارش"

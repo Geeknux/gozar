@@ -109,3 +109,26 @@ def test_seed_demo_rejects_unknown_locale():
 
     with pytest.raises(CommandError):
         seed(locale="de")
+
+
+@pytest.mark.django_db
+def test_seed_demo_catalogue_media_and_tags():
+    from django.core.files.storage import default_storage
+
+    from shop.models import Product, ProductImage, Tag
+
+    seed()
+    assert Tag.objects.count() == 4
+    laptop = Product.objects.get(name="Laptop")
+    assert laptop.slug == "laptop" and laptop.description
+    assert default_storage.exists(laptop.datasheet.name)
+    assert laptop.datasheet.read().startswith(b"%PDF-1.4")
+    images = ProductImage.objects.all()
+    assert images.count() == 12 and all(default_storage.exists(i.image.name) for i in images)
+    assert set(Product.objects.get(name="Saffron 5 g").tags.values_list("name", flat=True)) == {
+        "Bestseller",
+        "Gift idea",
+        "Made in Iran",
+    }
+    seed()  # idempotent: pictures, datasheet and tags aren't duplicated
+    assert ProductImage.objects.count() == 12 and Tag.objects.count() == 4

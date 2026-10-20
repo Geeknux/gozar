@@ -33,6 +33,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.db import models
 from django.forms.models import _get_foreign_key
 from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy
 
 from bi_admin.discovery import ModelInfo, build_model_info, get_registry, model_label
 
@@ -669,19 +670,19 @@ def _user_options():
         ordering = ["username"]
         fieldsets = [
             (None, {"fields": ["username", "password"]}),
-            (_lazy("Personal info"), {"fields": [("first_name", "last_name"), "email"]}),
+            (gettext_lazy("Personal info"), {"fields": [("first_name", "last_name"), "email"]}),
             (
-                _lazy("Permissions"),
+                gettext_lazy("Permissions"),
                 {"fields": ["is_active", "is_staff", "is_superuser", "groups", "user_permissions"]},
             ),
-            (_lazy("Important dates"), {"fields": ["last_login", "date_joined"]}),
+            (gettext_lazy("Important dates"), {"fields": ["last_login", "date_joined"]}),
         ]
         add_fieldsets = [
             (
                 None,
                 {
                     "fields": ["username", "usable_password", "password1", "password2"],
-                    "description": _lazy(
+                    "description": gettext_lazy(
                         "First, enter a username and password. Then you'll be able to edit "
                         "more user options."
                     ),
@@ -777,12 +778,6 @@ def grant_errors(request, form, obj=None) -> dict[str, list[str]]:
                     % {"group": group.name}
                 )
     return errors
-
-
-def _lazy(text):
-    from django.utils.translation import gettext_lazy
-
-    return gettext_lazy(text)
 
 
 class Site:

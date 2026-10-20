@@ -299,7 +299,8 @@ def test_actions_accept_select_all(admin_client, seeded):
         {"all": True, "params": {"category": "books"}},
         "application/json",
     ).json()
-    assert plan["summary"][0]["model"] in ("shop.product", "shop.orderitem")
+    summary = {s["model"]: s["count"] for s in plan["summary"]}
+    assert summary["shop.product"] == Product.objects.filter(category="books").count()
 
 
 # --- date hierarchy ------------------------------------------------------------------
@@ -339,6 +340,7 @@ def test_date_hierarchy_jalali_buckets_follow_jalali_months(admin_client, orders
     assert months == {1: 1, 5: 1, 6: 2, 7: 3}
     start = next(b for b in data["date_hierarchy"]["buckets"] if b["month"] == 7)["start"]
     assert start == jalali.to_gregorian(1405, 7, 1).isoformat()
+    assert data["date_hierarchy"]["start"] == jalali.to_gregorian(1405, 1, 1).isoformat()
 
 
 def test_date_hierarchy_defaults_to_the_users_calendar_and_combines_with_filters(

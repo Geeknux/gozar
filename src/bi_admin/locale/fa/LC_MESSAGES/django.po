@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Gozar (bi_admin)\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-19 23:45+0330\n"
+"POT-Creation-Date: 2026-10-20 20:33+0330\n"
 "PO-Revision-Date: 2026-10-18 23:40+0330\n"
 "Last-Translator: Gozar contributors\n"
 "Language-Team: Persian\n"
@@ -19,7 +19,7 @@ msgstr ""
 msgid "Permission denied: view the report audit log"
 msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش ممیزی اجرای گزارش‌ها"
 
-#: api/audit.py:85 api/audit.py:157 api/audit.py:193 crud/service.py:518
+#: api/audit.py:85 api/audit.py:157 api/audit.py:193 crud/service.py:643
 #: engine/drilldown.py:225
 #, python-format
 msgid "Page %(page)s does not exist"
@@ -29,17 +29,17 @@ msgstr "صفحهٔ %(page)s وجود ندارد"
 msgid "Permission denied: view the question log"
 msgstr "دسترسی مجاز نیست: مشاهدهٔ گزارش پرسش‌ها"
 
-#: api/auth.py:48
+#: api/auth.py:54
 msgid "CSRF verification failed"
 msgstr "بررسی CSRF ناموفق بود"
 
-#: api/auth.py:52
+#: api/auth.py:58
 msgid "Incorrect username or password, or the account has no admin access."
 msgstr "نام کاربری یا گذرواژه نادرست است، یا حساب دسترسی مدیریت ندارد."
 
-#: api/crud.py:17 api/preferences.py:27
-msgid "Invalid JSON body"
-msgstr "بدنهٔ JSON نامعتبر است"
+#: api/crud.py:231
+msgid "The search text is too long"
+msgstr "متن جست‌وجو بیش از حد طولانی است"
 
 #: api/dashboards.py:90
 #, python-format
@@ -76,15 +76,21 @@ msgstr "رونوشت %(name)s"
 msgid "Staff access is required."
 msgstr "دسترسی کارمندی لازم است."
 
-#: api/meta.py:109
+#: api/meta.py:157
 msgid "Unknown model"
 msgstr "مدل ناشناخته"
 
-#: api/preferences.py:29 crud/service.py:712
+#: api/preferences.py:27 crud/forms.py:56
+msgid "Invalid JSON body"
+msgstr "بدنهٔ JSON نامعتبر است"
+
+#: api/preferences.py:29 crud/bulk.py:111 crud/service.py:960 crud/users.py:41
 msgid "Request body must be a JSON object"
 msgstr "بدنهٔ درخواست باید یک شیء JSON باشد"
 
-#: api/preferences.py:33 crud/service.py:742
+#: api/preferences.py:33 crud/bulk.py:91 crud/bulk.py:95 crud/bulk.py:131
+#: crud/listviews.py:57 crud/listviews.py:84 crud/service.py:1038
+#: crud/users.py:44
 msgid "Validation failed"
 msgstr "اعتبارسنجی ناموفق بود"
 
@@ -104,7 +110,7 @@ msgstr "کار گزارش لغو شد"
 msgid "The report job has not finished"
 msgstr "کار گزارش هنوز تمام نشده است"
 
-#: api/saved.py:50
+#: api/saved.py:50 crud/listviews.py:36
 msgid "This field is required."
 msgstr "این فیلد لازم است."
 
@@ -124,7 +130,7 @@ msgstr "یک روز هفته انتخاب کنید (دوشنبه = ۰ … یکش
 msgid "Choose a day of the month (1–31)"
 msgstr "یک روز از ماه انتخاب کنید (۱ تا ۳۱)"
 
-#: api/schedules.py:120
+#: api/schedules.py:120 preferences.py:163
 msgid "Unknown time zone"
 msgstr "منطقهٔ زمانی ناشناخته"
 
@@ -153,6 +159,15 @@ msgstr "یک گزارش ذخیره‌شده یا داشبورد انتخاب ک�
 #: api/schedules.py:221
 msgid "Your account has no e-mail address"
 msgstr "حساب شما نشانی ایمیل ندارد"
+
+#: api/system.py:16
+msgid "You don't have access to the system dashboard."
+msgstr "به داشبورد سیستم دسترسی ندارید."
+
+#: api/system.py:43
+#, python-format
+msgid "Unknown table %(table)r"
+msgstr "جدول ناشناخته %(table)r"
 
 #: calendar/periods.py:126 dashboards.py:104
 #, python-format
@@ -184,114 +199,350 @@ msgstr "عدد باید بین ۱ و %(max)s باشد: %(name)r"
 msgid "Unknown comparison %(name)r"
 msgstr "مقایسهٔ ناشناخته: %(name)r"
 
-#: crud/options.py:163
-msgid "Delete selected"
-msgstr "حذف موارد انتخاب‌شده"
+#: crud/bulk.py:72
+msgid "This list has no editable columns"
+msgstr "این فهرست ستون قابل ویرایش ندارد"
 
-#: crud/service.py:73
+#: crud/bulk.py:74
+msgid "Nothing to save"
+msgstr "چیزی برای ذخیره نیست"
+
+#: crud/bulk.py:76
+msgid "Too many rows in one save"
+msgstr "ردیف‌های یک ذخیره بیش از حد زیاد است"
+
+#: crud/bulk.py:81
+msgid "Each row must be an object with pk and values"
+msgstr "هر ردیف باید شیئی با pk و values باشد"
+
+#: crud/bulk.py:85 crud/service.py:698
+msgid "Invalid primary key in selection"
+msgstr "کلید اصلی نامعتبر در موارد انتخاب‌شده"
+
+#: crud/bulk.py:89 crud/listviews.py:105 crud/service.py:710
+#: crud/service.py:713
+msgid "Not found"
+msgstr "پیدا نشد"
+
+#: crud/bulk.py:114
+msgid "Choose at least one field to change"
+msgstr "دست‌کم یک فیلد را برای تغییر انتخاب کنید"
+
+#: crud/bulk.py:120 crud/service.py:990
+msgid "Unknown or read-only fields"
+msgstr "فیلدهای ناشناخته یا فقط‌خواندنی"
+
+#: crud/bulk.py:121 crud/inlines.py:256 crud/service.py:991
+msgid "This field cannot be edited."
+msgstr "این فیلد قابل ویرایش نیست."
+
+#: crud/bulk.py:125 crud/service.py:693
+msgid "Select at least one row"
+msgstr "دست‌کم یک ردیف انتخاب کنید"
+
+#: crud/forms.py:100
 #, python-format
-msgid "Unknown model %(model)r"
-msgstr "مدل ناشناخته: %(model)r"
+msgid "The file is too large (%(size)s; the limit is %(limit)s)."
+msgstr "فایل بیش از حد بزرگ است (%(size)s؛ سقف مجاز %(limit)s است)."
 
-#: crud/service.py:80
-#, python-format
-msgid "Permission denied: %(perm)s %(model)s"
-msgstr "دسترسی مجاز نیست: %(perm)s %(model)s"
-
-#: crud/service.py:199
-#, python-format
-msgid "list_display entry %(name)r is not a field or callable"
-msgstr "مورد %(name)r در list_display نه فیلد است نه تابع"
-
-#: crud/service.py:356
-#, python-format
-msgid "Filtering on %(key)r is not allowed"
-msgstr "فیلتر روی %(key)r مجاز نیست"
-
-#: crud/service.py:365
-#, python-format
-msgid "Invalid boolean %(value)r"
-msgstr "مقدار بولی نامعتبر: %(value)r"
-
-#: crud/service.py:375
+#: crud/hierarchy.py:44 crud/service.py:455
 #, python-format
 msgid "Invalid number %(value)r"
 msgstr "عدد نامعتبر: %(value)r"
 
-#: crud/service.py:380
-#, python-format
-msgid "Invalid date %(value)r"
-msgstr "تاریخ نامعتبر: %(value)r"
+#: crud/hierarchy.py:47
+msgid "Select the year (and month) first"
+msgstr "ابتدا سال (و ماه) را انتخاب کنید"
 
-#: crud/service.py:391
-#, python-format
-msgid "Invalid value %(value)r for %(field)s"
-msgstr "مقدار %(value)r برای %(field)s نامعتبر است"
+#: crud/hierarchy.py:71
+msgid "Invalid date"
+msgstr "تاریخ نامعتبر"
 
-#: crud/service.py:472
-#, python-format
-msgid "Ordering by %(field)r is not allowed"
-msgstr "مرتب‌سازی بر اساس %(field)r مجاز نیست"
-
-#: crud/service.py:512
-msgid "page and page_size must be integers"
-msgstr "page و page_size باید عدد صحیح باشند"
-
-#: crud/service.py:543 crud/service.py:546
-msgid "Not found"
-msgstr "پیدا نشد"
-
-#: crud/service.py:556
-msgid "Restricted"
-msgstr "محدود شده"
-
-#: crud/service.py:719
-msgid "Unknown or read-only fields"
-msgstr "فیلدهای ناشناخته یا فقط‌خواندنی"
-
-#: crud/service.py:720
-msgid "This field cannot be edited."
-msgstr "این فیلد قابل ویرایش نیست."
-
-#: crud/service.py:759
-msgid "You can't save a record outside your access scope."
-msgstr "نمی‌توانید رکوردی خارج از محدودهٔ دسترسی خود ذخیره کنید."
-
-#: crud/service.py:867
-msgid "Cannot delete"
-msgstr "حذف ممکن نیست"
-
-#: crud/service.py:886
-#, python-format
-msgid "Unknown action %(name)r"
-msgstr "عملیات ناشناخته: %(name)r"
-
-#: crud/service.py:890
-msgid "Select at least one row"
-msgstr "دست‌کم یک ردیف انتخاب کنید"
-
-#: crud/service.py:895 crud/service.py:908
-msgid "Invalid primary key in selection"
-msgstr "کلید اصلی نامعتبر در موارد انتخاب‌شده"
-
-#: crud/service.py:919
+#: crud/inlines.py:166 crud/service.py:1245
 msgid "Permission denied"
 msgstr "دسترسی مجاز نیست"
 
-#: crud/service.py:923
+#: crud/inlines.py:175 crud/service.py:1273
 #, python-format
 msgid "%(field)r is not a relation field of %(model)s"
 msgstr "%(field)r فیلد رابطه‌ای %(model)s نیست"
 
-#: crud/service.py:929
+#: crud/inlines.py:197
+#, python-format
+msgid "%(key)s must be an object"
+msgstr "%(key)s باید یک شیء باشد"
+
+#: crud/inlines.py:202
+#, python-format
+msgid "Unknown inline %(name)r"
+msgstr "بخش درون‌خطی ناشناخته: %(name)r"
+
+#: crud/inlines.py:236
+msgid "Inline rows must be a list"
+msgstr "ردیف‌های درون‌خطی باید یک فهرست باشند"
+
+#: crud/inlines.py:241 crud/service.py:107
+#, python-format
+msgid "Permission denied: %(perm)s %(model)s"
+msgstr "دسترسی مجاز نیست: %(perm)s %(model)s"
+
+#: crud/inlines.py:250
+msgid "Each inline row must be an object"
+msgstr "هر ردیف درون‌خطی باید یک شیء باشد"
+
+#: crud/inlines.py:253
+msgid "Inline row values must be an object"
+msgstr "مقادیر ردیف درون‌خطی باید یک شیء باشند"
+
+#: crud/inlines.py:264
+msgid "This row no longer exists or is outside your access scope."
+msgstr "این ردیف دیگر وجود ندارد یا خارج از محدودهٔ دسترسی شماست."
+
+#: crud/inlines.py:383
+msgid "You can't delete these rows."
+msgstr "نمی‌توانید این ردیف‌ها را حذف کنید."
+
+#: crud/inlines.py:387
+msgid "You can't add these rows."
+msgstr "نمی‌توانید این ردیف‌ها را بیفزایید."
+
+#: crud/inlines.py:390
+msgid "You can't change these rows."
+msgstr "نمی‌توانید این ردیف‌ها را تغییر دهید."
+
+#: crud/inlines.py:398
+msgid "This row can't be deleted."
+msgstr "این ردیف قابل حذف نیست."
+
+#: crud/inlines.py:422 crud/service.py:1060
+msgid "You can't save a record outside your access scope."
+msgstr "نمی‌توانید رکوردی خارج از محدودهٔ دسترسی خود ذخیره کنید."
+
+#: crud/listviews.py:38
+msgid "Use at most 100 characters."
+msgstr "حداکثر ۱۰۰ نویسه."
+
+#: crud/listviews.py:43
+msgid "Must be an object of query parameters."
+msgstr "باید شیئی از پارامترهای پرس‌وجو باشد."
+
+#: crud/listviews.py:51
+msgid "Unknown column."
+msgstr "ستون ناشناخته."
+
+#: crud/listviews.py:85
+msgid "You already have a view with this name."
+msgstr "نمایی با این نام دارید."
+
+#: crud/listviews.py:95
+msgid "You have too many saved views for this list."
+msgstr "نماهای ذخیره‌شدهٔ شما برای این فهرست بیش از حد زیاد است."
+
+#: crud/options.py:431
+msgid "Delete selected"
+msgstr "حذف موارد انتخاب‌شده"
+
+#: crud/options.py:673
+msgid "Personal info"
+msgstr "اطلاعات شخصی"
+
+#: crud/options.py:675
+msgid "Permissions"
+msgstr "مجوزها"
+
+#: crud/options.py:678
+msgid "Important dates"
+msgstr "تاریخ‌های مهم"
+
+#: crud/options.py:686
+msgid "First, enter a username and password. Then you'll be able to edit more user options."
+msgstr "ابتدا نام کاربری و گذرواژه را وارد کنید. سپس می‌توانید گزینه‌های بیشتری از کاربر را ویرایش کنید."
+
+#: crud/options.py:749
+msgid "Only superusers can grant superuser status."
+msgstr "فقط ابرکاربرها می‌توانند وضعیت ابرکاربر بدهند."
+
+#: crud/options.py:766
+#, python-format
+msgid "You can't grant permissions you don't have: %(perms)s"
+msgstr "نمی‌توانید مجوزهایی را که ندارید اعطا کنید: %(perms)s"
+
+#: crud/options.py:777
+#, python-format
+msgid "You can't add the group “%(group)s”: it has permissions you don't have."
+msgstr "نمی‌توانید گروه «%(group)s» را بیفزایید: مجوزهایی دارد که شما ندارید."
+
+#: crud/service.py:93
+#, python-format
+msgid "Unknown model %(model)r"
+msgstr "مدل ناشناخته: %(model)r"
+
+#: crud/service.py:257
+#, python-format
+msgid "list_display entry %(name)r is not a field or callable"
+msgstr "مورد %(name)r در list_display نه فیلد است نه تابع"
+
+#: crud/service.py:436
+#, python-format
+msgid "Filtering on %(key)r is not allowed"
+msgstr "فیلتر روی %(key)r مجاز نیست"
+
+#: crud/service.py:445
+#, python-format
+msgid "Invalid boolean %(value)r"
+msgstr "مقدار بولی نامعتبر: %(value)r"
+
+#: crud/service.py:460
+#, python-format
+msgid "Invalid date %(value)r"
+msgstr "تاریخ نامعتبر: %(value)r"
+
+#: crud/service.py:471
+#, python-format
+msgid "Invalid value %(value)r for %(field)s"
+msgstr "مقدار %(value)r برای %(field)s نامعتبر است"
+
+#: crud/service.py:563
+#, python-format
+msgid "Ordering by %(field)r is not allowed"
+msgstr "مرتب‌سازی بر اساس %(field)r مجاز نیست"
+
+#: crud/service.py:609
+#, python-format
+msgid "Unknown column %(name)r"
+msgstr "ستون ناشناخته: %(name)r"
+
+#: crud/service.py:637
+msgid "page and page_size must be integers"
+msgstr "page و page_size باید عدد صحیح باشند"
+
+#: crud/service.py:680
+msgid "params must be an object"
+msgstr "params باید یک شیء باشد"
+
+#: crud/service.py:686
+#, python-format
+msgid "Too many rows selected (the limit is %(limit)s)."
+msgstr "ردیف‌های بیش از حدی انتخاب شده است (سقف مجاز %(limit)s است)."
+
+#: crud/service.py:723
+msgid "Restricted"
+msgstr "محدود شده"
+
+#: crud/service.py:937
+msgid "Save as new is not enabled for this model"
+msgstr "«ذخیره به‌عنوان مورد جدید» برای این مدل فعال نیست"
+
+#: crud/service.py:1195
+msgid "Cannot delete"
+msgstr "حذف ممکن نیست"
+
+#: crud/service.py:1214
+#, python-format
+msgid "Unknown action %(name)r"
+msgstr "عملیات ناشناخته: %(name)r"
+
+#: crud/service.py:1279
 #, python-format
 msgid "Unknown field %(field)r"
 msgstr "فیلد ناشناخته: %(field)r"
 
-#: crud/service.py:935
+#: crud/service.py:1284
 #, python-format
 msgid "%(field)r is not a relation field"
 msgstr "%(field)r فیلد رابطه‌ای نیست"
+
+#: crud/transfer.py:96
+#, python-format
+msgid "You may not export %(model)s"
+msgstr "اجازهٔ خروجی گرفتن از %(model)s ندارید"
+
+#: crud/transfer.py:98 crud/transfer.py:166
+#, python-format
+msgid "Unknown format %(format)r"
+msgstr "قالب ناشناخته: %(format)r"
+
+#: crud/transfer.py:186
+msgid "The file is not a valid XLSX workbook"
+msgstr "فایل یک کارپوشهٔ XLSX معتبر نیست"
+
+#: crud/transfer.py:195
+msgid "The CSV file must be UTF-8 encoded"
+msgstr "فایل CSV باید با کدگذاری UTF-8 باشد"
+
+#: crud/transfer.py:234
+msgid "Enter yes or no."
+msgstr "بله یا خیر وارد کنید."
+
+#: crud/transfer.py:301
+#, python-format
+msgid "“%(value)s” matches more than one row."
+msgstr "«%(value)s» با بیش از یک ردیف مطابقت دارد."
+
+#: crud/transfer.py:304
+#, python-format
+msgid "“%(value)s” was not found."
+msgstr "«%(value)s» پیدا نشد."
+
+#: crud/transfer.py:354
+#, python-format
+msgid "You may not import %(model)s"
+msgstr "اجازهٔ ورود %(model)s از فایل ندارید"
+
+#: crud/transfer.py:356
+msgid "Choose a CSV or XLSX file"
+msgstr "یک فایل CSV یا XLSX انتخاب کنید"
+
+#: crud/transfer.py:359
+msgid "The file is empty"
+msgstr "فایل خالی است"
+
+#: crud/transfer.py:365
+#, python-format
+msgid "The file has %(rows)s rows; the limit is %(limit)s."
+msgstr "فایل %(rows)s ردیف دارد؛ سقف مجاز %(limit)s است."
+
+#: crud/transfer.py:383
+msgid "No column of the file matches an importable field"
+msgstr "هیچ ستونی از فایل با فیلدهای قابل ورود مطابقت ندارد"
+
+#: crud/transfer.py:416
+#, python-format
+msgid "No record with ID %(pk)s that you can change."
+msgstr "رکوردی با شناسهٔ %(pk)s که بتوانید تغییر دهید وجود ندارد."
+
+#: crud/transfer.py:420
+msgid "You may not add records."
+msgstr "اجازهٔ افزودن رکورد ندارید."
+
+#: crud/transfer.py:422
+msgid "You may not change records."
+msgstr "اجازهٔ تغییر رکورد ندارید."
+
+#: crud/users.py:37 crud/users.py:54
+msgid "This model has no password page"
+msgstr "این مدل صفحهٔ گذرواژه ندارد"
+
+#: crud/users.py:74 crud/users.py:76
+#, python-format
+msgid "%(field)r is not a permission field"
+msgstr "%(field)r فیلد مجوز نیست"
+
+#: crud/users.py:79
+msgid "View"
+msgstr "مشاهده"
+
+#: crud/users.py:80
+msgid "Add"
+msgstr "افزودن"
+
+#: crud/users.py:81 models.py:14
+msgid "Change"
+msgstr "ویرایش"
+
+#: crud/users.py:82
+msgid "Delete"
+msgstr "حذف"
 
 #: dashboards.py:44
 msgid "The saved report of this widget was deleted."
@@ -379,12 +630,8 @@ msgstr "درصد تغییر %(measure)s"
 
 #: engine/runner.py:187
 #, python-format
-msgid ""
-"The calendar table lacks %(missing)s day(s) between %(start)s and %(end)s; "
-"run `manage.py gozar_calendar`"
-msgstr ""
-"جدول تقویم %(missing)s روز بین %(start)s و %(end)s را ندارد؛ دستور `manage.py"
-" gozar_calendar` را اجرا کنید"
+msgid "The calendar table lacks %(missing)s day(s) between %(start)s and %(end)s; run `manage.py gozar_calendar`"
+msgstr "جدول تقویم %(missing)s روز بین %(start)s و %(end)s را ندارد؛ دستور `manage.py gozar_calendar` را اجرا کنید"
 
 #: engine/runner.py:206 engine/validator.py:158
 #, python-format
@@ -514,12 +761,8 @@ msgstr "%(value)r مقدار معتبری برای %(key)s نیست"
 
 #: engine/validator.py:489
 #, python-format
-msgid ""
-"A comparison needs a period: choose a relative period or a date range on "
-"%(field)s"
-msgstr ""
-"مقایسه به یک دوره نیاز دارد: یک دورهٔ نسبی یا بازهٔ تاریخ روی %(field)s "
-"انتخاب کنید"
+msgid "A comparison needs a period: choose a relative period or a date range on %(field)s"
+msgstr "مقایسه به یک دوره نیاز دارد: یک دورهٔ نسبی یا بازهٔ تاریخ روی %(field)s انتخاب کنید"
 
 #: engine/validator.py:490
 msgid "a time dimension"
@@ -574,10 +817,6 @@ msgstr "خیر"
 msgid "Addition"
 msgstr "افزودن"
 
-#: models.py:14
-msgid "Change"
-msgstr "ویرایش"
-
 #: models.py:15
 msgid "Deletion"
 msgstr "حذف"
@@ -590,7 +829,7 @@ msgstr "زمان"
 msgid "user"
 msgstr "کاربر"
 
-#: models.py:26 models.py:266
+#: models.py:26 models.py:266 models.py:535
 msgid "model"
 msgstr "مدل"
 
@@ -742,7 +981,7 @@ msgstr "تقویم"
 msgid "other options"
 msgstr "سایر گزینه‌ها"
 
-#: models.py:112 models.py:319 models.py:448
+#: models.py:112 models.py:319 models.py:448 models.py:541
 msgid "updated at"
 msgstr "زمان به‌روزرسانی"
 
@@ -786,7 +1025,7 @@ msgstr "گزینه‌ها"
 msgid "status"
 msgstr "وضعیت"
 
-#: models.py:151 models.py:318 models.py:447
+#: models.py:151 models.py:318 models.py:447 models.py:540
 msgid "created at"
 msgstr "زمان ایجاد"
 
@@ -958,11 +1197,11 @@ msgstr "کاربران و گروه‌های مشخص"
 msgid "Everyone who can see the data"
 msgstr "همهٔ کسانی که به داده دسترسی دارند"
 
-#: models.py:305 models.py:408
+#: models.py:305 models.py:408 models.py:533
 msgid "owner"
 msgstr "مالک"
 
-#: models.py:307 models.py:410
+#: models.py:307 models.py:410 models.py:536
 msgid "name"
 msgstr "نام"
 
@@ -1122,44 +1361,76 @@ msgstr "ارسال ایمیل"
 msgid "email deliveries"
 msgstr "ارسال‌های ایمیل"
 
-#: nl/heuristic.py:791
+#: models.py:537
+msgid "filters and search"
+msgstr "پالایه‌ها و جست‌وجو"
+
+#: models.py:538
+msgid "columns"
+msgstr "ستون‌ها"
+
+#: models.py:539
+msgid "default view"
+msgstr "نمای پیش‌فرض"
+
+#: models.py:544
+msgid "saved list view"
+msgstr "نمای ذخیره‌شدهٔ فهرست"
+
+#: models.py:545
+msgid "saved list views"
+msgstr "نماهای ذخیره‌شدهٔ فهرست"
+
+#: models.py:566 models.py:567
+msgid "system dashboard"
+msgstr "داشبورد سیستم"
+
+#: models.py:569
+msgid "Can view the system dashboard"
+msgstr "می‌تواند داشبورد سیستم را ببیند"
+
+#: nl/heuristic.py:872
 #, python-format
 msgid "Not used: %(words)s"
 msgstr "استفاده نشد: %(words)s"
 
-#: nl/heuristic.py:791 nl/interpret.py:94 nl/interpret.py:309
+#: nl/heuristic.py:872 nl/interpret.py:94 nl/interpret.py:309
 #: nl/pipeline.py:304
 msgid ", "
 msgstr "، "
 
-#: nl/heuristic.py:866 nl/heuristic.py:873
+#: nl/heuristic.py:947 nl/heuristic.py:954
 #, python-format
 msgid "Which data do you mean: %(options)s?"
 msgstr "منظورتان کدام داده است: %(options)s؟"
 
-#: nl/heuristic.py:884
+#: nl/heuristic.py:965
 #, python-format
 msgid "%(items)s or %(last)s"
 msgstr "%(items)s یا %(last)s"
 
-#: nl/heuristic.py:894
+#: nl/heuristic.py:975
 msgid "There is no data you may report on."
 msgstr "داده‌ای نیست که اجازهٔ گزارش‌گیری از آن را داشته باشید."
 
-#: nl/heuristic.py:975
+#: nl/heuristic.py:1057
 #, python-format
 msgid "Did you mean %(options)s?"
 msgstr "منظورتان %(options)s است؟"
 
-#: nl/heuristic.py:1033
+#: nl/heuristic.py:1115
 #, python-format
 msgid "What should I measure? For example: %(options)s."
 msgstr "چه چیزی را بسنجم؟ برای نمونه: %(options)s."
 
-#: nl/heuristic.py:1192
+#: nl/heuristic.py:1274
 #, python-format
 msgid "Top of what? For example: %(options)s."
 msgstr "برترین‌ها از نظر چه؟ برای نمونه: %(options)s."
+
+#: nl/heuristic.py:1297
+msgid "Which period should I compare? For example: “this month compared to the previous period”."
+msgstr "کدام دوره را مقایسه کنم؟ برای نمونه: «این ماه در مقایسه با دورهٔ قبل»."
 
 #: nl/interpret.py:102
 msgctxt "period unit"
@@ -1429,9 +1700,7 @@ msgstr "."
 #: nl/pipeline.py:207
 #, python-format
 msgid "Too many questions; try again in a minute (limit: %(limit)s per minute)"
-msgstr ""
-"پرسش‌ها زیاد است؛ یک دقیقهٔ دیگر دوباره بپرسید (حداکثر %(limit)s پرسش در "
-"دقیقه)"
+msgstr "پرسش‌ها زیاد است؛ یک دقیقهٔ دیگر دوباره بپرسید (حداکثر %(limit)s پرسش در دقیقه)"
 
 #: nl/pipeline.py:280
 #, python-format
@@ -1467,12 +1736,8 @@ msgid "You don't have access to any report data"
 msgstr "به هیچ داده‌ای برای گزارش‌گیری دسترسی ندارید"
 
 #: nl/pipeline.py:459
-msgid ""
-"Sorry, I couldn't turn that into a report. Try naming what to measure and how"
-" to group it, e.g. “revenue by city last month”."
-msgstr ""
-"متأسفانه نتوانستم این را به گزارش تبدیل کنم. بگویید چه چیزی سنجیده و بر چه "
-"اساسی تفکیک شود؛ مثلاً «درآمد به تفکیک شهر در ماه گذشته»."
+msgid "Sorry, I couldn't turn that into a report. Try naming what to measure and how to group it, e.g. “revenue by city last month”."
+msgstr "متأسفانه نتوانستم این را به گزارش تبدیل کنم. بگویید چه چیزی سنجیده و بر چه اساسی تفکیک شود؛ مثلاً «درآمد به تفکیک شهر در ماه گذشته»."
 
 #: nl/pipeline.py:493
 #, python-format
@@ -1488,32 +1753,36 @@ msgstr "مدل زبانی در دسترس نیست؛ مفسر داخلی پاس�
 msgid "The language model could not be reached: %(error)s"
 msgstr "دسترسی به مدل زبانی ممکن نشد: %(error)s"
 
-#: preferences.py:131
+#: preferences.py:150
 msgid "Unknown preference."
 msgstr "ترجیح ناشناخته."
 
-#: preferences.py:136 preferences.py:138
+#: preferences.py:155 preferences.py:157
 #, python-format
 msgid "Choose one of: %(choices)s."
 msgstr "یکی از این‌ها را انتخاب کنید: %(choices)s."
 
-#: preferences.py:140
+#: preferences.py:159
 msgid "Must be an object."
 msgstr "باید یک شیء باشد."
 
-#: scheduling.py:147
+#: preferences.py:166
+msgid "home_dashboard is a dashboard id or null"
+msgstr "home_dashboard باید شناسهٔ یک داشبورد یا null باشد"
+
+#: scheduling.py:146
 msgid "Widget"
 msgstr "ویجت"
 
-#: scheduling.py:164
+#: scheduling.py:163
 msgid "This report is not available."
 msgstr "این گزارش در دسترس نیست."
 
-#: scheduling.py:212
+#: scheduling.py:211
 msgid "The report was cut off at its row limit."
 msgstr "گزارش در سقف تعداد ردیف‌هایش بریده شد."
 
-#: scheduling.py:241
+#: scheduling.py:240
 #, python-format
 msgid "%(name)s · %(date)s"
 msgstr "%(name)s · %(date)s"
@@ -1526,21 +1795,30 @@ msgstr "داشبورد پیدا نشد"
 msgid "Only the owner can change or delete this; duplicate it"
 msgstr "فقط مالک می‌تواند این را تغییر دهد یا حذف کند؛ از آن رونوشت بگیرید"
 
-#: sharing.py:154
+#: sharing.py:158
 msgid "Please correct the errors."
 msgstr "لطفاً خطاها را اصلاح کنید."
 
-#: sharing.py:168
+#: sharing.py:172
 msgid "Unknown visibility"
 msgstr "سطح اشتراک ناشناخته"
 
-#: sharing.py:175
+#: sharing.py:179
 msgid "Share only with active staff users"
 msgstr "فقط با کاربران فعال کارمند می‌توان به اشتراک گذاشت"
 
-#: sharing.py:177
+#: sharing.py:181
 msgid "Unknown group"
 msgstr "گروه ناشناخته"
+
+#: system/db.py:261
+msgid "This SQLite build has no dbstat table: only the total database size is known, not the size of each table."
+msgstr "این نسخهٔ SQLite جدول dbstat ندارد: فقط اندازهٔ کل پایگاه داده معلوم است، نه اندازهٔ هر جدول."
+
+#: system/db.py:326
+#, python-format
+msgid "Sizes and row estimates are not available for the %(backend)s backend."
+msgstr "اندازه‌ها و تخمین تعداد سطرها برای پایگاه دادهٔ %(backend)s در دسترس نیست."
 
 #: templates/bi_admin/email/scheduled_report.html:31
 #: templates/bi_admin/email/scheduled_report.txt:3
@@ -1574,22 +1852,16 @@ msgstr "باز کردن در گذر"
 #: templates/bi_admin/email/scheduled_report.html:66
 #: templates/bi_admin/email/scheduled_report.txt:17
 #, python-format
-msgid ""
-"Sent to %(name)s by Gozar. The numbers reflect what your account may see."
-msgstr ""
-"ارسال‌شده برای %(name)s از گذر. ارقام همان چیزی است که حساب شما اجازهٔ دیدنش "
-"را دارد."
+msgid "Sent to %(name)s by Gozar. The numbers reflect what your account may see."
+msgstr "ارسال‌شده برای %(name)s از گذر. ارقام همان چیزی است که حساب شما اجازهٔ دیدنش را دارد."
 
 #: templates/bi_admin/index.html:6 templates/bi_admin/index.html:27
 msgid "Gozar"
 msgstr "گذر"
 
 #: templates/bi_admin/index.html:28
-msgid ""
-"The user interface has not been built yet. Run these commands in the frontend"
-" folder:"
-msgstr ""
-"رابط کاربری هنوز ساخته نشده است. در پوشهٔ frontend این دستورها را اجرا کنید:"
+msgid "The user interface has not been built yet. Run these commands in the frontend folder:"
+msgstr "رابط کاربری هنوز ساخته نشده است. در پوشهٔ frontend این دستورها را اجرا کنید:"
 
 #: templates/bi_admin/index.html:31
 msgid "The API is available at:"
@@ -1597,25 +1869,3 @@ msgstr "API در این مسیر در دسترس است:"
 
 #~ msgid "compare_to is not supported yet (planned for M6)"
 #~ msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"
-
-#: api/system.py
-msgid "You don't have access to the system dashboard."
-msgstr "به داشبورد سیستم دسترسی ندارید."
-
-#: api/system.py
-#, python-format
-msgid "Unknown table %(table)r"
-msgstr "جدول ناشناخته %(table)r"
-
-#: system/db.py
-msgid ""
-"This SQLite build has no dbstat table: only the total database size is "
-"known, not the size of each table."
-msgstr ""
-"این نسخهٔ SQLite جدول dbstat ندارد: فقط اندازهٔ کل پایگاه داده معلوم است، نه "
-"اندازهٔ هر جدول."
-
-#: system/db.py
-#, python-format
-msgid "Sizes and row estimates are not available for the %(backend)s backend."
-msgstr "اندازه‌ها و تخمین تعداد سطرها برای پایگاه دادهٔ %(backend)s در دسترس نیست."
