@@ -19,6 +19,96 @@ OpenAI-compatible model), M4's row-level rules, semantic visibility, audit log,
 limits, cache, replica routing and background jobs, and M3's report builder,
 charts, pivot, drill-down and export.
 
+![The Sales overview dashboard on the home page: KPI cards comparing this month with last month, monthly revenue against last year, orders by status and revenue by city](docs/screenshots/dashboard-sales-overview.webp)
+
+*The demo's **Sales overview** dashboard, pinned as the manager's home page: KPI
+cards with this month vs last month and a monthly revenue line against last year
+(M6 dashboards and comparisons).*
+
+## Features tour
+
+Every screenshot is from the example project's demo data
+([how to refresh them](#development)).
+
+![Report builder showing revenue by city for the last 3 months as a bar chart, with a lighter previous-period bar next to each city](docs/screenshots/report-builder-comparison.webp)
+
+*The report builder: revenue by city for the last 3 months as a bar chart, each
+city next to the previous period (M3 report builder, M6 comparison periods).*
+
+![Pivot table of order counts with cities as rows and order statuses as columns](docs/screenshots/report-pivot-table.webp)
+
+*A pivot table of orders, cities by status, over the past 12 months (M3 pivot).*
+
+![Drill-down dialog listing the Tehran orders behind one report cell, each order linked to its edit page](docs/screenshots/report-drilldown.webp)
+
+*Clicking a report cell opens the Tehran orders behind it, each linked to
+its edit page (M3 drill-down).*
+
+![The Ask box with the question "monthly revenue this year" and the follow-up "compared to last year", each with its interpretation, above the resulting line chart](docs/screenshots/ask-follow-up.webp)
+
+*Ask in plain words: "monthly revenue this year", then the follow-up "compared
+to last year" refines the same report; each answer says how it was understood
+(M5 natural-language interface).*
+
+![Orders list filtered to paid orders in 2026, with the month-by-month date hierarchy, editable status dropdowns in each row and the filter sidebar](docs/screenshots/orders-list.webp)
+
+*The orders list: paid orders in 2026 with the date hierarchy by month, the
+status editable in place (`list_editable`) and the filter sidebar (M1 lists,
+M6.5 admin parity).*
+
+![Order edit page with the customer, status, amount and date fieldsets, a collapsed Payment fieldset and the order items as a tabular inline](docs/screenshots/order-detail-inline.webp)
+
+*An order's edit page: fieldsets with several fields per line, a collapsed
+"Payment" section and the order items as a tabular inline (M6.5 forms and
+inlines).*
+
+![Product edit page with its pictures as a stacked inline, each image previewed with its caption and position](docs/screenshots/product-image-inline.webp)
+
+*A product's pictures as a stacked inline, with image previews, upload and
+replace (M6.5 files and images).*
+
+![Group edit page with the permission tree expanded for the Shop app: view, add, change and delete checkboxes per model](docs/screenshots/user-permission-tree.webp)
+
+*The permission tree used for users and groups — app, model, then
+view/add/change/delete — here for the "Shop managers" group (M6.5 user admin).*
+
+![Import dialog after checking a products CSV: two updates, two new rows and one row with an invalid category, nothing saved](docs/screenshots/import-dry-run.webp)
+
+*Importing products from CSV: the dry run shows which rows update, which are
+new and which have errors, and nothing is saved until all are valid (M6.5
+import).*
+
+![Global search results for "Ahmadi" grouped by model: matching orders and customers](docs/screenshots/global-search.webp)
+
+*Global search (Ctrl+K) across every model the user may view, grouped by model
+(M6.5 global search).*
+
+![System page: bar charts of the largest tables by size and by row count above the list of every table with its model, kind and exact row count](docs/screenshots/system-database.webp)
+
+*The System page's database section: the largest tables by size and by rows,
+and every table with its model and exact row count (M6.5 System page).*
+
+![The Scale section of the System page: two fresh pre-aggregations with rows, size, last refresh and hits, and the DuckDB columnar engine in use](docs/screenshots/system-scale.webp)
+
+*The System page's Scale section: the pre-aggregations and the DuckDB copy,
+with freshness, hits and Refresh, Rebuild and Sync buttons (M7 scale).*
+
+![Edit email schedule dialog: the Sales overview dashboard sent weekly on Saturday at 08:00 Tehran time to east, manager and tehran as Excel](docs/screenshots/email-schedule.webp)
+
+*A weekly e-mail of the Sales overview dashboard to three users; each gets the
+numbers their own account may see (M6 scheduled e-mail).*
+
+![The same Sales overview dashboard in Persian: right-to-left layout, Persian digits and Jalali month names on the chart axis](docs/screenshots/dashboard-persian-jalali.webp)
+
+*The same dashboard for a user who chose Persian and the Jalali calendar:
+right-to-left, Persian digits, Jalali months (M2 Jalali calendar, per-user
+language and calendar).*
+
+![The same revenue by city report side by side: the manager sees ten cities, the tehran user only Tehran, Karaj and Qom](docs/screenshots/row-level-security.webp)
+
+*One report, two users: the manager sees all ten cities, `tehran` only Tehran,
+Karaj and Qom (M4 row-level rules).*
+
 ## Development
 
 ```sh
@@ -53,6 +143,16 @@ them), and each recipient's numbers differ by region.
 The demo also has product pictures and a datasheet (written to
 `example_project/media/` through Django's storage API; `seed_demo --no-media`
 skips them), tags, and order items and product images as inlines.
+
+[`scripts/screenshots.py`](scripts/screenshots.py) recreates the screenshots
+above in `docs/screenshots` after UI changes. Seed the demo first; the script
+runs the example project on a temporary copy of `db.sqlite3` (port 8100), so it
+changes no demo data:
+
+```sh
+uv run --with playwright playwright install chromium   # once
+uv run --with playwright python scripts/screenshots.py  # --only report-pivot-table …
+```
 
 Frontend hot reload: run `npm run dev` in `frontend/` and start Django with
 `GOZAR_VITE_DEV_SERVER=http://localhost:5173`.
