@@ -7,6 +7,7 @@ import type { Ref } from "../types";
 type Props = {
   model: string; // label of the model that owns the field
   field: string;
+  inline?: string; // the inline the field belongs to
   value: Ref | null;
   onChange: (value: Ref | null) => void;
   disabled?: boolean;
@@ -14,7 +15,7 @@ type Props = {
 };
 
 /** Search-as-you-type picker for FK/O2O fields (admin's autocomplete_fields). */
-export default function RelationSelect({ model, field, value, onChange, disabled, placeholder }: Props) {
+export default function RelationSelect({ model, field, inline, value, onChange, disabled, placeholder }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -26,7 +27,7 @@ export default function RelationSelect({ model, field, value, onChange, disabled
     if (!open) return;
     const t = setTimeout(() => {
       api<{ results: Ref[]; more: boolean }>(crudPath(model, "autocomplete"), {
-        params: { field, q: query },
+        params: { field, q: query, ...(inline ? { inline } : {}) },
       })
         .then((r) => {
           setResults(r.results);
@@ -35,7 +36,7 @@ export default function RelationSelect({ model, field, value, onChange, disabled
         .catch(() => setResults([]));
     }, 200);
     return () => clearTimeout(t);
-  }, [open, query, model, field]);
+  }, [open, query, model, field, inline]);
 
   useEffect(() => {
     const close = (e: MouseEvent) => {

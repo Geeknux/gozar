@@ -120,6 +120,7 @@ def describe(options, request, qs: models.QuerySet, params) -> dict[str, Any] | 
         "calendar": cal,
         "selected": {"year": year, "month": month, "day": day},
         "level": level or None,
+        "start": _range(cal, year, month, day)[0].isoformat() if year is not None else None,
         "buckets": [],
     }
     if not level:

@@ -211,3 +211,16 @@ def test_list_display_links_skip_editable_columns(admin_client, seeded, temp_opt
     temp_options(Product, P)
     cols = admin_client.get(crud("shop.product")).json()["columns"]
     assert [c["is_link"] for c in cols] == [False, True]
+
+
+def test_raw_id_lookup_by_pk_is_scoped(admin_client, regional, seeded):
+    from django.test import Client
+
+    outside = Customer.objects.exclude(city__name_en__in=["Tehran", "Karaj", "Qom"]).first()
+    url = crud("shop.order", "autocomplete")
+    hit = admin_client.get(url, {"field": "customer", "pk": outside.pk}).json()["results"]
+    assert [r["pk"] for r in hit] == [outside.pk]
+    client = Client()
+    client.force_login(regional())
+    assert client.get(url, {"field": "customer", "pk": outside.pk}).json()["results"] == []
+    assert client.get(url, {"field": "customer", "pk": "abc"}).json()["results"] == []

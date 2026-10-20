@@ -117,9 +117,17 @@ def meta(options: ModelOptions, request) -> list[dict[str, Any]]:
                 "permissions": perms,
                 "show_change_link": bool(inline.show_change_link and inline.label in reg),
                 "pk_name": opts.pk.name,
+                "defaults": _defaults(inline, request),
             }
         )
     return out
+
+
+def _defaults(inline: InlineOptions, request) -> dict[str, Any]:
+    """Values of a new row (the model's field defaults), shown in empty rows."""
+    service = _service()
+    blank = inline.model()
+    return {n: service.field_value(inline, request, blank, n)[0] for n in inline.get_form_fields()}
 
 
 def serialize(options: ModelOptions, request, parent) -> dict[str, Any]:

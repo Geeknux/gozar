@@ -39,6 +39,7 @@ def test_meta_describes_inlines(admin_client, seeded):
     assert "line_total" in inline["readonly_fields"]
     assert inline["widgets"]["product"] == {"type": "autocomplete"}
     assert inline["permissions"] == {"view": True, "add": True, "change": True, "delete": True}
+    assert inline["defaults"] == {"product": None, "quantity": 1, "unit_price": None}
     computed = next(f for f in inline["field_meta"] if f["name"] == "line_total")
     assert computed["computed"] and computed["verbose_name"] == "line total"
 

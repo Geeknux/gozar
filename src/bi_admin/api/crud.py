@@ -76,9 +76,12 @@ def autocomplete(
     q: str = "",
     inline: str = "",
     limit: int = service.AUTOCOMPLETE_LIMIT,
+    pk: str = "",
 ):
+    """Rows a relation field may point at (scoped), searched by ``q`` or looked up by
+    ``pk``; ``inline`` names the inline the field belongs to."""
     opts = _opts(app_label, model_name)
-    return service.autocomplete(opts, request, field, q, inline or None, limit)
+    return service.autocomplete(opts, request, field, q, inline or None, limit, pk or None)
 
 
 @router.post("/{app_label}/{model_name}/actions/{action}")

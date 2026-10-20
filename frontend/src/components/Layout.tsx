@@ -1,14 +1,39 @@
-import type { ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import type { User } from "../App";
+import { useShortcuts } from "../hooks";
 import { useI18n } from "../i18n";
 import type { AppEntry } from "../types";
+import Dialog from "./Dialog";
 
 type Props = { user: User; apps: AppEntry[]; onLogout: () => void; children: ReactNode };
 
 export default function Layout({ user, apps, onLogout, children }: Props) {
   const { t, cap } = useI18n();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const searchBox = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState("");
+  const [help, setHelp] = useState(false);
+
+  useEffect(() => {
+    if (location.pathname === "/search") setQ(new URLSearchParams(location.search).get("q") ?? "");
+  }, [location]);
+
+  const focusSearch = () => {
+    searchBox.current?.focus();
+    searchBox.current?.select();
+  };
+  useShortcuts({
+    "mod+k": focusSearch,
+    // "/" focuses the list's own search box on list pages (see ModelList)
+    "/": () => {
+      if (!document.querySelector(".list-page .search input")) focusSearch();
+    },
+    "?": () => setHelp(true),
+  });
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -41,10 +66,35 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
       </aside>
       <div className="main">
         <header className="topbar">
-          <span>
-            <bdi>{user.full_name || user.username}</bdi>
-          </span>
+          <form
+            className="global-search"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (q.trim()) navigate(`/search?q=${encodeURIComponent(q.trim())}`);
+            }}
+          >
+            <input
+              ref={searchBox}
+              dir="auto"
+              type="search"
+              aria-label={t("search.title")}
+              placeholder={t("search.placeholder")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && (e.currentTarget as HTMLInputElement).blur()}
+            />
+            <kbd className="kbd-hint" aria-hidden>
+              Ctrl K
+            </kbd>
+          </form>
           <span className="topbar-actions">
+            <span>
+              <bdi>{user.full_name || user.username}</bdi>
+            </span>
+            <button type="button" className="link" onClick={() => setHelp(true)} title={t("shortcuts.title")}>
+              {t("shortcuts.short")}
+            </button>
             <NavLink to="/settings" className="link">
               {t("nav.settings")}
             </NavLink>
@@ -55,6 +105,40 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
         </header>
         <main className="content">{children}</main>
       </div>
+      {help && <ShortcutsHelp onClose={() => setHelp(false)} />}
     </div>
+  );
+}
+
+function ShortcutsHelp({ onClose }: { onClose: () => void }) {
+  const { t } = useI18n();
+  const rows: [string, string][] = [
+    ["Ctrl K", t("shortcuts.search")],
+    ["/", t("shortcuts.listSearch")],
+    ["Ctrl S", t("shortcuts.save")],
+    ["Esc", t("shortcuts.close")],
+    ["?", t("shortcuts.help")],
+  ];
+  return (
+    <Dialog title={t("shortcuts.title")} onClose={onClose}>
+      <table className="grid shortcuts">
+        <tbody>
+          {rows.map(([keys, what]) => (
+            <tr key={keys}>
+              <td>
+                <kbd dir="ltr">{keys}</kbd>
+              </td>
+              <td>{what}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="small muted">{t("shortcuts.mac")}</p>
+      <div className="dialog-actions">
+        <button type="button" onClick={onClose}>
+          {t("common.close")}
+        </button>
+      </div>
+    </Dialog>
   );
 }

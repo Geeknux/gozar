@@ -1236,6 +1236,7 @@ def autocomplete(
     query: str,
     inline: str | None = None,
     limit: int = AUTOCOMPLETE_LIMIT,
+    pk: str | None = None,
 ) -> dict[str, Any]:
     from bi_admin.crud import inlines as crud_inlines
 
@@ -1248,6 +1249,11 @@ def autocomplete(
     else:
         target_label = _relation_target(options, field_name)
     qs = target_queryset(target_label, request)
+    if pk not in (None, ""):  # look one row up by its id (raw_id_fields)
+        try:
+            qs = qs.filter(pk=qs.model._meta.pk.to_python(pk))
+        except (ValidationError, ValueError, TypeError):
+            qs = qs.none()
     if target_label in get_registry():
         target_opts = site.options_for(target_label)
         qs = apply_search(target_opts, qs, query)

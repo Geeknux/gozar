@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { Link } from "react-router-dom";
 
+import RecentActions from "../components/RecentActions";
 import { useI18n } from "../i18n";
 import { homeDashboard, useSession } from "../session";
 import type { AppEntry } from "../types";
@@ -27,11 +28,16 @@ export default function Home({ apps }: { apps: AppEntry[] }) {
             <AskPanel />
           </Suspense>
         </details>
+        <details className="home-recent">
+          <summary className="card">{t("recent.title")}</summary>
+          <RecentActions />
+        </details>
       </div>
     );
   }
   return (
-    <div className="home">
+    <div className="home home-index">
+      <div className="home-main">
       <h1>{t("nav.dashboard")}</h1>
       <Suspense fallback={<p className="muted">{t("app.loading")}</p>}>
         <AskPanel />
@@ -59,6 +65,10 @@ export default function Home({ apps }: { apps: AppEntry[] }) {
           </table>
         </section>
       ))}
+      </div>
+      <aside className="home-aside">
+        <RecentActions />
+      </aside>
     </div>
   );
 }

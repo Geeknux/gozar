@@ -12,7 +12,9 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ModelList from "./pages/ModelList";
 import ObjectForm from "./pages/ObjectForm";
+import PasswordChange from "./pages/PasswordChange";
 import QuestionLog from "./pages/QuestionLog";
+import SearchPage from "./pages/SearchPage";
 import Settings from "./pages/Settings";
 import { type Session, SessionContext } from "./session";
 import type { AppEntry, Preferences } from "./types";
@@ -142,6 +144,7 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
         <Route path="/" element={<Home apps={apps} />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="/settings" element={<Settings onSaved={onPrefs} />} />
+        <Route path="/search" element={<SearchPage />} />
         <Route
           path="/reports"
           element={
@@ -198,6 +201,7 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />
         <Route path="/:app/:model/:pk" element={<ObjectForm />} />
+        <Route path="/:app/:model/:pk/password" element={<PasswordChange />} />
         <Route path="*" element={<p className="empty">{t("app.notFound")}</p>} />
       </Routes>
     </Layout>
