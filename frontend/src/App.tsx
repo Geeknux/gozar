@@ -23,13 +23,14 @@ const SavedReports = lazy(() => import("./reports/SavedReports"));
 const DashboardsList = lazy(() => import("./dashboards/DashboardsList"));
 const DashboardPage = lazy(() => import("./dashboards/DashboardPage"));
 const SchedulesPage = lazy(() => import("./schedules/SchedulesPage"));
+const SystemPage = lazy(() => import("./system/SystemPage"));
 
 export type User = {
   id: number;
   username: string;
   full_name: string;
   is_superuser: boolean;
-  permissions?: { audit?: boolean; questions?: boolean };
+  permissions?: { audit?: boolean; questions?: boolean; system?: boolean };
 };
 
 type Me = { authenticated: boolean; user: User | null; preferences: Preferences };
@@ -184,6 +185,16 @@ function Shell({ user, apps, prefs, onLogin, onLogout, onPrefs }: ShellProps) {
         {user.permissions?.audit && <Route path="/audit" element={<AuditLog />} />}
         {user.permissions?.audit && <Route path="/audit/deliveries" element={<DeliveryLog />} />}
         {user.permissions?.questions && <Route path="/questions" element={<QuestionLog />} />}
+        {user.permissions?.system && (
+          <Route
+            path="/system"
+            element={
+              <Lazy>
+                <SystemPage />
+              </Lazy>
+            }
+          />
+        )}
         <Route path="/:app/:model" element={<ModelList />} />
         <Route path="/:app/:model/add" element={<ObjectForm />} />
         <Route path="/:app/:model/:pk" element={<ObjectForm />} />

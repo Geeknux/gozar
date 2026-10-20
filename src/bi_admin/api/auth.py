@@ -6,6 +6,7 @@ from ninja.errors import HttpError
 from ninja.utils import check_csrf
 
 from bi_admin import preferences
+from bi_admin import system as system_page
 from bi_admin.api.audit import can_view as can_view_audit
 from bi_admin.api.audit import can_view_questions
 
@@ -23,7 +24,11 @@ def user_payload(user) -> dict:
         "username": user.get_username(),
         "full_name": user.get_full_name() if hasattr(user, "get_full_name") else "",
         "is_superuser": user.is_superuser,
-        "permissions": {"audit": can_view_audit(user), "questions": can_view_questions(user)},
+        "permissions": {
+            "audit": can_view_audit(user),
+            "questions": can_view_questions(user),
+            "system": system_page.can_view(user),
+        },
     }
 
 

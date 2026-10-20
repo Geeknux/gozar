@@ -142,6 +142,7 @@ def test_audit_api_needs_the_dedicated_permission(make_staff, orders):
     assert c.get(f"{API}/auth/me").json()["user"]["permissions"] == {
         "audit": False,
         "questions": False,
+        "system": False,
     }
     auditor = Client()
     auditor.force_login(make_staff("bi_admin.view_reportlog", username="auditor"))
@@ -149,6 +150,7 @@ def test_audit_api_needs_the_dedicated_permission(make_staff, orders):
     assert auditor.get(f"{API}/auth/me").json()["user"]["permissions"] == {
         "audit": True,
         "questions": False,
+        "system": False,
     }
 
 

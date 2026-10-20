@@ -338,3 +338,43 @@ table.grid { width: 100%; border-collapse: collapse; }
 /* the grid positions tiles with transforms from the left edge; in RTL an absolutely
    positioned box would otherwise start at the right edge (its static position) */
 .react-grid-layout > .react-grid-item, .react-grid-layout > .react-grid-placeholder { left: 0; top: 0; }
+/* --- System dashboard --- */
+.system-page .sys-section { margin-top: 1rem; }
+.system-page h2 { font-size: 1.05rem; margin: 0 0 0.6rem; }
+.system-page h3 { font-size: 0.9rem; margin: 0.75rem 0 0.4rem; }
+.sys-refresh { display: flex; align-items: center; gap: 0.75rem; }
+.sys-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 0.75rem; }
+.sys-card { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.sys-card strong { font-size: 1.15rem; overflow-wrap: anywhere; }
+.sys-card small { overflow-wrap: anywhere; }
+.sys-alias { grid-column: 1 / -1; margin: 0; }
+.sys-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 1rem; }
+.sys-columns > .sys-section { margin-top: 1rem; }
+.sys-columns .grid { width: 100%; }
+.sys-section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.sys-section-head h2 { margin: 0; }
+.sys-tools { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.sys-tools input { min-width: 12rem; }
+.sys-chart { width: 100%; }
+.sys-tables td.num, .sys-tables th.num, .system-page td.num, .system-page th.num { text-align: end; font-variant-numeric: tabular-nums; }
+.sys-indexes > td { background: #fafbfc; padding: 0.5rem 1rem; }
+.sys-indexes .grid th, .sys-indexes .grid td { padding: 0.3rem 0.5rem; }
+.badge.kind-model { background: var(--accent-soft); color: var(--accent); }
+.badge.kind-m2m { background: #eef4ff; color: #2958b8; }
+.badge.kind-unmanaged { background: #fff4e0; color: #8a5a00; }
+.badge.kind-django { background: #f0f1f4; color: var(--muted); }
+.badge.kind-other { background: #fdecec; color: var(--danger); }
+.badge.level-critical, .badge.level-error { background: #fdecec; color: var(--danger); }
+.badge.level-warning { background: #fff4e0; color: #8a5a00; }
+.badge.level-info, .badge.level-debug { background: #eef4ff; color: #2958b8; }
+.sys-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.sys-checks li { border-inline-start: 3px solid var(--border); padding-inline-start: 0.6rem; }
+.sys-checks p { margin: 0.2rem 0; }
+.sys-stats { display: grid; grid-template-columns: 1fr max-content; gap: 0.3rem 1rem; margin: 0 0 0.5rem; }
+.sys-stats dt { color: var(--muted); }
+.sys-stats dd { margin: 0; text-align: end; font-variant-numeric: tabular-nums; }
+.sys-plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.sys-apps { columns: 2 16rem; margin: 0.5rem 0 0; padding-inline-start: 1.2rem; }
+.system-page details summary { cursor: pointer; }
+.system-page details summary h2 { display: inline; }
+.notice-warn { background: #fff4e0; color: #8a5a00; border-radius: 6px; padding: 0.5rem 0.75rem; }

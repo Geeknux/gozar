@@ -29,6 +29,8 @@ DEFAULTS: dict[str, Any] = {
     "EMAIL_MAX_ROWS": 50,  # rows per report in the e-mail body (attachments have all)
     "BASE_URL": None,  # e.g. "https://bi.example.com/gozar": adds "Open in Gozar" links
     "WORKER_SENDS_SCHEDULES": True,  # gozar_worker also sends due e-mail schedules
+    # System page (M6.5): seconds its database statistics and checks stay cached
+    "SYSTEM_CACHE_TIMEOUT": 60,
 }
 
 
