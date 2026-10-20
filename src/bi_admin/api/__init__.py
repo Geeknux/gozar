@@ -15,6 +15,7 @@ from bi_admin.api.saved import router as saved_router
 from bi_admin.api.saved import sharing_router
 from bi_admin.api.schedules import router as schedules_router
 from bi_admin.api.security import staff_auth
+from bi_admin.api.system import router as system_router
 from bi_admin.crud.service import CrudError
 from bi_admin.engine import ReportError, SpecValidationError
 
@@ -61,3 +62,4 @@ api.add_router("/saved-reports", saved_router)
 api.add_router("/dashboards", dashboards_router)
 api.add_router("/schedules", schedules_router)
 api.add_router("/sharing", sharing_router)
+api.add_router("/system", system_router)

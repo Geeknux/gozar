@@ -1597,3 +1597,25 @@ msgstr "API در این مسیر در دسترس است:"
 
 #~ msgid "compare_to is not supported yet (planned for M6)"
 #~ msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"
+
+#: api/system.py
+msgid "You don't have access to the system dashboard."
+msgstr "به داشبورد سیستم دسترسی ندارید."
+
+#: api/system.py
+#, python-format
+msgid "Unknown table %(table)r"
+msgstr "جدول ناشناخته %(table)r"
+
+#: system/db.py
+msgid ""
+"This SQLite build has no dbstat table: only the total database size is "
+"known, not the size of each table."
+msgstr ""
+"این نسخهٔ SQLite جدول dbstat ندارد: فقط اندازهٔ کل پایگاه داده معلوم است، نه "
+"اندازهٔ هر جدول."
+
+#: system/db.py
+#, python-format
+msgid "Sizes and row estimates are not available for the %(backend)s backend."
+msgstr "اندازه‌ها و تخمین تعداد سطرها برای پایگاه دادهٔ %(backend)s در دسترس نیست."
