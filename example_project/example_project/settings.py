@@ -68,9 +68,12 @@ if os.environ.get("GOZAR_DB") == "postgres":
         "replica": {**_postgres, "TEST": {"NAME": "test_gozar_replica"}},
     }
 else:
+    # GOZAR_SQLITE_PATH points the demo at another file (`gozar_benchmark` uses it so
+    # its large data set never lands in db.sqlite3).
+    _sqlite = os.environ.get("GOZAR_SQLITE_PATH") or BASE_DIR / "db.sqlite3"
     DATABASES = {
-        "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"},
-        "replica": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"},
+        "default": {"ENGINE": "django.db.backends.sqlite3", "NAME": _sqlite},
+        "replica": {"ENGINE": "django.db.backends.sqlite3", "NAME": _sqlite},
     }
 
 # Reads made while a report runs go to GOZAR["REPORTS_DATABASE"] (when set).
@@ -110,6 +113,18 @@ GOZAR = {
     "REPORT_ASYNC": os.environ.get("GOZAR_REPORT_ASYNC") == "1",
     # M6: scheduled e-mails link back to the app
     "BASE_URL": os.environ.get("GOZAR_BASE_URL", "http://localhost:8000/gozar"),
+    # M7: OrderMetrics declares pre-aggregations (shop/gozar.py); the worker keeps them
+    # fresh, and a stale one steps aside for the ORM (PREAGG_MAX_STALENESS = 0).
+    # GOZAR_DUCKDB=1 answers the other OrderMetrics reports from a DuckDB copy
+    # (pip install 'gozar[duckdb]'; `manage.py gozar_columnar_sync` or the worker).
+    "PREAGG_REFRESH_EVERY": 60,
+    "SEMANTIC_ENGINES": {"order_metrics": "duckdb"}
+    if os.environ.get("GOZAR_DUCKDB") == "1"
+    else {},
+    "DUCKDB": {
+        "PATH": os.environ.get("GOZAR_DUCKDB_PATH") or BASE_DIR / ".duckdb" / "gozar.duckdb",
+        "SYNC_EVERY": 60,
+    },
 }
 
 # Scheduled e-mail reports (`manage.py gozar_send_schedules`, or `gozar_worker`) are

@@ -13,3 +13,5 @@ src/bi_admin/static/bi_admin/spa/
 example_project/.cache/
 example_project/.mail/
 example_project/media/
+example_project/.duckdb/
+example_project/.benchmark/

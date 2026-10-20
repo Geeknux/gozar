@@ -52,6 +52,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
-      - run: uv sync --python ${{ matrix.python }} --extra postgres
+      # The DuckDB engine is an optional extra: the 3.13 jobs install it and run its
+      # parity tests against the ORM on both databases; the 3.12 jobs run without it,
+      # so the core install is tested on its own (the DuckDB tests skip there).
+      - run: >-
+          uv sync --python ${{ matrix.python }} --extra postgres
+          ${{ matrix.python == '3.13' && '--extra duckdb' || '' }}
       - run: uv run python example_project/manage.py makemigrations --check --dry-run
       - run: uv run pytest
+      - if: matrix.python == '3.13'
+        run: uv run pytest tests/test_duckdb.py -q -rs | tee duckdb.log && ! grep -q SKIPPED duckdb.log
