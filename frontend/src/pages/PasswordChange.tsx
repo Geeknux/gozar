@@ -60,7 +60,7 @@ export default function PasswordChange() {
   return (
     <div className="form-page">
       <nav className="breadcrumbs">
-        <Link to="/">{t("nav.dashboard")}</Link> › <Link to={`/${app}/${model}`}>{cap(meta.verbose_name_plural)}</Link> ›{" "}
+        <Link to="/">{t("nav.dashboard")}</Link> › <Link to={`/${app}/${model}`}><bdi>{cap(meta.verbose_name_plural)}</bdi></Link> ›{" "}
         <Link to={`/${app}/${model}/${pk}`}>
           <bdi>{obj.label}</bdi>
         </Link>{" "}
@@ -84,7 +84,7 @@ export default function PasswordChange() {
             return (
               <div key={f.name} className={`form-row${errors[f.name] ? " has-error" : ""}`}>
                 <label htmlFor={`p-${f.name}`} className={f.required ? "required" : ""}>
-                  {cap(f.verbose_name)}
+                  <bdi>{cap(f.verbose_name)}</bdi>
                 </label>
                 <div className="form-input">
                   <FieldInput

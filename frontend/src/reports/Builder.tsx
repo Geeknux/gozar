@@ -19,6 +19,7 @@ import {
   type Spec,
   type SpecError,
 } from "./model";
+import { isolate } from "../bidi";
 
 type Props = {
   catalog: CatalogModel[];
@@ -107,35 +108,35 @@ export default function Builder({ catalog, spec, onChange, errors }: Props) {
         >
           {catalog.map((m) => (
             <option key={m.name} value={m.name}>
-              {m.label}
+              {isolate(m.label)}
             </option>
           ))}
         </select>
-        {model.description && <small className="help">{model.description}</small>}
+        {model.description && <small className="help"><bdi>{model.description}</bdi></small>}
       </Section>
 
       <Section title={t("report.measures")} errors={show(errorsAt((p) => p.startsWith("measures")))}>
         {model.measures.map((m) => (
-          <label key={m.key} className="check-row" title={m.description}>
+          <label key={m.key} className="check-row" title={isolate(m.description)}>
             <input
               type="checkbox"
               checked={spec.measures.includes(m.key)}
               onChange={() => set({ measures: toggle(spec.measures, m.key) })}
             />
-            {m.label}
+            <bdi>{m.label}</bdi>
           </label>
         ))}
       </Section>
 
       <Section title={t("report.dimensions")} errors={show(errorsAt((p) => p.startsWith("dimensions")))}>
         {model.dimensions.map((d) => (
-          <label key={d.key} className="check-row" title={d.description}>
+          <label key={d.key} className="check-row" title={isolate(d.description)}>
             <input
               type="checkbox"
               checked={(spec.dimensions ?? []).includes(d.key)}
               onChange={() => set({ dimensions: toggle(spec.dimensions ?? [], d.key) })}
             />
-            {d.label}
+            <bdi>{d.label}</bdi>
           </label>
         ))}
       </Section>
@@ -156,7 +157,7 @@ export default function Builder({ catalog, spec, onChange, errors }: Props) {
             <select value={timeDim ?? ""} onChange={(e) => set({ time_dimension: e.target.value || null })}>
               {timeDims.map((d) => (
                 <option key={d.key} value={d.key}>
-                  {d.label}
+                  {isolate(d.label)}
                 </option>
               ))}
             </select>
@@ -362,7 +363,7 @@ function FilterRow({ filter, model, calendar, onChange, errors }: FilterRowProps
         >
           {model.dimensions.map((d) => (
             <option key={d.key} value={d.key}>
-              {d.label}
+              {isolate(d.label)}
             </option>
           ))}
         </select>

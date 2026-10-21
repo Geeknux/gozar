@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { engineLabel } from "../engine";
 import { useI18n } from "../i18n";
+import { isolate } from "../bidi";
 
 type Entry = {
   id: number;
@@ -98,7 +99,7 @@ export default function AuditLog() {
           <option value="">{t("audit.anyStatus")}</option>
           {data?.filters.status.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {isolate(o.label)}
             </option>
           ))}
         </select>
@@ -106,7 +107,7 @@ export default function AuditLog() {
           <option value="">{t("audit.anyKind")}</option>
           {data?.filters.kind.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {isolate(o.label)}
             </option>
           ))}
         </select>

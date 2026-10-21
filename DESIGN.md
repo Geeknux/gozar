@@ -8,7 +8,8 @@
 > engine), i18n + per-user preferences, M3 (report UI), M4 (access control +
 > execution), M5 (natural-language interface), M6 (dashboards and
 > scheduling), M6.5 (admin parity and system dashboard) and M7 (scale:
-> pre-aggregations and the DuckDB engine) done — the roadmap is complete; see §10.
+> pre-aggregations and the DuckDB engine) done — the roadmap is complete; since
+> then: bidirectional text and translatable names (§10).
 > Purpose of this file: the single source of context for starting implementation
 > in a fresh session. Read it fully before writing code.
 
@@ -1646,6 +1647,85 @@ exactly what the summary tables and the precomputed local dates remove; times
 under ~30 ms are mostly Django, validation and serialisation overhead, the same
 for every engine. These are local measurements on one machine, not a
 reference.
+
+Decided (bidirectional text and translatable content, 2026-10-21):
+
+- **The bug**: in the Persian UI, English text typed by users (the *Sales
+  overview* description, widget titles) was scrambled — Latin text with
+  punctuation sat in an RTL paragraph without a direction of its own (the
+  description shared a `<bdi>` with the " · " separator and the owner line).
+- **Rule**: everything that renders user-generated or data-driven text isolates
+  it, so English inside Persian pages and Persian inside English ones both read
+  correctly; numbers, dates and identifiers stay LTR. SPA helpers in
+  `frontend/src/bidi.tsx`: `<bdi>` for inline text, `<UserText>` for blocks
+  (`dir="auto"` + `.user-text`: `unicode-bidi: plaintext; text-align: start;
+  white-space: pre-line`), `isolate()` (FSI…PDI) for strings that leave the DOM's
+  bidi handling — ECharts canvas labels, legends and tooltips (`reports/Chart.tsx`,
+  `system/BarChart.tsx`), `title=` tooltips, `<option>` text. `t()` isolates every
+  string parameter, so toasts, `confirm()` prompts and messages that quote a name
+  are safe by default (a value that is *sent* to the API is built with the raw
+  `translate()`, and the server strips isolate marks from stored names anyway).
+  CSS gives `p/div/li/dd/td/h1–h4[dir="auto"]` and `input/textarea[dir="auto"]`
+  `unicode-bidi: plaintext; text-align: start`. Descriptions on the dashboard and
+  report pages are their own paragraph now, not part of the owner line.
+- **Lint**: `npm run lint:bidi` (`frontend/scripts/check-bidi.mjs`, run first by
+  `npm run build`, hence in CI) flags a JSX child that renders a name, title,
+  description, label, question, problem, `personName()`, `fmt.cell()` or
+  `dimensionText()` value outside `<bdi>`, `<UserText>`, an element with `dir=`,
+  or `isolate()`; a deliberate exception takes a `bidi-ok` comment. It is a
+  line-based heuristic (no TypeScript parser: TypeScript 7 has no JS compiler
+  API), cheap enough to keep new code honest. No frontend unit-test runner was
+  added for it.
+- **E-mails**: titles, descriptions and section titles are `dir="auto"` blocks
+  (plaintext, start-aligned); table cells and KPI labels are `<span dir="auto">`
+  so a column keeps the page's alignment; KPI values and changes are
+  `dir="ltr"` (the sign stays with the number). The subject isolates the name
+  when its direction differs from the recipient's language or it mixes both
+  (`formatting.isolate(text, lang)`).
+- **Translatable content** (`bi_admin.translations`, abstract `Translatable`):
+  `SavedReport`/`Dashboard` (`Shared`) and `Schedule` have `name_i18n` and
+  `description_i18n`, `DashboardWidget` `title_i18n` — JSON `{language: text}`
+  over the configured languages (`LANGUAGE_CHOICES`). `Schedule` gained a
+  `description` (shown in the schedule list and as a note in its e-mail). The
+  plain field stays the default language's text (`GOZAR["DEFAULT_LANGUAGE"]`) —
+  ordering, `__str__`, old clients — and `Translatable.save()` keeps the two in
+  step: a plain field changed directly becomes the default language's text; a
+  blank one shows the default language, else the first language there is
+  (without inventing a translation). `bulk_create` callers sync by hand.
+- **Resolution**: the viewer's language → the default language → the plain field
+  → any language (`translations.pick`). API payloads give `name`/`description`
+  (`title` for widgets, `saved_report.name`, a schedule's `target.name`) in the
+  viewer's language plus `*_i18n` with every stored language for editing; a
+  widget's `title_i18n` is its own (empty: it shows its report's name, per
+  language). Writes accept `name_i18n`/`description_i18n`/`title_i18n` (they
+  replace the stored languages; unknown languages are refused, empty texts
+  dropped) and still the plain fields (the default language only). Duplicates
+  translate "Copy of …" into each language.
+- **Search**: the saved-report and dashboard lists' `q` matches the plain fields
+  and each language's key (`name_i18n__fa__icontains`): JSON is stored with
+  `\u` escapes, so matching the whole document would miss Persian text.
+- **Exports**: `POST /reports/export` and `GET /reports/jobs/{id}/export` take
+  `title` (the SPA sends the saved report's or widget's name): it names the file
+  (`slugify(…, allow_unicode=True)`, RFC 6266 `filename*=` for non-ASCII) and the
+  XLSX sheet. E-mail attachments use the section title the same way.
+- **E-mails** are built per recipient inside their language, so the subject,
+  title, description, schedule note and every section title are theirs.
+- **SPA editing**: `components/TranslatedInput` — one field per configured
+  language, the default first and marked; with one language it is a plain field.
+  Used by the name/description dialog of saved reports and dashboards, the widget
+  dialog and the schedule dialog. The session carries the languages and the
+  default (`/auth/me` preferences).
+- **Migrations**: `0010_translations` (fields) and `0011_translations_data`
+  (copies existing names, descriptions and widget titles into the default
+  language's key; nothing to undo backwards).
+- **Demo**: `seed_demo` gives the saved reports, the *Sales overview* dashboard,
+  its *Orders by status* widget and the weekly e-mail Persian names and
+  descriptions; `seed_demo --content-only` refreshes just that content in a
+  seeded database (orders, customers and users untouched).
+- Checked (2026-10-21) with Playwright on a copy of the demo database: the
+  Persian dashboard with an English name and description (*Sales overview (Q4,
+  v2)*), the English dashboard with Persian ones, and the HTML e-mail in both
+  languages; the README screenshots were regenerated.
 
 Still open:
 

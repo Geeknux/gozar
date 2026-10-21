@@ -342,7 +342,7 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
                     <td>
                       {x.model ? (
                         <span title={x.model}>
-                          {cap(x.verbose_name ?? x.model)} <small className="muted">{x.app_verbose_name ?? x.app}</small>
+                          <bdi>{cap(x.verbose_name ?? x.model)}</bdi> <small className="muted"><bdi>{x.app_verbose_name ?? x.app}</bdi></small>
                         </span>
                       ) : (
                         "—"

@@ -155,7 +155,7 @@ export default function InlineEditor({ meta, model, rows, hidden, readOnly, erro
   return (
     <section className={`card inline inline-${meta.style}`} aria-label={cap(meta.verbose_name_plural)}>
       <div className="inline-head">
-        <h2>{cap(meta.verbose_name_plural)}</h2>
+        <h2><bdi>{cap(meta.verbose_name_plural)}</bdi></h2>
         <span className="muted">
           {meta.max_num !== null ? t("inline.countMax", { count, max: meta.max_num }) : t("inline.count", { count })}
         </span>
@@ -174,7 +174,7 @@ export default function InlineEditor({ meta, model, rows, hidden, readOnly, erro
               <tr>
                 {names.map((n) => (
                   <th key={n} className={fields[n].required && !ro.has(n) && !readOnly ? "required" : ""}>
-                    {cap(fields[n].verbose_name)}
+                    <bdi>{cap(fields[n].verbose_name)}</bdi>
                   </th>
                 ))}
                 <th className="inline-delete">{readOnly ? "" : t("common.delete")}</th>
@@ -239,7 +239,7 @@ export default function InlineEditor({ meta, model, rows, hidden, readOnly, erro
               {names.map((n) => (
                 <div key={n} className={`form-row${rowErrors(r.key)?.[n] ? " has-error" : ""}`}>
                   <label htmlFor={`${meta.name}-${r.key}-${n}`} className={fields[n].required && !ro.has(n) ? "required" : ""}>
-                    {cap(fields[n].verbose_name)}
+                    <bdi>{cap(fields[n].verbose_name)}</bdi>
                   </label>
                   <div className="form-input">{cell(r, n, false)}</div>
                 </div>

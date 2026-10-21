@@ -4,6 +4,7 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 
+import { isolate } from "../bidi";
 import { useI18n } from "../i18n";
 
 echarts.use([Bars, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer]);
@@ -49,7 +50,8 @@ export default function BarChart({ label, categories, series, horizontal, stacke
       type: "value",
       axisLabel: { formatter: (v: number) => format(v), hideOverlap: true },
     };
-    const categoryAxis = { type: "category", data: categories, axisLabel: { hideOverlap: !horizontal } };
+    // table names and labels keep their own direction on the canvas (bidi.tsx)
+    const categoryAxis = { type: "category", data: categories.map((c) => isolate(c)), axisLabel: { hideOverlap: !horizontal } };
     instance.setOption(
       {
         textStyle: { fontFamily: font },
@@ -63,7 +65,7 @@ export default function BarChart({ label, categories, series, horizontal, stacke
           : { ...valueAxis, position: rtl ? "right" : "left" },
         series: series.map((s) => ({
           type: "bar",
-          name: s.name,
+          name: isolate(s.name),
           data: s.data,
           stack: stacked ? "total" : undefined,
           emphasis: { focus: "series" },

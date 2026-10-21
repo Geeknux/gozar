@@ -63,7 +63,7 @@ export default function ViewsMenu({ meta, params, onApply }: Props) {
   return (
     <div className="views-menu" ref={box}>
       <button type="button" className="button" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        {active ? active.name : t("views.title")} ▾
+        <bdi>{active ? active.name : t("views.title")}</bdi> ▾
       </button>
       {open && (
         <div className="menu-popup">

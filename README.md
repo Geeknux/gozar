@@ -101,8 +101,9 @@ numbers their own account may see (M6 scheduled e-mail).*
 ![The same Sales overview dashboard in Persian: right-to-left layout, Persian digits and Jalali month names on the chart axis](docs/screenshots/dashboard-persian-jalali.webp)
 
 *The same dashboard for a user who chose Persian and the Jalali calendar:
-right-to-left, Persian digits, Jalali months (M2 Jalali calendar, per-user
-language and calendar).*
+right-to-left, Persian digits, Jalali months, and the dashboard's, widgets' and
+reports' own names and description in Persian (M2 Jalali calendar, per-user
+language and calendar, translatable names).*
 
 ![The same revenue by city report side by side: the manager sees ten cities, the tehran user only Tehran, Karaj and Qom](docs/screenshots/row-level-security.webp)
 
@@ -134,7 +135,9 @@ uv run pytest
 
 It also creates demo content owned by `manager` and shared with everyone: four
 saved reports, the **Sales overview** dashboard (manager's home page) and a
-weekly e-mail of it to `manager`, `tehran` and `east`. Send it now with
+weekly e-mail of it to `manager`, `tehran` and `east` — named and described in
+English and Persian (`seed_demo --content-only` refreshes just this content in a
+seeded database). Send it now with
 `manage.py gozar_send_schedules --schedule 1`: the e-mails land in
 `example_project/.mail/` (file e-mail backend; set
 `GOZAR_EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend` to print
@@ -426,6 +429,23 @@ included). After changing strings, run `django-admin makemessages -l fa` and
 `django-admin compilemessages` in `src/bi_admin` (and `example_project/shop`);
 SPA strings live in `frontend/src/i18n/en.ts` and `fa.ts`.
 
+**What users type** — the names and descriptions of saved reports, dashboards and
+e-mail schedules, and widget titles — can be given in every configured language:
+the dialogs show one field per language, and each viewer (and each e-mail
+recipient) gets their language, else the default language's text. The API
+returns `name`/`description` (widgets: `title`) in the viewer's language plus
+`name_i18n`/`description_i18n`/`title_i18n` (`{"en": "…", "fa": "…"}`), and
+accepts the latter; search, exports (`?title=` names the file and sheet) and
+e-mails use the viewer's language.
+
+**Mixed-direction text**: user and data text is isolated wherever it appears —
+English names inside Persian pages and Persian inside English ones keep their
+order, in pages, charts (ECharts labels and tooltips), tooltips, messages and
+e-mails. In SPA code, render such text in `<bdi>` or `<UserText>` (or pass it
+through `isolate()` when it leaves the DOM, e.g. chart labels) — see
+`frontend/src/bidi.tsx`; `npm run lint:bidi` (part of `npm run build`) flags
+JSX that forgets.
+
 ### Access control
 
 **Row-level rules** decide which rows a user may see and touch. A rule takes the
@@ -680,6 +700,8 @@ for staff only by default — anonymous visitors are sent to the login first; se
     open saved reports and dashboards, widget specs and global filters, e-mail
     schedules (due times, per-recipient e-mails), server-side value formatting;
   - `preferences.py`, `middleware.py` — per-user language/calendar;
+  - `translations.py` — per-language names and descriptions of saved reports,
+    dashboards, widgets and schedules (`Translatable`);
   - `locale/fa/` — Persian gettext catalog;
   - `nl/` — the NL interface: text normalisation and transliteration, the
     visible catalog and retrieval, the value index, the prompt, providers
@@ -694,12 +716,16 @@ for staff only by default — anonymous visitors are sent to the login first; se
   `src/pages/list/` the list's hierarchy bar, views menu, import and bulk-edit
   dialogs, `src/components/FieldInput.tsx` (with `InlineEditor`, `DualList`,
   `PermissionTree`, `FileInput`, `RawIdInput`) the form widgets,
-  `src/components/DatePicker.tsx` the Gregorian/Jalali date picker.
+  `src/components/DatePicker.tsx` the Gregorian/Jalali date picker,
+  `src/components/TranslatedInput.tsx` the per-language name fields, and
+  `src/bidi.tsx` the mixed-direction helpers (`UserText`, `isolate()`) checked by
+  `scripts/check-bidi.mjs`.
 - `example_project/` — demo project with the `shop` app (City, Customer, Tag,
   Product, ProductImage, Order, OrderItem), its `gozar.py` (CRUD options with
   inlines + `OrderMetrics`), a public product page (the "View on site" target)
   and the `seed_demo` command (`--seed`, `--customers`, `--orders`, `--days`,
-  `--flush`, `--locale en|fa`, `--users`, `--password`, `--no-media`) and
+  `--flush`, `--locale en|fa`, `--users`, `--password`, `--no-media`,
+  `--content-only`) and
   `gozar_benchmark`. The default English data set uses real Iranian
   cities with English names; `--locale fa` writes the same data with Persian
   names, handy for RTL demos and Arabic/Persian letter search

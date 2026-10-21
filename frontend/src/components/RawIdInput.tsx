@@ -71,7 +71,7 @@ export default function RawIdInput({ id, model, field, inline, relatedModel, val
             <bdi>{value.label}</bdi>
           </Link>
         )}
-        {value?.restricted && <span className="muted">{value.label}</span>}
+        {value?.restricted && <span className="muted"><bdi>{value.label}</bdi></span>}
       </div>
       {missing && <small className="field-error">{t("widget.notFound")}</small>}
       {lookup && (

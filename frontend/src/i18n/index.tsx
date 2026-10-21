@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useMemo } from "react";
 
+import { isolate } from "../bidi";
 import { en, type MessageKey } from "./en";
 import { fa } from "./fa";
 
@@ -139,14 +140,15 @@ function build(prefs: Prefs): I18n {
     lang: prefs.language,
     calendar: prefs.calendar,
     dir: dirOf(prefs.language),
-    // Numbers in messages get the language's digits.
+    // Numbers in messages get the language's digits; text (a name, a search term)
+    // is isolated so it keeps its own direction inside the sentence.
     t: (key, params) =>
       translate(
         prefs.language,
         key,
         params &&
           Object.fromEntries(
-            Object.entries(params).map(([k, v]) => [k, typeof v === "number" ? fmt.number(v) : v]),
+            Object.entries(params).map(([k, v]) => [k, typeof v === "number" ? fmt.number(v) : isolate(v)]),
           ),
       ),
     fmt,

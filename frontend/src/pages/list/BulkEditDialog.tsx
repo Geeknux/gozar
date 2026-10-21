@@ -72,7 +72,7 @@ export default function BulkEditDialog({ meta, selection, count, onClose, onDone
                   setChosen(next);
                 }}
               />
-              {cap(f.verbose_name)}
+              <bdi>{cap(f.verbose_name)}</bdi>
             </label>
             <div className="form-input">
               {chosen.has(f.name) ? (

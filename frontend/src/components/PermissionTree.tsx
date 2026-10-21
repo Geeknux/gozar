@@ -105,7 +105,7 @@ export default function PermissionTree({ model, field, value, onChange }: Props)
                     setOpen(next);
                   }}
                 >
-                  <strong>{a.verbose_name}</strong>{" "}
+                  <strong><bdi>{a.verbose_name}</bdi></strong>{" "}
                   <span className="muted">
                     ({fmt.number(all.filter((p) => chosen.has(p.pk)).length)}/{fmt.number(all.length)})
                   </span>

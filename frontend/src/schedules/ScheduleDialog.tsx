@@ -2,8 +2,9 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import Dialog from "../components/Dialog";
 import PeoplePicker from "../components/PeoplePicker";
+import TranslatedInput, { cleanTexts } from "../components/TranslatedInput";
 import { type CalendarName, type MessageKey, useI18n } from "../i18n";
-import { errorText, type Person } from "../sharing";
+import { errorText, type Person, type Texts } from "../sharing";
 import { type Attachment, createSchedule, type Frequency, type Schedule, timeZones, updateSchedule } from "./api";
 
 type Props = {
@@ -24,7 +25,8 @@ export const WEEKDAYS = [5, 6, 0, 1, 2, 3, 4]; // Saturday first (Monday = 0)
 export default function ScheduleDialog({ target, schedule, me, defaultTimezone, onSaved, onClose }: Props) {
   const { t, calendar: myCalendar, lang } = useI18n();
   const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const [name, setName] = useState(schedule?.name ?? "");
+  const [names, setNames] = useState<Texts>(schedule?.name_i18n ?? {});
+  const [descriptions, setDescriptions] = useState<Texts>(schedule?.description_i18n ?? {});
   const [frequency, setFrequency] = useState<Frequency>(schedule?.frequency ?? "weekly");
   const [time, setTime] = useState(schedule?.time ?? "08:00");
   const [weekday, setWeekday] = useState<number>(schedule?.weekday ?? (lang === "fa" ? 5 : 0));
@@ -46,7 +48,8 @@ export default function ScheduleDialog({ target, schedule, me, defaultTimezone, 
     setBusy(true);
     setError("");
     const body = {
-      name,
+      name_i18n: cleanTexts(names),
+      description_i18n: cleanTexts(descriptions),
       frequency,
       time,
       weekday: frequency === "weekly" ? weekday : null,
@@ -82,10 +85,9 @@ export default function ScheduleDialog({ target, schedule, me, defaultTimezone, 
             {t(subject.kind === "dashboard" ? "schedule.ofDashboard" : "schedule.ofReport")} <bdi>{subject.name}</bdi>
           </p>
         )}
-        <label className="stack">
-          {t("schedule.name")}
-          <input dir="auto" value={name} maxLength={200} placeholder={subject?.name} onChange={(e) => setName(e.target.value)} />
-        </label>
+        <TranslatedInput label={t("schedule.name")} value={names} maxLength={200} onChange={setNames} />
+        <TranslatedInput label={t("schedule.description")} value={descriptions} multiline onChange={setDescriptions} />
+        {subject && <p className="muted small">{t("schedule.nameHint", { name: subject.name })}</p>}
         <div className="form-grid">
           <label className="stack">
             {t("schedule.frequency")}

@@ -76,7 +76,7 @@ export default function Login({ onLogin, onLanguage }: Props) {
               aria-pressed={l.value === lang}
               onClick={() => chooseLanguage(l.value)}
             >
-              {l.label}
+              <bdi>{l.label}</bdi>
             </button>
           ))}
         </div>

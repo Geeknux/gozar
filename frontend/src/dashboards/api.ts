@@ -1,13 +1,16 @@
 /** Dashboards (bi_admin.api.dashboards). */
 import { api } from "../api";
 import type { ChartType, Choice, Spec } from "../reports/model";
-import type { Shared, SharingIn } from "../sharing";
+import type { Shared, SharedTextsIn, SharingIn, Texts } from "../sharing";
 
 export type Layout = { x: number; y: number; w: number; h: number };
 
 export type Widget = {
   id: number;
+  /** the widget's title, else its saved report's name (in the viewer's language) */
   title: string;
+  /** the widget's own title per language (empty: it shows the saved report's name) */
+  title_i18n: Texts;
   saved_report: { id: number; name: string } | null;
   inline: boolean;
   spec: Spec | null;
@@ -44,14 +47,14 @@ export type ResolvedWidget = Widget & { applied: string[]; ignored: string[] };
 
 /** What PATCH/POST accept for a widget. */
 export type WidgetIn = {
-  title: string;
+  title_i18n: Texts;
   saved_report: number | null;
   spec: Spec | null;
   chart: string;
 } & Layout;
 
 export const widgetIn = (w: Widget): WidgetIn => ({
-  title: w.inline || w.title !== w.saved_report?.name ? w.title : "",
+  title_i18n: w.title_i18n,
   saved_report: w.saved_report?.id ?? null,
   spec: w.saved_report ? null : w.spec,
   chart: w.chart,
@@ -61,11 +64,11 @@ export const widgetIn = (w: Widget): WidgetIn => ({
 export const listDashboards = () =>
   api<{ dashboards: DashboardSummary[]; home: number | null }>("/dashboards");
 export const getDashboard = (id: number | string) => api<Dashboard>(`/dashboards/${id}`);
-export const createDashboard = (body: { name: string; description: string; sharing: SharingIn; widgets?: WidgetIn[]; filters?: Filters }) =>
+export const createDashboard = (body: SharedTextsIn & { sharing: SharingIn; widgets?: WidgetIn[]; filters?: Filters }) =>
   api<Dashboard>("/dashboards", { method: "POST", body });
 export const updateDashboard = (
   id: number,
-  body: Partial<{ name: string; description: string; sharing: SharingIn; widgets: WidgetIn[]; filters: Filters }>,
+  body: Partial<SharedTextsIn & { sharing: SharingIn; widgets: WidgetIn[]; filters: Filters }>,
 ) => api<Dashboard>(`/dashboards/${id}`, { method: "PATCH", body });
 export const deleteDashboard = (id: number) => api(`/dashboards/${id}`, { method: "DELETE" });
 export const duplicateDashboard = (id: number) => api<Dashboard>(`/dashboards/${id}/duplicate`, { method: "POST" });

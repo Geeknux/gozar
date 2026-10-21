@@ -42,6 +42,7 @@ export default function App() {
   const [apps, setApps] = useState<AppEntry[]>([]);
   const [prefs, setPrefsState] = useState<Prefs>({ language: config.language, calendar: config.calendar });
   const [extra, setExtra] = useState<{ options: Record<string, unknown>; timezone: string }>({ options: {}, timezone: "UTC" });
+  const [content, setContent] = useState<Session["content"]>({ languages: [], defaultLanguage: "en" });
 
   const setPrefs = useCallback((next: Prefs) => {
     setPrefsState((current) => {
@@ -57,6 +58,7 @@ export default function App() {
     const me = await api<Me>("/auth/me");
     setPrefs({ language: me.preferences.language, calendar: me.preferences.calendar });
     setExtra({ options: me.preferences.options, timezone: me.preferences.timezone });
+    setContent({ languages: me.preferences.available.languages, defaultLanguage: me.preferences.defaults.language });
     setUser(me.authenticated ? me.user : null);
     if (me.authenticated) {
       const index = await api<{ apps: AppEntry[] }>("/meta/models");
@@ -88,8 +90,8 @@ export default function App() {
     setExtra({ options: next.options, timezone: next.timezone });
   }, []);
   const session = useMemo<Session | null>(
-    () => (user ? { user, options: extra.options, timezone: extra.timezone, setOption } : null),
-    [user, extra, setOption],
+    () => (user ? { user, options: extra.options, timezone: extra.timezone, content, setOption } : null),
+    [user, extra, content, setOption],
   );
 
   return (

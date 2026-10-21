@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { ApiError } from "../api";
+import { isolate } from "../bidi";
 import { useI18n } from "../i18n";
 import { compact, dataKey, type Job, type Result, type Spec } from "../reports/model";
 import Results from "../reports/Results";
@@ -52,7 +53,7 @@ export default function WidgetView({ widget, options, refresh }: Props) {
     : "";
   const head = (
     <header className="widget-head">
-      <h3 dir="auto" title={widget.title}>
+      <h3 dir="auto" title={isolate(widget.title)}>
         {widget.title || t("dash.untitled")}
       </h3>
       {href && (
@@ -70,10 +71,10 @@ export default function WidgetView({ widget, options, refresh }: Props) {
       {widget.ignored.length > 0 && (
         <p className="muted small widget-note">{t("dash.notFiltered", { filters: widget.ignored.map(label).join(t("common.listSeparator")) })}</p>
       )}
-      {widget.problem && <p className="notice muted">{widget.problem}</p>}
+      {widget.problem && <p className="notice muted"><bdi>{widget.problem}</bdi></p>}
       {error && <p className="error">{error}</p>}
       {spec && !result && !error && <p className="muted">{job ? t(job.status === "running" ? "job.running" : "job.queued") : t("report.running")}</p>}
-      {spec && result && <Results result={result.result} spec={result.spec} jobId={result.jobId} chart={widget.chart} compact head={head} />}
+      {spec && result && <Results result={result.result} spec={result.spec} jobId={result.jobId} chart={widget.chart} compact head={head} title={widget.title} />}
     </section>
   );
 }

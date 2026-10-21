@@ -18,9 +18,47 @@ from bi_admin.nl.interpret import GREGORIAN_MONTHS_EN, GREGORIAN_MONTHS_FA, JALA
 from bi_admin.nl.interpret import format_date as date
 from bi_admin.nl.text import persian_digits
 
-__all__ = ["bucket", "cell", "date", "measure", "number"]
+__all__ = ["bucket", "cell", "date", "isolate", "measure", "number"]
 
 DECIMALS = {"currency": 0, "integer": 0, "decimal": 2, "number": 2}
+
+
+FSI, PDI = "\u2068", "\u2069"  # first-strong isolate … pop directional isolate
+
+
+def _strong_dirs(text: str) -> set[str]:
+    import unicodedata
+
+    dirs = set()
+    for ch in text:
+        kind = unicodedata.bidirectional(ch)
+        if kind == "L":
+            dirs.add("ltr")
+        elif kind in ("R", "AL"):
+            dirs.add("rtl")
+        if len(dirs) == 2:
+            break
+    return dirs
+
+
+def isolate(text: str, lang: str | None = None) -> str:
+    """``text`` wrapped in Unicode isolates where its surroundings (an e-mail
+    subject, plain text) could reorder it: when it holds left-to-right *and*
+    right-to-left letters, or letters with neutral punctuation at an end and —
+    given the surrounding ``lang`` — a direction other than that language's.
+    Other text is returned as is."""
+    if not text or (FSI in text and PDI in text):
+        return text
+    dirs = _strong_dirs(text)
+    if not dirs:
+        return text
+    if len(dirs) == 2:
+        return f"{FSI}{text}{PDI}"
+    if lang is not None and dirs == {"rtl" if lang == "fa" else "ltr"}:
+        return text
+    if not all(_strong_dirs(ch) for ch in text[0] + text[-1]):
+        return f"{FSI}{text}{PDI}"
+    return text
 
 
 def _localise(text: str, lang: str) -> str:

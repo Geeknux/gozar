@@ -44,13 +44,13 @@ export default function Home({ apps }: { apps: AppEntry[] }) {
       </Suspense>
       {apps.map((app) => (
         <section key={app.app_label} className="card">
-          <h2>{cap(app.verbose_name)}</h2>
+          <h2><bdi>{cap(app.verbose_name)}</bdi></h2>
           <table className="grid">
             <tbody>
               {app.models.map((m) => (
                 <tr key={m.label}>
                   <td>
-                    <Link to={`/${m.label.replace(".", "/")}`}>{cap(m.verbose_name_plural)}</Link>
+                    <Link to={`/${m.label.replace(".", "/")}`}><bdi>{cap(m.verbose_name_plural)}</bdi></Link>
                   </td>
                   <td className="actions-cell">
                     {m.permissions.add && (

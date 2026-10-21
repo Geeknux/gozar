@@ -22,6 +22,7 @@ import {
   type Spec,
   trend,
 } from "./model";
+import { isolate } from "../bidi";
 
 type Props = {
   result: Result;
@@ -33,6 +34,8 @@ type Props = {
   compact?: boolean;
   /** compact only: shown at the start of the tools row (the widget's title) */
   head?: ReactNode;
+  /** names exports (file and sheet): the saved report's or widget's name */
+  title?: string;
 };
 
 type Drill = { cell: Cell; measure: string | null; comparison: boolean; title: string };
@@ -42,7 +45,7 @@ function csrfToken(): string {
   return m ? decodeURIComponent(m[1]) : "";
 }
 
-export default function Results({ result, spec, jobId, chart, onChart, compact = false, head }: Props) {
+export default function Results({ result, spec, jobId, chart, onChart, compact = false, head, title: exportTitle = "" }: Props) {
   const { t, fmt } = useI18n();
   const dims = dimensionColumns(result);
   const measures = measureColumns(result);
@@ -72,16 +75,19 @@ export default function Results({ result, spec, jobId, chart, onChart, compact =
   async function download(format: "csv" | "xlsx") {
     setExportError("");
     try {
+      const query = new URLSearchParams({ format, ...(exportTitle ? { title: exportTitle } : {}) });
       const resp = jobId
-        ? await fetch(`${config.apiBase}/reports/jobs/${jobId}/export?format=${format}`, { credentials: "same-origin" })
-        : await fetch(`${config.apiBase}/reports/export?format=${format}`, {
+        ? await fetch(`${config.apiBase}/reports/jobs/${jobId}/export?${query}`, { credentials: "same-origin" })
+        : await fetch(`${config.apiBase}/reports/export?${query}`, {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
             body: JSON.stringify(spec),
           });
       if (!resp.ok) throw new ApiError(resp.status, await resp.json().catch(() => ({})));
-      const name = /filename="([^"]+)"/.exec(resp.headers.get("Content-Disposition") ?? "")?.[1] ?? `report.${format}`;
+      const disposition = resp.headers.get("Content-Disposition") ?? "";
+      const encoded = /filename\*=utf-8''([^;]+)/i.exec(disposition)?.[1];
+      const name = encoded ? decodeURIComponent(encoded) : (/filename="([^"]+)"/.exec(disposition)?.[1] ?? `report.${format}`);
       const url = URL.createObjectURL(await resp.blob());
       const a = Object.assign(document.createElement("a"), { href: url, download: name });
       document.body.appendChild(a);
@@ -137,7 +143,7 @@ export default function Results({ result, spec, jobId, chart, onChart, compact =
             <select value={measure.key} aria-label={t("report.pivotMeasure")} onChange={(e) => setMeasureKey(e.target.value)}>
               {measures.map((m) => (
                 <option key={m.key} value={m.key}>
-                  {m.label}
+                  {isolate(m.label)}
                 </option>
               ))}
             </select>
@@ -167,7 +173,7 @@ export default function Results({ result, spec, jobId, chart, onChart, compact =
             <select value={measure.key} aria-label={t("report.pivotMeasure")} onChange={(e) => setMeasureKey(e.target.value)}>
               {measures.map((m) => (
                 <option key={m.key} value={m.key}>
-                  {m.label}
+                  {isolate(m.label)}
                 </option>
               ))}
             </select>
@@ -253,7 +259,7 @@ function Table({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
             {result.columns.map((c) => (
               <th key={c.key} className={c.role === "dimension" ? "" : "num"}>
                 <button type="button" className="link" onClick={() => toggle(c.key)}>
-                  {c.label} {sort?.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : ""}
+                  <bdi>{c.label}</bdi> {sort?.key === c.key ? (sort.dir === 1 ? "▲" : "▼") : ""}
                 </button>
               </th>
             ))}
@@ -314,7 +320,7 @@ function Kpi({ result, onDrill }: { result: Result; onDrill: DrillFn }) {
         return (
           <div key={m.key} className="kpi">
             <button type="button" className="kpi-main" onClick={() => onDrill({}, m.key)}>
-              <span className="kpi-label">{m.label}</span>
+              <span className="kpi-label"><bdi>{m.label}</bdi></span>
               <strong className="kpi-value">{fmt.measure(row[m.key], m.format)}</strong>
             </button>
             {previous && (
@@ -355,7 +361,7 @@ function Pivot({ result, measure, onDrill }: { result: Result; measure: Column; 
         <thead>
           <tr>
             <th>
-              {rowDim.label} / {colDim.label}
+              <bdi>{rowDim.label}</bdi> / {colDim.label}
             </th>
             {colValues.map((c) => (
               <th key={JSON.stringify(c)} className="num">

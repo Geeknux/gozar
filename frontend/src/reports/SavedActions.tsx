@@ -5,7 +5,7 @@ import AddToDashboard from "../dashboards/AddToDashboard";
 import { useI18n } from "../i18n";
 import ScheduleDialog from "../schedules/ScheduleDialog";
 import { useSession } from "../session";
-import { createSaved, deleteSaved, duplicateSaved, errorText, type SavedReport, sharingIn, updateSaved } from "../sharing";
+import { copyNames, createSaved, deleteSaved, duplicateSaved, errorText, type SavedReport, sharingIn, updateSaved } from "../sharing";
 import { compact, dataKey, type Spec } from "./model";
 
 type Props = {
@@ -91,7 +91,7 @@ export default function SavedActions({ saved, spec, onSaved, onDeleted, minimal 
         <SharedDialog
           title={t("saved.saveTitle")}
           submitLabel={t("form.save")}
-          initial={saved ? { name: t("saved.copyName", { name: saved.name }), description: saved.description } : undefined}
+          initial={saved ? { name_i18n: copyNames(saved.name_i18n), description_i18n: saved.description_i18n } : undefined}
           onSubmit={async (v) => onSaved(await createSaved({ ...v, sharing: sharingIn(v.sharing), spec: compact(spec) }))}
           onClose={() => setOpen(null)}
         />
@@ -100,7 +100,7 @@ export default function SavedActions({ saved, spec, onSaved, onDeleted, minimal 
         <SharedDialog
           title={t("saved.editTitle")}
           submitLabel={t("form.save")}
-          initial={{ name: saved.name, description: saved.description, sharing: saved.sharing }}
+          initial={{ name_i18n: saved.name_i18n, description_i18n: saved.description_i18n, sharing: saved.sharing }}
           onSubmit={async (v) => onSaved(await updateSaved(saved.id, { ...v, sharing: sharingIn(v.sharing) }))}
           onClose={() => setOpen(null)}
         />

@@ -41,7 +41,7 @@ export default function RecentActions({ limit = 10 }: { limit?: number }) {
                   <bdi className="deleted">{e.object_repr}</bdi>
                 )}
                 <small className="muted">
-                  {e.verbose_name} · {fmt.date(e.timestamp)}
+                  <bdi>{e.verbose_name}</bdi> · {fmt.date(e.timestamp)}
                 </small>
               </span>
             </li>

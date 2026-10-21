@@ -54,10 +54,10 @@ export default function Layout({ user, apps, onLogout, children }: Props) {
           </section>
           {apps.map((app) => (
             <section key={app.app_label}>
-              <h3>{cap(app.verbose_name)}</h3>
+              <h3><bdi>{cap(app.verbose_name)}</bdi></h3>
               {app.models.map((m) => (
                 <NavLink key={m.label} to={`/${m.label.replace(".", "/")}`}>
-                  {cap(m.verbose_name_plural)}
+                  <bdi>{cap(m.verbose_name_plural)}</bdi>
                 </NavLink>
               ))}
             </section>

@@ -1,5 +1,6 @@
 {% load i18n %}{% autoescape off %}{{ title }}
 {% if description %}{{ description }}
+{% endif %}{% if note and note != description %}{{ note }}
 {% endif %}{% blocktranslate %}{{ frequency }} report, generated {{ generated }}.{% endblocktranslate %}
 {% for s in sections %}
 == {{ s.title }} ==

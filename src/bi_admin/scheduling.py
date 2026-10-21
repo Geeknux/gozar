@@ -138,7 +138,7 @@ def _items(schedule: Schedule, request) -> list[tuple[str, dict | None, str]]:
 
     if schedule.saved_report_id:
         report = schedule.saved_report
-        return [(report.name, dict(report.spec), "")]
+        return [(report.text("name"), dict(report.spec), "")]
     board = schedule.dashboard
     filters = dashboards.clean_filters(board.filters)
     filters.pop("dimensions", None)
@@ -237,13 +237,15 @@ def build_message(schedule: Schedule, user, now: dt.datetime | None = None):
         target = schedule.target
         local = now.astimezone(zone(schedule.timezone))
         when = formatting.date(local.date(), calendar, lang)
-        subject = _("%(name)s · %(date)s") % {"name": schedule.name or target.name, "date": when}
+        name = schedule.text("name") or target.text("name")
+        subject = _("%(name)s · %(date)s") % {"name": formatting.isolate(name, lang), "date": when}
         context = {
             "lang": lang,
             "dir": "rtl" if lang == "fa" else "ltr",
             "subject": subject,
-            "title": target.name,
-            "description": target.description,
+            "title": target.text("name"),
+            "description": target.text("description"),
+            "note": schedule.text("description"),
             "schedule": schedule,
             "frequency": schedule.get_frequency_display(),
             "sections": sections,
@@ -269,7 +271,9 @@ def build_message(schedule: Schedule, user, now: dt.datetime | None = None):
             for section in sections:
                 if section.result is None or not section.result["rows"]:
                     continue
-                body, content_type, filename = export(section.result, schedule.attachment)
+                body, content_type, filename = export(
+                    section.result, schedule.attachment, section.title
+                )
                 stem = slugify(section.title, allow_unicode=True) or filename.rsplit(".", 1)[0]
                 name, n = f"{stem}.{schedule.attachment}", 2
                 while name in used:

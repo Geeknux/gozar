@@ -30,7 +30,7 @@ export default function DateHierarchyBar({ dh, update }: Props) {
 
   return (
     <nav className="date-hierarchy" aria-label={dh.label}>
-      <span className="muted">{dh.label}</span>
+      <span className="muted"><bdi>{dh.label}</bdi></span>
       {path.map((p, i) =>
         p.onClick ? (
           <button key={i} type="button" className="link" onClick={p.onClick}>

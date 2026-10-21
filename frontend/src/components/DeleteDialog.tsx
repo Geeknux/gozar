@@ -23,7 +23,7 @@ export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }:
             <ul>
               {plan.summary.map((s) => (
                 <li key={s.model}>
-                  {cap(s.verbose_name)}: {fmt.number(s.count)}
+                  <bdi>{cap(s.verbose_name)}</bdi>: {fmt.number(s.count)}
                 </li>
               ))}
             </ul>
@@ -36,7 +36,7 @@ export default function DeleteDialog({ plan, title, busy, onConfirm, onCancel }:
                 <ul>
                   {plan.protected.map((p) => (
                     <li key={p.model}>
-                      {cap(p.verbose_name)} ({fmt.number(p.count)}):{" "}
+                      <bdi>{cap(p.verbose_name)}</bdi> ({fmt.number(p.count)}):{" "}
                       {p.sample.map((s, i) => (
                         <span key={String(s.pk)}>
                           {i > 0 && t("common.listSeparator")}

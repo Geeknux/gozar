@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import csv
 import io
+import re
 from typing import Any
+
+from django.utils.text import slugify
 
 from bi_admin.engine.runner import ReportResult
 from bi_admin.semantic.base import active_language
@@ -59,7 +62,12 @@ def to_csv(result: ReportResult | dict) -> bytes:
     return ("﻿" + buf.getvalue()).encode("utf-8")
 
 
-def to_xlsx(result: ReportResult | dict) -> bytes:
+def sheet_title(title: str) -> str:
+    """``title`` as an Excel sheet name (31 characters, no ``[]:*?/\\``)."""
+    return re.sub(r"[\[\]:*?/\\]", " ", title).strip()[:31].strip()
+
+
+def to_xlsx(result: ReportResult | dict, title: str = "") -> bytes:
     from openpyxl import Workbook
     from openpyxl.styles import Font
     from openpyxl.utils import get_column_letter
@@ -67,7 +75,7 @@ def to_xlsx(result: ReportResult | dict) -> bytes:
     headers, rows, columns = table(result)
     wb = Workbook()
     ws = wb.active
-    ws.title = _data(result)["semantic_model"][:31]
+    ws.title = sheet_title(title) or _data(result)["semantic_model"][:31]
     ws.sheet_view.rightToLeft = active_language() == "fa"
     ws.append(headers)
     for cell in ws[1]:
@@ -88,10 +96,13 @@ def to_xlsx(result: ReportResult | dict) -> bytes:
     return out.getvalue()
 
 
-def export(result: ReportResult | dict, fmt: str) -> tuple[bytes, str, str]:
-    """``(content, content_type, filename)`` for ``fmt`` in ``FORMATS``."""
+def export(result: ReportResult | dict, fmt: str, title: str = "") -> tuple[bytes, str, str]:
+    """``(content, content_type, filename)`` for ``fmt`` in ``FORMATS``. ``title``
+    (a saved report's or widget's name, in the viewer's language) names the file
+    and the sheet; without it, the semantic model does."""
     data = _data(result)
     content_type, ext = FORMATS[fmt]
-    body = to_csv(data) if fmt == "csv" else to_xlsx(data)
-    filename = f"{data['semantic_model']}.{ext}"
+    body = to_csv(data) if fmt == "csv" else to_xlsx(data, title)
+    stem = slugify(title, allow_unicode=True)[:100] or data["semantic_model"]
+    filename = f"{stem}.{ext}"
     return body, content_type, filename

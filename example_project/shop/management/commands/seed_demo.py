@@ -13,7 +13,9 @@ the question log).
 and the M6 demo content owned by ``manager`` and shared with everyone: saved
 reports, the "Sales overview" dashboard (pinned as manager's home page) and a
 weekly e-mail of it to manager, tehran and east — each recipient sees their own
-region (see ``DEMO_REPORTS``/``demo_content``).
+region (see ``DEMO_REPORTS``/``demo_content``). Their names and descriptions are
+in English and Persian, so each viewer gets their own language.
+``--content-only`` refreshes just that content in an already seeded database.
 """
 
 import datetime as dt
@@ -118,10 +120,12 @@ DEMO_USERS = [
 ]
 
 ORDERS = "order_metrics"
-# name → (description, spec) — saved reports owned by manager, shared with everyone
+# name → (description, Persian name and description, spec) — saved reports owned by
+# manager, shared with everyone; the English texts are the project's default language
 DEMO_REPORTS = {
     "Revenue by city": (
         "Paid revenue per city over the last three complete months.",
+        ("درآمد به تفکیک شهر", "درآمد پرداخت‌شدهٔ هر شهر در سه ماه کامل گذشته."),
         {
             "semantic_model": ORDERS,
             "measures": ["revenue"],
@@ -132,6 +136,10 @@ DEMO_REPORTS = {
     ),
     "Monthly revenue vs last year": (
         "Revenue per month for the past 12 months, next to the same months a year earlier.",
+        (
+            "درآمد ماهانه در برابر پارسال",
+            "درآمد هر ماه در ۱۲ ماه گذشته، کنار همان ماه‌ها در یک سال پیش.",
+        ),
         {
             "semantic_model": ORDERS,
             "measures": ["revenue"],
@@ -143,6 +151,7 @@ DEMO_REPORTS = {
     ),
     "Top 5 customers": (
         "The five customers with the highest revenue last year.",
+        ("۵ مشتری برتر", "پنج مشتری با بیشترین درآمد در سال گذشته."),
         {
             "semantic_model": ORDERS,
             "measures": ["revenue", "orders"],
@@ -155,6 +164,11 @@ DEMO_REPORTS = {
     "This month vs last month": (
         "Month-to-date revenue, orders and average order value against the same days "
         "of last month.",
+        (
+            "این ماه در برابر ماه قبل",
+            "درآمد، تعداد سفارش و میانگین سبد از ابتدای ماه تا امروز، در برابر همان روزهای "
+            "ماه قبل.",
+        ),
         {
             "semantic_model": ORDERS,
             "measures": ["revenue", "orders", "aov"],
@@ -165,6 +179,33 @@ DEMO_REPORTS = {
     ),
 }
 DASHBOARD = "Sales overview"
+# Persian texts of the dashboard, its inline widget and its weekly e-mail
+DASHBOARD_TEXTS = {
+    "description": (
+        "Revenue, orders and customers at a glance. Use the filters above to narrow every "
+        "widget to a period, city or status.",
+        "درآمد، سفارش‌ها و مشتریان در یک نگاه. با فیلترهای بالا همهٔ ویجت‌ها را به یک دوره، "
+        "شهر یا وضعیت محدود کنید.",
+    ),
+    "name_fa": "نمای کلی فروش",
+}
+
+
+def _texts(pair: tuple[str, str]) -> dict[str, str]:
+    """``(English, Persian)`` as a ``<field>_i18n`` mapping."""
+    return {"en": pair[0], "fa": pair[1]}
+
+
+STATUS_WIDGET = ("Orders by status", "سفارش‌ها بر اساس وضعیت")
+SCHEDULE = {
+    "name": ("Weekly sales overview", "نمای کلی هفتگی فروش"),
+    "description": (
+        "Every Saturday at 08:00 Tehran time to the manager and the regional sales teams; "
+        "each recipient sees only their own region.",
+        "هر شنبه ساعت ۸ صبح به وقت تهران برای مدیر و تیم‌های فروش منطقه‌ای؛ هر گیرنده فقط "
+        "منطقهٔ خودش را می‌بیند.",
+    ),
+}
 
 STATUSES = ["paid", "paid", "paid", "paid", "paid", "paid", "pending", "cancelled", "refunded"]
 
@@ -186,6 +227,12 @@ class Command(BaseCommand):
         )
         parser.add_argument("--password", default="gozar-demo", help="password of demo accounts")
         parser.add_argument(
+            "--content-only",
+            action="store_true",
+            help="only refresh the demo content (saved reports, dashboard, e-mail schedule) "
+            "of an already seeded database; orders, customers and users are left alone",
+        )
+        parser.add_argument(
             "--no-media",
             dest="media",
             action="store_false",
@@ -205,8 +252,13 @@ class Command(BaseCommand):
         users=False,
         password="gozar-demo",
         media=True,
+        content_only=False,
         **options,
     ):
+        if content_only:
+            self.demo_content()
+            self.stdout.write(self.style.SUCCESS("Refreshed the demo content."))
+            return
         if locale not in LOCALES:  # call_command() kwargs skip argparse's choices
             raise CommandError(f"Unknown locale {locale!r}; choose one of {', '.join(LOCALES)}")
         rng = random.Random(seed)
@@ -369,12 +421,14 @@ class Command(BaseCommand):
         manager = User.objects.get(username="manager")
         everyone = SavedReport.Visibility.EVERYONE
         saved = {}
-        for name, (description, spec) in DEMO_REPORTS.items():
+        for name, (description, (fa_name, fa_description), spec) in DEMO_REPORTS.items():
             saved[name], _created = SavedReport.objects.update_or_create(
                 owner=manager,
                 name=name,
                 defaults={
                     "description": description,
+                    "name_i18n": {"en": name, "fa": fa_name},
+                    "description_i18n": {"en": description, "fa": fa_description},
                     "semantic_model": spec["semantic_model"],
                     "spec": spec,
                     "visibility": everyone,
@@ -384,8 +438,9 @@ class Command(BaseCommand):
             owner=manager,
             name=DASHBOARD,
             defaults={
-                "description": "Revenue, orders and customers at a glance. Use the filters "
-                "above to narrow every widget to a period, city or status.",
+                "description": DASHBOARD_TEXTS["description"][0],
+                "name_i18n": {"en": DASHBOARD, "fa": DASHBOARD_TEXTS["name_fa"]},
+                "description_i18n": _texts(DASHBOARD_TEXTS["description"]),
                 "visibility": everyone,
                 "filters": {"dimensions": ["city", "status"]},
             },
@@ -409,7 +464,8 @@ class Command(BaseCommand):
                     chart="line", x=0, y=2, w=8, h=4,
                 ),
                 DashboardWidget(
-                    dashboard=board, title="Orders by status", spec=status_spec,
+                    dashboard=board, title=STATUS_WIDGET[0],
+                    title_i18n=_texts(STATUS_WIDGET), spec=status_spec,
                     chart="pie", x=8, y=2, w=4, h=4,
                 ),
                 DashboardWidget(
@@ -429,7 +485,10 @@ class Command(BaseCommand):
             owner=manager,
             dashboard=board,
             defaults={
-                "name": "Weekly sales overview",
+                "name": SCHEDULE["name"][0],
+                "name_i18n": _texts(SCHEDULE["name"]),
+                "description": SCHEDULE["description"][0],
+                "description_i18n": _texts(SCHEDULE["description"]),
                 "frequency": Schedule.Frequency.WEEKLY,
                 "weekday": 5,  # Saturday, the first day of the Iranian week
                 "time": dt.time(8, 0),

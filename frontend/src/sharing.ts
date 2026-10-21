@@ -1,5 +1,6 @@
 /** Saved reports, dashboards and their sharing (bi_admin.sharing). */
 import { api } from "./api";
+import { type Lang, translate } from "./i18n";
 import type { Spec } from "./reports/model";
 
 export type Visibility = "private" | "users" | "everyone";
@@ -15,10 +16,16 @@ export const sharingIn = (s: Sharing): SharingIn => ({
   groups: s.groups.map((g) => g.id),
 });
 
+/** Text per language (`name_i18n`, `description_i18n`, `title_i18n`); the plain
+ * field next to it is already in the viewer's language. */
+export type Texts = Partial<Record<Lang, string>>;
+
 export type Shared = {
   id: number;
   name: string;
   description: string;
+  name_i18n: Texts;
+  description_i18n: Texts;
   owner: Person;
   is_owner: boolean;
   can_edit: boolean;
@@ -34,6 +41,10 @@ export type SavedReport = Shared & {
   problem?: string;
 };
 
+/** "Copy of …" in each language the names are in (the default name of a duplicate). */
+export const copyNames = (names: Texts): Texts =>
+  Object.fromEntries(Object.entries(names).map(([lang, name]) => [lang, translate(lang as Lang, "saved.copyName", { name: name ?? "" })]));
+
 export const personName = (p: Person | null | undefined) => (p ? p.full_name || p.username : "");
 
 export const listSaved = (params?: Record<string, string>) =>
@@ -41,10 +52,12 @@ export const listSaved = (params?: Record<string, string>) =>
 
 export const getSaved = (id: number | string) => api<SavedReport>(`/saved-reports/${id}`);
 
-export const createSaved = (body: { name: string; description: string; spec: Spec; sharing: SharingIn }) =>
+export type SharedTextsIn = { name_i18n: Texts; description_i18n: Texts };
+
+export const createSaved = (body: SharedTextsIn & { spec: Spec; sharing: SharingIn }) =>
   api<SavedReport>("/saved-reports", { method: "POST", body });
 
-export const updateSaved = (id: number, body: Partial<{ name: string; description: string; spec: Spec; sharing: SharingIn }>) =>
+export const updateSaved = (id: number, body: Partial<SharedTextsIn & { name: string; spec: Spec; sharing: SharingIn }>) =>
   api<SavedReport>(`/saved-reports/${id}`, { method: "PATCH", body });
 
 export const deleteSaved = (id: number) => api<{ deleted: boolean }>(`/saved-reports/${id}`, { method: "DELETE" });

@@ -54,7 +54,7 @@ export default function Drilldown({ spec, cell, measure, comparison = false, tit
       <div className="card dialog drilldown">
         <div className="page-head">
           <div>
-            <h2>{data ? cap(data.verbose_name_plural) : t("drill.title")}</h2>
+            <h2><bdi>{data ? cap(data.verbose_name_plural) : t("drill.title")}</bdi></h2>
             <p className="muted">
               <bdi>{title}</bdi>
               {data && <> · {t("drill.count", { count: data.count })}</>}
@@ -73,9 +73,9 @@ export default function Drilldown({ spec, cell, measure, comparison = false, tit
                 <thead>
                   <tr>
                     {data.columns.map((c) => (
-                      <th key={c.name}>{c.label}</th>
+                      <th key={c.name}><bdi>{c.label}</bdi></th>
                     ))}
-                    {!data.columns.length && <th>{cap(data.verbose_name_plural)}</th>}
+                    {!data.columns.length && <th><bdi>{cap(data.verbose_name_plural)}</bdi></th>}
                   </tr>
                 </thead>
                 <tbody>

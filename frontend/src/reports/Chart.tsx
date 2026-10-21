@@ -4,6 +4,7 @@ import * as echarts from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { useEffect, useRef } from "react";
 
+import { isolate } from "../bidi";
 import { useI18n } from "../i18n";
 import { type Cell, type Column, comparisonColumn, dimensionColumns, dimensionText, type Result, type Scalar } from "./model";
 
@@ -26,7 +27,9 @@ const uniq = (values: (Scalar | null)[]) => {
 /**
  * One measure over the first group-by field; a second group-by field splits it
  * into series. Labels, numbers, digits and direction follow the user's language;
- * time buckets are labelled in the report's calendar.
+ * time buckets are labelled in the report's calendar. ECharts draws on a canvas in
+ * the page's direction, so every label (categories, series, tooltips) is isolated:
+ * an English name keeps its order in a Persian chart and vice versa.
  */
 export default function Chart({ result, kind, measure, onDrill }: Props) {
   const i18n = useI18n();
@@ -52,7 +55,7 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
   const compare = !second && kind !== "pie" ? comparisonColumn(result, measure.key, "compare") : undefined;
   const rtl = dir === "rtl";
   const font = getComputedStyle(document.documentElement).fontFamily;
-  const catLabels = categories.map((c) => dimensionText(first, c, fmt, t));
+  const catLabels = categories.map((c) => isolate(dimensionText(first, c, fmt, t)));
   const valueText = (v: unknown) => fmt.measure(v, measure.format);
 
   let option: echarts.EChartsCoreOption;
@@ -97,7 +100,7 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
       series: [
         ...splits.map((s) => ({
           type: kind === "bar" ? "bar" : "line",
-          name: second ? dimensionText(second, s, fmt, t) : measure.label,
+          name: isolate(second ? dimensionText(second, s, fmt, t) : measure.label),
           data: categories.map((c) => valueAt(c, s)),
           areaStyle: kind === "area" ? { opacity: 0.25 } : undefined,
           connectNulls: kind !== "bar",
@@ -107,7 +110,7 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
           ? [
               {
                 type: kind === "bar" ? "bar" : "line",
-                name: compare.label,
+                name: isolate(compare.label),
                 data: categories.map((c) => valueAt(c, null, compare.key)),
                 connectNulls: kind !== "bar",
                 lineStyle: { type: "dashed" },
@@ -148,5 +151,5 @@ export default function Chart({ result, kind, measure, onDrill }: Props) {
     // option is rebuilt every render; optionKey captures what it depends on
   }, [optionKey]);
 
-  return <div ref={el} className="chart" role="img" aria-label={measure.label} />;
+  return <div ref={el} className="chart" role="img" aria-label={isolate(measure.label)} />;
 }

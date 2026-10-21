@@ -1,29 +1,33 @@
 import { type FormEvent, useEffect, useState } from "react";
 
 import { api } from "../api";
+import { isolate } from "../bidi";
 import Dialog from "../components/Dialog";
+import TranslatedInput, { cleanTexts } from "../components/TranslatedInput";
 import { type MessageKey, useI18n } from "../i18n";
 import Builder from "../reports/Builder";
 import { type CatalogModel, CHARTS, type ChartType, compact, type Spec, type SpecError } from "../reports/model";
-import { listSaved, type SavedReport } from "../sharing";
+import { useSession } from "../session";
+import { listSaved, type SavedReport, type Texts } from "../sharing";
 import type { Widget } from "./api";
 
 type Props = {
   /** the widget to edit; a new one when absent */
   widget?: Widget;
-  onDone: (w: Pick<Widget, "title" | "saved_report" | "spec" | "chart" | "inline">) => void;
+  onDone: (w: Pick<Widget, "title" | "title_i18n" | "saved_report" | "spec" | "chart" | "inline">) => void;
   onClose: () => void;
 };
 
 /** Add or edit a widget: one of the saved reports I can open, or a report built here. */
 export default function WidgetDialog({ widget, onDone, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const { content } = useSession();
   const [source, setSource] = useState<"saved" | "inline">(widget && !widget.inline ? "saved" : widget ? "inline" : "saved");
   const [saved, setSaved] = useState<SavedReport[] | null>(null);
   const [savedId, setSavedId] = useState<number | null>(widget?.saved_report?.id ?? null);
   const [catalog, setCatalog] = useState<CatalogModel[] | null>(null);
   const [spec, setSpec] = useState<Spec | null>(widget?.inline ? widget.spec : null);
-  const [title, setTitle] = useState(widget?.title ?? "");
+  const [titles, setTitles] = useState<Texts>(widget?.title_i18n ?? {});
   const [chart, setChart] = useState<ChartType>(widget?.chart ?? "table");
   const [errors, setErrors] = useState<SpecError[]>([]);
   const [error, setError] = useState("");
@@ -51,9 +55,12 @@ export default function WidgetDialog({ widget, onDone, onClose }: Props) {
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
+    const title_i18n = cleanTexts(titles);
+    // what the tile shows until the dashboard is saved and reloaded
+    const title = title_i18n[lang] ?? title_i18n[content.defaultLanguage] ?? Object.values(title_i18n)[0] ?? "";
     if (source === "saved") {
       if (!chosen) return;
-      onDone({ title: title || chosen.name, saved_report: { id: chosen.id, name: chosen.name }, spec: chosen.spec, chart, inline: false });
+      onDone({ title: title || chosen.name, title_i18n, saved_report: { id: chosen.id, name: chosen.name }, spec: chosen.spec, chart, inline: false });
       onClose();
       return;
     }
@@ -62,7 +69,7 @@ export default function WidgetDialog({ widget, onDone, onClose }: Props) {
     const check = await api<{ valid: boolean; errors: SpecError[] }>("/reports/validate", { method: "POST", body: clean });
     setErrors(check.errors);
     if (!check.valid) return;
-    onDone({ title, saved_report: null, spec: clean, chart, inline: true });
+    onDone({ title, title_i18n, saved_report: null, spec: clean, chart, inline: true });
     onClose();
   };
 
@@ -84,7 +91,7 @@ export default function WidgetDialog({ widget, onDone, onClose }: Props) {
             <select value={savedId ?? ""} onChange={(e) => setSavedId(Number(e.target.value))}>
               {saved.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name}
+                  {isolate(r.name)}
                 </option>
               ))}
             </select>
@@ -95,11 +102,9 @@ export default function WidgetDialog({ widget, onDone, onClose }: Props) {
             <Builder catalog={catalog} spec={spec} onChange={setSpec} errors={errors} />
           </div>
         )}
+        <TranslatedInput label={t("dash.widgetTitle")} value={titles} maxLength={200} onChange={setTitles} />
+        {source === "saved" && chosen && <p className="muted small">{t("dash.titleFromReport", { name: chosen.name })}</p>}
         <div className="form-grid">
-          <label className="stack">
-            {t("dash.widgetTitle")}
-            <input dir="auto" value={title} placeholder={source === "saved" ? chosen?.name : ""} onChange={(e) => setTitle(e.target.value)} />
-          </label>
           <label className="stack">
             {t("dash.chart")}
             <select value={chart} onChange={(e) => setChart(e.target.value as ChartType)}>

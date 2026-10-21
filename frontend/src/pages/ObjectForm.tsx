@@ -249,7 +249,7 @@ export default function ObjectForm() {
     const ro = !canEdit || readonly.has(name);
     const labelEl = (
       <label htmlFor={`f-${name}`} className={field.required && !ro ? "required" : ""}>
-        {cap(field.verbose_name)}
+        <bdi>{cap(field.verbose_name)}</bdi>
       </label>
     );
     let input;
@@ -391,7 +391,7 @@ export default function ObjectForm() {
 function FieldsetBox({ fieldset, hasErrors, children }: { fieldset: Fieldset; hasErrors: boolean; children: React.ReactNode }) {
   const body = (
     <>
-      {fieldset.description && <p className="help fieldset-description">{fieldset.description}</p>}
+      {fieldset.description && <p className="help fieldset-description"><bdi>{fieldset.description}</bdi></p>}
       {children}
     </>
   );
@@ -399,7 +399,7 @@ function FieldsetBox({ fieldset, hasErrors, children }: { fieldset: Fieldset; ha
     return (
       <details className="card fieldset collapse" open={hasErrors}>
         <summary>
-          <h2>{fieldset.title}</h2>
+          <h2><bdi>{fieldset.title}</bdi></h2>
         </summary>
         {body}
       </details>
@@ -407,7 +407,7 @@ function FieldsetBox({ fieldset, hasErrors, children }: { fieldset: Fieldset; ha
   }
   return (
     <section className="card fieldset">
-      {fieldset.title && <h2>{fieldset.title}</h2>}
+      {fieldset.title && <h2><bdi>{fieldset.title}</bdi></h2>}
       {body}
     </section>
   );
@@ -440,12 +440,12 @@ function History({ entries, fields }: { entries: HistoryEntry[]; fields: Record<
               <DiffTable diff={h.diff} />
             ) : (
               h.changes.fields?.length ? (
-                <p className="muted">{fmt.list(h.changes.fields.map((n) => cap(fields[n]?.verbose_name ?? n)))}</p>
+                <p className="muted"><bdi>{fmt.list(h.changes.fields.map((n) => cap(fields[n]?.verbose_name ?? n)))}</bdi></p>
               ) : null
             )}
             {h.inlines?.map((inline) => (
               <div key={inline.name} className="history-inline">
-                <h4>{cap(inline.verbose_name)}</h4>
+                <h4><bdi>{cap(inline.verbose_name)}</bdi></h4>
                 <ul>
                   {inline.added.map((a) => (
                     <li key={`a-${a}`}>
@@ -487,7 +487,7 @@ function DiffTable({ diff }: { diff: DiffEntry[] }) {
       <tbody>
         {diff.map((d) => (
           <tr key={d.field}>
-            <th scope="row">{d.label}</th>
+            <th scope="row"><bdi>{d.label}</bdi></th>
             <td className="old">
               <ReadonlyValue field={{ kind: d.kind } as FieldMeta} value={d.old} />
             </td>

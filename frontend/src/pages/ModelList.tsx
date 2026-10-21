@@ -15,6 +15,7 @@ import BulkEditDialog from "./list/BulkEditDialog";
 import DateHierarchyBar from "./list/DateHierarchyBar";
 import ImportDialog from "./list/ImportDialog";
 import ViewsMenu from "./list/ViewsMenu";
+import { isolate } from "../bidi";
 
 const RESERVED = new Set(["q", "page", "ordering", "page_size", "columns", "view", "dh_year", "dh_month", "dh_day", "dh_calendar"]);
 
@@ -186,7 +187,7 @@ export default function ModelList() {
   return (
     <div className="list-page">
       <div className="page-head">
-        <h1>{cap(meta.verbose_name_plural)}</h1>
+        <h1><bdi>{cap(meta.verbose_name_plural)}</bdi></h1>
         <span className="object-tools">
           {meta.permissions.import && (
             <button type="button" className="button" onClick={() => setDialog("import")}>
@@ -234,7 +235,7 @@ export default function ModelList() {
                   <option value="">{t("list.actionPlaceholder")}</option>
                   {actions.map((a) => (
                     <option key={a.name} value={a.name}>
-                      {a.label}
+                      {isolate(a.label)}
                     </option>
                   ))}
                 </select>
@@ -307,7 +308,7 @@ export default function ModelList() {
                           <th key={c.name} className={c.boolean ? "center" : ""} aria-sort={dir === "▲" ? "ascending" : dir === "▼" ? "descending" : undefined}>
                             {c.sortable ? (
                               <button type="button" className="link" onClick={() => toggleSort(c.name)}>
-                                {c.label} {dir}
+                                <bdi>{c.label}</bdi> {dir}
                               </button>
                             ) : (
                               c.label
@@ -554,7 +555,7 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
     const to = `${name}${suffix}__lte`;
     return (
       <div className="filter">
-        <h4>{spec.label}</h4>
+        <h4><bdi>{spec.label}</bdi></h4>
         <label>
           {t("filter.from")}
           <DatePicker value={params.get(from) ?? ""} onChange={(v) => update({ [from]: v })} />
@@ -576,7 +577,7 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
   if (spec.kind === "relation" && !spec.choices) {
     return (
       <div className="filter">
-        <h4>{spec.label}</h4>
+        <h4><bdi>{spec.label}</bdi></h4>
         <RelationSelect
           model={model}
           field={name}
@@ -598,7 +599,7 @@ function FilterBox({ spec, model, params, update }: FilterProps) {
       : []);
   return (
     <div className="filter">
-      <h4>{spec.label}</h4>
+      <h4><bdi>{spec.label}</bdi></h4>
       <ul>
         {option(t("common.all"), !current && !isNull, {})}
         {choices.map((c) => option(c.label, current === String(c.value), { [name]: String(c.value) }))}

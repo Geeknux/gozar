@@ -8,12 +8,12 @@ export work on them like on any report."""
 from typing import Any
 
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count
 from django.utils.translation import gettext as _
 from ninja import Router, Schema, Status
 
-from bi_admin import dashboards, preferences, sharing
-from bi_admin.api.saved import SharingIn, clean_name, stored_spec
+from bi_admin import dashboards, preferences, sharing, translations
+from bi_admin.api.saved import SharingIn, Texts, copy_texts, set_texts, stored_spec
 from bi_admin.engine import ReportError, ReportSpec, SpecValidationError
 from bi_admin.models import Dashboard, DashboardWidget
 
@@ -22,6 +22,7 @@ router = Router(tags=["dashboards"])
 
 class WidgetIn(Schema):
     title: str = ""
+    title_i18n: Texts = None
     saved_report: int | None = None
     spec: ReportSpec | None = None
     chart: str = ""
@@ -32,8 +33,10 @@ class WidgetIn(Schema):
 
 
 class DashboardIn(Schema):
-    name: str
+    name: str = ""
+    name_i18n: Texts = None
     description: str = ""
+    description_i18n: Texts = None
     sharing: SharingIn | None = None
     filters: dict[str, Any] = {}
     widgets: list[WidgetIn] = []
@@ -41,7 +44,9 @@ class DashboardIn(Schema):
 
 class DashboardPatch(Schema):
     name: str | None = None
+    name_i18n: Texts = None
     description: str | None = None
+    description_i18n: Texts = None
     sharing: SharingIn | None = None
     filters: dict[str, Any] | None = None
     widgets: list[WidgetIn] | None = None
@@ -92,7 +97,11 @@ def _widgets(items: list[WidgetIn], request) -> list[DashboardWidget]:
     out = []
     for i, item in enumerate(items):
         path = f"widgets[{i}]"
-        widget = DashboardWidget(title=item.title.strip()[:200], chart=item.chart)
+        widget = DashboardWidget(chart=item.chart)
+        try:
+            set_texts(widget, item, fields=("title",), required=None)
+        except sharing.SharingError as exc:
+            errors.update({f"{path}.{k}": v for k, v in exc.payload["errors"].items()})
         if (item.saved_report is None) == (item.spec is None):
             errors[path] = [_("Choose a saved report or give a report spec")]
         elif item.saved_report is not None:
@@ -124,6 +133,7 @@ def _replace_widgets(board: Dashboard, widgets: list[DashboardWidget]) -> None:
     board.widgets.all().delete()
     for w in widgets:
         w.dashboard = board
+        translations.sync(w, "title")  # bulk_create skips save()
     DashboardWidget.objects.bulk_create(widgets)
 
 
@@ -131,7 +141,7 @@ def _replace_widgets(board: Dashboard, widgets: list[DashboardWidget]) -> None:
 def list_dashboards(request, q: str = ""):
     qs = sharing.dashboards(request).annotate(widget_count=Count("widgets", distinct=True))
     if q:
-        qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+        qs = qs.filter(translations.search_q(q, "name", "description"))
     qs = qs.prefetch_related("shared_users", "shared_groups")
     return {"dashboards": [summary(b, request) for b in qs], "home": home_dashboard(request)}
 
@@ -139,13 +149,10 @@ def list_dashboards(request, q: str = ""):
 @router.post("", response={201: dict})
 def create_dashboard(request, data: DashboardIn):
     widgets = _widgets(data.widgets, request)
+    board = Dashboard(owner=request.user, filters=_filters(data.filters))
+    set_texts(board, data)
     with transaction.atomic():
-        board = Dashboard.objects.create(
-            owner=request.user,
-            name=clean_name(data.name),
-            description=data.description.strip(),
-            filters=_filters(data.filters),
-        )
+        board.save()
         _replace_widgets(board, widgets)
         sharing.apply_sharing(board, data.sharing.dict() if data.sharing else None)
     return Status(201, detail(board, request))
@@ -162,11 +169,8 @@ def update_dashboard(request, dashboard_id: int, data: DashboardPatch):
     """Owner only; ``widgets`` (when given) replaces every widget."""
     board = sharing.editable(sharing.get_dashboard(request, dashboard_id), request)
     widgets = _widgets(data.widgets, request) if data.widgets is not None else None
+    set_texts(board, data)
     with transaction.atomic():
-        if data.name is not None:
-            board.name = clean_name(data.name)
-        if data.description is not None:
-            board.description = data.description.strip()
         if data.filters is not None:
             board.filters = _filters(data.filters)
         board.save()
@@ -188,34 +192,33 @@ def duplicate_dashboard(request, dashboard_id: int, name: str = ""):
     """A private copy owned by the current user, with the widgets this user can
     see (a saved report that isn't shared with them is copied as an inline spec)."""
     source = sharing.get_dashboard(request, dashboard_id)
-    name = name.strip() or _("Copy of %(name)s") % {"name": source.name}
     readable = set(sharing.saved_reports(request).values_list("pk", flat=True))
+    copy = Dashboard(owner=request.user, filters=source.filters)
+    copy_texts(source, copy, name)
     with transaction.atomic():
-        copy = Dashboard.objects.create(
-            owner=request.user,
-            name=clean_name(name[:200]),
-            description=source.description,
-            filters=source.filters,
-        )
+        copy.save()
         widgets = []
         for w in source.widgets.select_related("saved_report"):
             spec, _problem = dashboards.widget_spec(w, request, source.owner_id)
             if spec is None:
                 continue
             keep = w.saved_report_id in readable
-            widgets.append(
-                DashboardWidget(
-                    dashboard=copy,
-                    title=w.title or (w.saved_report.name if w.saved_report else ""),
-                    saved_report=w.saved_report if keep else None,
-                    spec=None if keep else spec,
-                    chart=w.chart,
-                    x=w.x,
-                    y=w.y,
-                    w=w.w,
-                    h=w.h,
-                )
+            titles = translations.translations(w, "title")
+            if not titles and w.saved_report:  # the copy may lose access to the report
+                titles = translations.translations(w.saved_report, "name")
+            widget = DashboardWidget(
+                dashboard=copy,
+                title_i18n=titles,
+                saved_report=w.saved_report if keep else None,
+                spec=None if keep else spec,
+                chart=w.chart,
+                x=w.x,
+                y=w.y,
+                w=w.w,
+                h=w.h,
             )
+            translations.sync(widget, "title")
+            widgets.append(widget)
         DashboardWidget.objects.bulk_create(widgets)
     return Status(201, detail(copy, request))
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { UserText } from "../bidi";
 import { type MessageKey, useI18n } from "../i18n";
 import ScheduleDialog from "../schedules/ScheduleDialog";
 import { useSession } from "../session";
@@ -80,11 +81,11 @@ export default function SavedReports() {
                       <bdi>{r.name}</bdi>
                     </Link>
                     {r.description && (
-                      <div className="muted small" dir="auto">
+                      <UserText as="div" className="muted small">
                         {r.description}
-                      </div>
+                      </UserText>
                     )}
-                    {r.available === false && <div className="error small">{r.problem}</div>}
+                    {r.available === false && <div className="error small"><bdi>{r.problem}</bdi></div>}
                   </td>
                   <td>
                     <bdi>{r.is_owner ? t("saved.me") : personName(r.owner)}</bdi>

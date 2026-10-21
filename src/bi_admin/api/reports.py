@@ -5,6 +5,7 @@ from typing import Literal
 from uuid import UUID
 
 from django.http import HttpResponse
+from django.utils.http import content_disposition_header
 from django.utils.translation import gettext as _
 from ninja import Router, Schema, Status
 
@@ -112,14 +113,19 @@ def drill_down(request, data: DrilldownIn):
 
 def _download(body: bytes, content_type: str, filename: str) -> HttpResponse:
     response = HttpResponse(body, content_type=content_type)
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # filename*= (RFC 6266) carries non-ASCII names, e.g. a Persian report title
+    response["Content-Disposition"] = content_disposition_header(True, filename)
     return response
 
 
 @router.post("/export")
-def export_report(request, spec: ReportSpec, format: ExportFormat = "csv", cache: bool = True):
-    """Run ``spec`` and download it as CSV or XLSX (headers in the user's language)."""
-    return _download(*export(run(spec, request, use_cache=cache, kind="export"), format))
+def export_report(
+    request, spec: ReportSpec, format: ExportFormat = "csv", cache: bool = True, title: str = ""
+):
+    """Run ``spec`` and download it as CSV or XLSX (headers in the user's language);
+    ``title`` (e.g. the saved report's name) names the file and the sheet."""
+    result = run(spec, request, use_cache=cache, kind="export")
+    return _download(*export(result, format, title[:200]))
 
 
 # --- background jobs -----------------------------------------------------------------
@@ -183,11 +189,11 @@ def cancel_job(request, job_id: UUID):
 
 
 @router.get("/jobs/{job_id}/export")
-def export_job(request, job_id: UUID, format: ExportFormat = "csv"):
+def export_job(request, job_id: UUID, format: ExportFormat = "csv", title: str = ""):
     """Download a finished job's stored result (no new query)."""
     job = _job(request, job_id)
     with audit.record("export", ReportSpec.model_validate(job.spec), request, job=job) as entry:
         result = _finished_result(job)
         entry.spec, entry.row_count = result["spec"], len(result["rows"])
-    body, content_type, filename = export(result, format)
+    body, content_type, filename = export(result, format, title[:200])
     return _download(body, content_type, filename)

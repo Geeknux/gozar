@@ -5,6 +5,7 @@ import { api } from "../api";
 import { useI18n } from "../i18n";
 import type { Delivery } from "../schedules/api";
 import Deliveries from "../schedules/Deliveries";
+import { isolate } from "../bidi";
 
 type Page = { entries: Delivery[]; count: number; page: number; num_pages: number; filters: { status: { value: string; label: string }[] } };
 
@@ -38,7 +39,7 @@ export default function DeliveryLog() {
           <option value="">{t("audit.anyStatus")}</option>
           {data?.filters.status.map((s) => (
             <option key={s.value} value={s.value}>
-              {s.label}
+              {isolate(s.label)}
             </option>
           ))}
         </select>

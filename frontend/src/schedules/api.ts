@@ -1,7 +1,7 @@
 /** E-mail schedules (bi_admin.api.schedules). */
 import { api } from "../api";
 import type { CalendarName } from "../i18n";
-import type { Person } from "../sharing";
+import type { Person, Texts } from "../sharing";
 
 export type Frequency = "daily" | "weekly" | "monthly";
 export type Attachment = "" | "csv" | "xlsx";
@@ -27,6 +27,9 @@ export type Delivery = {
 export type Schedule = {
   id: number;
   name: string;
+  description: string;
+  name_i18n: Texts;
+  description_i18n: Texts;
   target: { kind: "saved_report" | "dashboard"; id: number; name: string };
   frequency: Frequency;
   frequency_display: string;
@@ -44,7 +47,8 @@ export type Schedule = {
 };
 
 export type ScheduleIn = {
-  name: string;
+  name_i18n: Texts;
+  description_i18n: Texts;
   saved_report?: number | null;
   dashboard?: number | null;
   frequency: Frequency;

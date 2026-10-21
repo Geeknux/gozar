@@ -6,6 +6,7 @@ import { useI18n } from "../i18n";
 import type { Spec } from "../reports/model";
 import { errorText } from "../sharing";
 import { type DashboardSummary, createDashboard, getDashboard, listDashboards, nextRow, updateDashboard, widgetIn } from "./api";
+import { isolate } from "../bidi";
 
 type Props = {
   /** a saved report (unchanged) becomes a saved-report widget, otherwise an inline spec */
@@ -17,7 +18,7 @@ type Props = {
 
 /** "Add to dashboard": append this report to one of my dashboards, or a new one. */
 export default function AddToDashboard({ savedId, spec, title, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const [boards, setBoards] = useState<DashboardSummary[] | null>(null);
   const [target, setTarget] = useState<string>("new");
@@ -41,7 +42,7 @@ export default function AddToDashboard({ savedId, spec, title, onClose }: Props)
     setError("");
     const chart = spec.chart ?? "table";
     const widget = {
-      title: savedId ? "" : title,
+      title_i18n: savedId ? {} : { [lang]: title },
       saved_report: savedId,
       spec: savedId ? null : spec,
       chart,
@@ -53,8 +54,8 @@ export default function AddToDashboard({ savedId, spec, title, onClose }: Props)
       let id: number;
       if (target === "new") {
         const board = await createDashboard({
-          name: name || title,
-          description: "",
+          name_i18n: { [lang]: (name || title).trim() },
+          description_i18n: {},
           sharing: { visibility: "private", users: [], groups: [] },
           widgets: [{ ...widget, y: 0 }],
         });
@@ -84,7 +85,7 @@ export default function AddToDashboard({ savedId, spec, title, onClose }: Props)
             <select value={target} onChange={(e) => setTarget(e.target.value)}>
               {boards.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.name}
+                  {isolate(b.name)}
                 </option>
               ))}
               <option value="new">{t("dash.newDashboard")}</option>

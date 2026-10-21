@@ -5,6 +5,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react
 import ReactGridLayout, { type Layout as GridLayout, useContainerWidth } from "react-grid-layout";
 import { Link, useNavigate } from "react-router-dom";
 
+import { UserText } from "../bidi";
 import SharedDialog from "../components/SharedDialog";
 import { type MessageKey, useI18n } from "../i18n";
 import ScheduleDialog from "../schedules/ScheduleDialog";
@@ -161,7 +162,7 @@ export default function DashboardView({ id, startEditing = false, onMissing, tit
     setFilters(viewerFilters(board));
   };
   let tempId = -1;
-  const addWidget = (w: Pick<Widget, "title" | "saved_report" | "spec" | "chart" | "inline">) => {
+  const addWidget = (w: Pick<Widget, "title" | "title_i18n" | "saved_report" | "spec" | "chart" | "inline">) => {
     tempId = Math.min(-1, ...draft.map((d) => d.id)) - 1;
     const kpi = w.chart === "kpi";
     setDraft((all) => [
@@ -191,8 +192,8 @@ export default function DashboardView({ id, startEditing = false, onMissing, tit
             <bdi>{board.name}</bdi>
             {home && <span className="badge">{t("dash.home")}</span>}
           </Title>
+          {board.description && <UserText className="dashboard-description">{board.description}</UserText>}
           <p className="muted small">
-            {board.description && <bdi>{board.description} · </bdi>}
             {board.is_owner ? t("saved.mine") : t("saved.sharedBy", { name: personName(board.owner) })} ·{" "}
             {t(`share.short.${board.sharing.visibility}` as MessageKey)}
             {titleLevel === "h2" && (
@@ -273,7 +274,7 @@ export default function DashboardView({ id, startEditing = false, onMissing, tit
                 checked={offered.includes(o.key)}
                 onChange={(e) => setOffered(e.target.checked ? [...offered, o.key] : offered.filter((k) => k !== o.key))}
               />
-              {o.label}
+              <bdi>{o.label}</bdi>
             </label>
           ))}
           <span className="muted small">{t("dash.defaultsNote")}</span>
@@ -285,7 +286,7 @@ export default function DashboardView({ id, startEditing = false, onMissing, tit
         <SharedDialog
           title={t("dash.settings")}
           submitLabel={t("form.save")}
-          initial={{ name: board.name, description: board.description, sharing: board.sharing }}
+          initial={{ name_i18n: board.name_i18n, description_i18n: board.description_i18n, sharing: board.sharing }}
           onSubmit={async (v) => setBoard(await updateDashboard(board.id, { ...v, sharing: sharingIn(v.sharing) }))}
           onClose={() => setDialog(null)}
         />
@@ -381,7 +382,7 @@ function EditCard({ widget, onEdit, onRemove }: { widget: Widget; onEdit: () => 
           t("dash.inlineReport")
         )}
       </p>
-      {widget.problem && <p className="muted small">{widget.problem}</p>}
+      {widget.problem && <p className="muted small"><bdi>{widget.problem}</bdi></p>}
       <div className="card-actions">
         <button type="button" className="button small" onClick={onEdit}>
           {t("dash.editWidget")}

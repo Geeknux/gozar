@@ -7,6 +7,7 @@ import FileInput, { type FileState } from "./FileInput";
 import PermissionTree from "./PermissionTree";
 import RawIdInput from "./RawIdInput";
 import RelationSelect from "./RelationSelect";
+import { isolate } from "../bidi";
 
 type Props = {
   field: FieldMeta;
@@ -69,7 +70,7 @@ export default function FieldInput({ field, widget, model, inline, value, initia
         {(field.blank || field.null || !str) && <option value="">---------</option>}
         {field.choices.map((c) => (
           <option key={String(c.value)} value={String(c.value)}>
-            {c.label}
+            {isolate(c.label)}
           </option>
         ))}
       </select>

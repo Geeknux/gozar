@@ -702,4 +702,10 @@ export const fa: Record<MessageKey, string> = {
   "scale.status.done": "انجام شد",
   "scale.status.failed": "ناموفق",
   "scale.status.cancelled": "لغو شد",
+  "texts.defaultLanguage": "پیش‌فرض",
+  "texts.hint": "هر بیننده متن را به زبان خودش می‌بیند؛ زبانی که خالی بماند متن زبان پیش‌فرض را نشان می‌دهد.",
+  "widget.titleI18n": "عنوان",
+  "schedule.description": "توضیح",
+  "dash.titleFromReport": "اگر خالی بماند، عنوان همان نام گزارش ذخیره‌شده ({name}) به زبان هر بیننده است.",
+  "schedule.nameHint": "اگر خالی بماند، نام ایمیل همان {name} به زبان هر گیرنده است.",
 };

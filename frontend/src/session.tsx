@@ -2,11 +2,14 @@
 import { createContext, useContext } from "react";
 
 import type { User } from "./App";
+import type { Lang } from "./i18n";
 
 export type Session = {
   user: User;
   options: Record<string, unknown>;
   timezone: string;
+  /** languages names and descriptions can be given in; the default one is required */
+  content: { languages: { value: Lang; label: string; dir: "ltr" | "rtl" }[]; defaultLanguage: Lang };
   /** PATCH /preferences {options: {key: value}} and keep the result */
   setOption: (key: string, value: unknown) => Promise<void>;
 };

@@ -1869,3 +1869,29 @@ msgstr "API در این مسیر در دسترس است:"
 
 #~ msgid "compare_to is not supported yet (planned for M6)"
 #~ msgstr "compare_to هنوز پشتیبانی نمی‌شود (برای M6 برنامه‌ریزی شده)"
+
+#: models.py
+msgid "name translations"
+msgstr "ترجمه‌های نام"
+
+#: models.py
+msgid "description translations"
+msgstr "ترجمه‌های توضیح"
+
+#: models.py
+msgid "title translations"
+msgstr "ترجمه‌های عنوان"
+
+#: api/saved.py translations.py
+#, python-format
+msgid "At most %(n)s characters."
+msgstr "حداکثر %(n)s نویسه."
+
+#: translations.py
+msgid "Must map language codes to texts."
+msgstr "باید کد هر زبان را به متن آن نگاشت کند."
+
+#: translations.py
+#, python-format
+msgid "Unknown language %(lang)r"
+msgstr "زبان ناشناخته: %(lang)r"

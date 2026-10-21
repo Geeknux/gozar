@@ -59,7 +59,7 @@ export default function FilterBar({ value, dimensions, options, onChange }: Prop
         if (!option) return null;
         return (
           <label key={key} className="stack filter-values">
-            {option.label}
+            <bdi>{option.label}</bdi>
             <ValuePicker
               model={option.semantic_model}
               dimension={key}

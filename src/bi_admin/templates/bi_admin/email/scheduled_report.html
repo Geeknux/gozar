@@ -13,6 +13,7 @@
   .muted { color: #6b7080; font-size: 12px; }
   table.data { border-collapse: collapse; width: 100%; margin-top: 8px; }
   table.data th, table.data td { border-bottom: 1px solid #e3e5ea; padding: 6px 8px; text-align: {% if dir == "rtl" %}right{% else %}left{% endif %}; white-space: nowrap; }
+  h1[dir="auto"], h2[dir="auto"], p[dir="auto"] { unicode-bidi: plaintext; text-align: start; }
   table.data th { background: #fafbfc; font-size: 12px; }
   table.data .num { text-align: {% if dir == "rtl" %}left{% else %}right{% endif %}; font-variant-numeric: tabular-nums; }
   .kpis td { padding: 8px 16px 8px 0; vertical-align: top; }
@@ -27,7 +28,8 @@
 <div class="wrap">
   <div class="card">
     <h1 dir="auto">{{ title }}</h1>
-    {% if description %}<p dir="auto">{{ description }}</p>{% endif %}
+    {% if description %}<p dir="auto">{{ description|linebreaksbr }}</p>{% endif %}
+    {% if note and note != description %}<p dir="auto">{{ note|linebreaksbr }}</p>{% endif %}
     <p class="muted">{% blocktranslate %}{{ frequency }} report, generated {{ generated }}.{% endblocktranslate %}</p>
   </div>
   {% for s in sections %}
@@ -41,17 +43,17 @@
       <table class="kpis" role="presentation"><tr>
         {% for k in s.kpis %}
         <td>
-          <div class="kpi-label">{{ k.label }}</div>
-          <div class="kpi-value">{{ k.value }}</div>
-          {% if k.compare %}<div class="{{ k.direction }}">{{ k.arrow }} {{ k.change }} <span class="muted">({% translate "was" %} {{ k.compare }})</span></div>{% endif %}
+          <div class="kpi-label"><span dir="auto">{{ k.label }}</span></div>
+          <div class="kpi-value"><span dir="ltr">{{ k.value }}</span></div>
+          {% if k.compare %}<div class="{{ k.direction }}">{{ k.arrow }} <span dir="ltr">{{ k.change }}</span> <span class="muted">({% translate "was" %} <span dir="ltr">{{ k.compare }}</span>)</span></div>{% endif %}
         </td>
         {% endfor %}
       </tr></table>
       {% elif s.headers %}
       <table class="data">
-        <thead><tr>{% for h in s.headers %}<th{% if h.numeric %} class="num"{% endif %}>{{ h.label }}</th>{% endfor %}</tr></thead>
+        <thead><tr>{% for h in s.headers %}<th{% if h.numeric %} class="num"{% endif %}><span dir="auto">{{ h.label }}</span></th>{% endfor %}</tr></thead>
         <tbody>
-          {% for row in s.rows %}<tr>{% for c in row %}<td{% if c.class %} class="{{ c.class }}"{% endif %}>{{ c.text }}</td>{% endfor %}</tr>
+          {% for row in s.rows %}<tr>{% for c in row %}<td{% if c.class %} class="{{ c.class }}"{% endif %}><span dir="auto">{{ c.text }}</span></td>{% endfor %}</tr>
           {% endfor %}
         </tbody>
       </table>

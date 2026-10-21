@@ -302,7 +302,38 @@ class NLLog(models.Model):
 # --- M6: saved reports, dashboards, scheduled emails ---------------------------------
 
 
-class Shared(models.Model):
+class Translatable(models.Model):
+    """Text fields with per-language versions (``bi_admin.translations``): each
+    field in ``translatable`` has a ``<field>_i18n`` JSON mapping of language code
+    to text; the plain field holds the default language's text."""
+
+    translatable: tuple[str, ...] = ()
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        from bi_admin import translations
+
+        for name in self.translatable:
+            translations.sync(self, name)
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            touched = set(update_fields)
+            for name in self.translatable:
+                if touched & {name, f"{name}_i18n"}:
+                    touched |= {name, f"{name}_i18n"}
+            kwargs["update_fields"] = list(touched)
+        super().save(*args, **kwargs)
+
+    def text(self, field: str, lang: str | None = None) -> str:
+        """``field`` in ``lang`` (default: the active language), with fallbacks."""
+        from bi_admin import translations
+
+        return translations.text(self, field, lang)
+
+
+class Shared(Translatable):
     """Something a user owns and may share: privately, with specific users and
     groups, or with everyone who may see its data. Whoever views it always does so
     with their *own* permissions, row-level scope and semantic visibility."""
@@ -320,6 +351,9 @@ class Shared(models.Model):
     )
     name = models.CharField(_("name"), max_length=200)
     description = models.TextField(_("description"), blank=True)
+    # {"fa": "…", "en": "…"}: the text per language (see Translatable)
+    name_i18n = models.JSONField(_("name translations"), default=dict, blank=True)
+    description_i18n = models.JSONField(_("description translations"), default=dict, blank=True)
     visibility = models.CharField(
         _("shared with"), max_length=10, choices=Visibility.choices, default=Visibility.PRIVATE
     )
@@ -331,6 +365,8 @@ class Shared(models.Model):
     )
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    translatable = ("name", "description")
 
     class Meta:
         abstract = True
@@ -368,7 +404,7 @@ class Dashboard(Shared):
         default_permissions = ()
 
 
-class DashboardWidget(models.Model):
+class DashboardWidget(Translatable):
     """One tile of a dashboard: a saved report or an inline spec, its chart type
     and its place on a 12-column grid."""
 
@@ -376,6 +412,7 @@ class DashboardWidget(models.Model):
         Dashboard, on_delete=models.CASCADE, related_name="widgets", verbose_name=_("dashboard")
     )
     title = models.CharField(_("title"), max_length=200, blank=True)
+    title_i18n = models.JSONField(_("title translations"), default=dict, blank=True)
     saved_report = models.ForeignKey(
         SavedReport,
         on_delete=models.SET_NULL,
@@ -391,6 +428,8 @@ class DashboardWidget(models.Model):
     w = models.PositiveSmallIntegerField(default=6)
     h = models.PositiveSmallIntegerField(default=4)
 
+    translatable = ("title",)
+
     class Meta:
         verbose_name = _("dashboard widget")
         verbose_name_plural = _("dashboard widgets")
@@ -401,7 +440,7 @@ class DashboardWidget(models.Model):
         return self.title or (self.saved_report.name if self.saved_report else str(self.pk))
 
 
-class Schedule(models.Model):
+class Schedule(Translatable):
     """A saved report or dashboard e-mailed to users of the system, each one with
     their own scope, language and calendar."""
 
@@ -422,6 +461,9 @@ class Schedule(models.Model):
         verbose_name=_("owner"),
     )
     name = models.CharField(_("name"), max_length=200, blank=True)
+    description = models.TextField(_("description"), blank=True)
+    name_i18n = models.JSONField(_("name translations"), default=dict, blank=True)
+    description_i18n = models.JSONField(_("description translations"), default=dict, blank=True)
     saved_report = models.ForeignKey(
         SavedReport,
         on_delete=models.CASCADE,
@@ -460,6 +502,8 @@ class Schedule(models.Model):
     last_run_at = models.DateTimeField(_("last run"), null=True, blank=True)
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
     updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+
+    translatable = ("name", "description")
 
     class Meta:
         verbose_name = _("email schedule")

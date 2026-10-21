@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit"
+    "build": "node scripts/check-bidi.mjs && tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint:bidi": "node scripts/check-bidi.mjs"
   },
   "dependencies": {
     "echarts": "^6.1.0",

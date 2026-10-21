@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { ApiError, api } from "../api";
+import { UserText } from "../bidi";
 import { useI18n } from "../i18n";
 import { type SavedReport, getSaved } from "../sharing";
 import Builder from "./Builder";
@@ -190,9 +191,9 @@ export default function ReportsPage() {
             {saved ? <bdi>{saved.name}</bdi> : t("report.title")}
             {saved && clean && dataKey(clean) !== dataKey(saved.spec) && <small className="muted"> · {t("saved.modified")}</small>}
           </h1>
+          {saved?.description && <UserText className="dashboard-description">{saved.description}</UserText>}
           {saved && (
             <p className="muted small">
-              {saved.description && <bdi>{saved.description} · </bdi>}
               {saved.is_owner ? t("saved.mine") : t("saved.sharedBy", { name: saved.owner.full_name || saved.owner.username })}
               {" · "}
               <Link to="/reports">{t("saved.newReport")}</Link>
@@ -254,6 +255,7 @@ export default function ReportsPage() {
               jobId={result.jobId}
               chart={chart}
               onChart={(c) => setSpec({ ...spec, chart: c })}
+              title={saved?.name}
             />
           )}
         </div>

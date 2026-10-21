@@ -51,10 +51,10 @@ export default function SearchPage() {
             <section key={g.model} className="card">
               <div className="inline-head">
                 <h2>
-                  <Link to={`${path}?q=${encodeURIComponent(q)}`}>{g.verbose_name_plural}</Link>
+                  <Link to={`${path}?q=${encodeURIComponent(q)}`}><bdi>{g.verbose_name_plural}</bdi></Link>
                 </h2>
                 <span className="muted">
-                  {g.app_verbose_name} · {g.more ? t("search.manyHits", { count: g.count }) : t("list.count", { count: g.count })}
+                  <bdi>{g.app_verbose_name}</bdi> · {g.more ? t("search.manyHits", { count: g.count }) : t("list.count", { count: g.count })}
                 </span>
               </div>
               <ul className="search-hits">

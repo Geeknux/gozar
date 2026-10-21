@@ -12,6 +12,7 @@ from django.utils.translation import gettext as _
 from ninja import Router, Schema, Status
 
 from bi_admin import scheduling, sharing
+from bi_admin.api.saved import Texts, set_texts
 from bi_admin.engine import ReportError
 from bi_admin.models import Schedule, ScheduleDelivery
 
@@ -24,6 +25,9 @@ CalendarName = Literal["gregorian", "jalali"]
 
 class ScheduleIn(Schema):
     name: str = ""
+    name_i18n: Texts = None
+    description: str = ""
+    description_i18n: Texts = None
     saved_report: int | None = None
     dashboard: int | None = None
     frequency: Frequency
@@ -39,6 +43,9 @@ class ScheduleIn(Schema):
 
 class SchedulePatch(Schema):
     name: str | None = None
+    name_i18n: Texts = None
+    description: str | None = None
+    description_i18n: Texts = None
     frequency: Frequency | None = None
     time: dt.time | None = None
     weekday: int | None = None
@@ -74,11 +81,11 @@ def payload(s: Schedule, deliveries: bool = False) -> dict:
     target = s.target
     out = {
         "id": s.pk,
-        "name": s.name,
+        **sharing.text_payload(s, "name", "description"),
         "target": {
             "kind": "saved_report" if s.saved_report_id else "dashboard",
             "id": target.pk,
-            "name": target.name,
+            "name": target.text("name"),
         },
         "frequency": s.frequency,
         "frequency_display": s.get_frequency_display(),
@@ -156,7 +163,6 @@ def create_schedule(request, data: ScheduleIn):
         raise sharing.SharingError({"target": [_("Choose a saved report or a dashboard")]})
     s = Schedule(
         owner=request.user,
-        name=data.name.strip()[:200],
         frequency=data.frequency,
         time=data.time.replace(second=0, microsecond=0),
         weekday=data.weekday,
@@ -170,6 +176,7 @@ def create_schedule(request, data: ScheduleIn):
         s.saved_report = sharing.get_saved_report(request, data.saved_report)
     else:
         s.dashboard = sharing.get_dashboard(request, data.dashboard)
+    set_texts(s, data, required=None)
     users = _check(s, data.recipients, request)
     s.next_run_at = scheduling.next_run(s) if s.enabled else None
     with transaction.atomic():
@@ -188,9 +195,10 @@ def update_schedule(request, schedule_id: int, data: SchedulePatch):
     s = _mine(request, schedule_id)
     fields = data.dict(exclude_unset=True)
     recipients = fields.pop("recipients", None)
+    for key in ("name", "name_i18n", "description", "description_i18n"):
+        fields.pop(key, None)
+    set_texts(s, data, required=None)
     for key, value in fields.items():
-        if key == "name":
-            value = (value or "").strip()[:200]
         if key == "time" and value is not None:
             value = value.replace(second=0, microsecond=0)
         if value is None and key in ("frequency", "time", "calendar", "timezone", "enabled"):

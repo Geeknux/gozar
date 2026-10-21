@@ -272,7 +272,7 @@ function ColumnarCard({
   return (
     <div className="card sys-section">
       <h3>
-        {info.label}{" "}
+        <bdi>{info.label}</bdi>{" "}
         <span className={`badge ${info.in_use ? "status-ok" : ""}`}>{info.in_use ? t("scale.inUse") : t("scale.notInUse")}</span>
       </h3>
       {info.error && <p className="error">{info.error}</p>}

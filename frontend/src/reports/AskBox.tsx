@@ -143,7 +143,7 @@ function AnswerView({ answer, onAsk, latest }: { answer: Answer; onAsk: (q: stri
     <div className={`ask-answer status-${answer.status}`}>
       {answer.status === "ok" ? (
         <p dir="auto">
-          <span className="muted">{t("ask.understood")}</span> {answer.interpretation}
+          <span className="muted">{t("ask.understood")}</span> <bdi>{answer.interpretation}</bdi>
         </p>
       ) : (
         <p dir="auto" className={answer.status === "invalid" ? "error" : "ask-clarify"}>

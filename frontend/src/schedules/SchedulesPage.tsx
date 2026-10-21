@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
+import { UserText } from "../bidi";
 import { type MessageKey, useI18n } from "../i18n";
 import { useSession } from "../session";
 import { errorText, personName } from "../sharing";
@@ -96,6 +97,7 @@ export default function SchedulesPage() {
                   <tr>
                     <td>
                       <bdi>{s.name || s.target.name}</bdi>
+                      {s.description && <UserText className="muted small">{s.description}</UserText>}
                       <div className="muted small">
                         {t(s.target.kind === "dashboard" ? "schedule.ofDashboard" : "schedule.ofReport")}{" "}
                         <Link to={s.target.kind === "dashboard" ? `/dashboards/${s.target.id}` : `/reports?saved=${s.target.id}`}>

@@ -16,7 +16,7 @@ from typing import Any
 from django.utils.translation import gettext as _
 from pydantic import ValidationError
 
-from bi_admin import sharing
+from bi_admin import sharing, translations
 from bi_admin.calendar import jalali, periods
 from bi_admin.engine.spec import ReportSpec
 from bi_admin.models import Dashboard, DashboardWidget
@@ -56,8 +56,10 @@ def widget_payload(widget: DashboardWidget, request, owner_id: int) -> dict[str,
     report = widget.saved_report
     return {
         "id": widget.pk,
-        "title": widget.title or (report.name if report else ""),
-        "saved_report": {"id": report.pk, "name": report.name} if report else None,
+        # the widget's own title, else its saved report's name (in the viewer's language)
+        "title": widget.text("title") or (report.text("name") if report else ""),
+        "title_i18n": translations.translations(widget, "title"),
+        "saved_report": {"id": report.pk, "name": report.text("name")} if report else None,
         "inline": widget.saved_report_id is None,
         "spec": spec,
         "chart": widget.chart or (spec or {}).get("chart") or "table",

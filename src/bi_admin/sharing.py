@@ -139,11 +139,22 @@ def sharing_payload(obj: Shared) -> dict[str, Any]:
     }
 
 
+def text_payload(obj, *fields: str) -> dict[str, Any]:
+    """Each field in the active language (with fallbacks) and, as ``<field>_i18n``,
+    every language stored for it (for editing)."""
+    from bi_admin import translations
+
+    out: dict[str, Any] = {}
+    for field in fields:
+        out[field] = translations.text(obj, field)
+        out[f"{field}_i18n"] = translations.translations(obj, field)
+    return out
+
+
 def common_payload(obj: Shared, request) -> dict[str, Any]:
     return {
         "id": obj.pk,
-        "name": obj.name,
-        "description": obj.description,
+        **text_payload(obj, "name", "description"),
         "owner": person(obj.owner),
         "is_owner": obj.owner_id == request.user.pk,
         "can_edit": can_edit(obj, request.user),

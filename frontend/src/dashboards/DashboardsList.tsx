@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
+import { UserText } from "../bidi";
 import SharedDialog from "../components/SharedDialog";
 import { type MessageKey, useI18n } from "../i18n";
 import { homeDashboard, useSession } from "../session";
@@ -57,9 +58,7 @@ export default function DashboardsList() {
                 {home === b.id && <span className="badge">{t("dash.home")}</span>}
               </h2>
               {b.description && (
-                <p className="muted small" dir="auto">
-                  {b.description}
-                </p>
+                <UserText className="muted small">{b.description}</UserText>
               )}
               <p className="muted small">
                 {t("dash.widgets", { count: b.widget_count ?? 0 })} · {b.is_owner ? t("saved.mine") : t("saved.sharedBy", { name: personName(b.owner) })} ·{" "}

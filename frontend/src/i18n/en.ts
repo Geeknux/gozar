@@ -700,6 +700,12 @@ export const en = {
   "scale.status.done": "Done",
   "scale.status.failed": "Failed",
   "scale.status.cancelled": "Cancelled",
+  "texts.defaultLanguage": "default",
+  "texts.hint": "Each viewer sees the text in their language; a language left empty shows the default language's text.",
+  "widget.titleI18n": "Title",
+  "schedule.description": "Description",
+  "dash.titleFromReport": "Left empty, the title is the saved report's name ({name}) in each viewer's language.",
+  "schedule.nameHint": "Left empty, the e-mail is named after {name} in each recipient's language.",
 } as const;
 
 export type MessageKey = keyof typeof en;
