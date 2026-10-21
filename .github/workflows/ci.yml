@@ -28,6 +28,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm run build # bidi lint + tsc --noEmit + vite build
+      - run: npm test # chart layout rules, fa dictionary against en
 
   test:
     runs-on: ubuntu-latest
@@ -52,6 +53,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      # GNU gettext: tests/test_locale.py runs makemessages to find untranslated strings.
+      - run: sudo apt-get update -q && sudo apt-get install -y --no-install-recommends gettext
       # The DuckDB engine is an optional extra: the 3.13 jobs install it and run its
       # parity tests against the ORM on both databases; the 3.12 jobs run without it,
       # so the core install is tested on its own (the DuckDB tests skip there).

@@ -568,6 +568,8 @@ export const en = {
   "system.indexSize": "Index size",
   "system.totalSize": "Total size",
   "system.indexes": "Indexes",
+  "system.sizeColumns": "Table and index sizes",
+  "system.sizeBreakdown": "Table {table} · indexes {indexes}",
   "system.index": "Index",
   "system.columns": "Columns",
   "system.indexFlags": "Type",

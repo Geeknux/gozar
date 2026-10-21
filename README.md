@@ -157,6 +157,12 @@ uv run --with playwright playwright install chromium   # once
 uv run --with playwright python scripts/screenshots.py  # --only report-pivot-table …
 ```
 
+[`scripts/check_layout.py`](scripts/check_layout.py) uses the same setup to check
+the layout in English and Persian at phone and desktop widths: no table on the
+System page or in the logs scrolls sideways from 1280 px up, and pie legends show
+every slice name whole (`--shots DIR` keeps a screenshot of each page). The layout
+rules behind charts on narrow widgets are unit-tested by `npm test` in `frontend/`.
+
 Frontend hot reload: run `npm run dev` in `frontend/` and start Django with
 `GOZAR_VITE_DEV_SERVER=http://localhost:5173`.
 
@@ -427,7 +433,10 @@ GOZAR = {"DEFAULT_LANGUAGE": "en", "DEFAULT_CALENDAR": "gregorian"}
 Translations ship as gettext catalogs (`src/bi_admin/locale/fa`, compiled `.mo`
 included). After changing strings, run `django-admin makemessages -l fa` and
 `django-admin compilemessages` in `src/bi_admin` (and `example_project/shop`);
-SPA strings live in `frontend/src/i18n/en.ts` and `fa.ts`.
+`tests/test_locale.py` fails while a string in the code has no Persian
+translation, is fuzzy, or the `.mo` is out of date. SPA strings live in
+`frontend/src/i18n/en.ts` and `fa.ts` (typed against `en`, and `npm test` checks
+their placeholders match).
 
 **What users type** — the names and descriptions of saved reports, dashboards and
 e-mail schedules, and widget titles — can be given in every configured language:

@@ -140,7 +140,9 @@ export default function QuestionLog() {
                         <span className="muted">{t("audit.system")}</span>
                       )}
                     </td>
-                    <td dir="auto">{e.question}</td>
+                    <td dir="auto" className="wrap audit-question">
+                      {e.question}
+                    </td>
                     <td>
                       <span className={`badge status-${e.status}`}>{e.status_display}</span>
                       {e.error_code && <span className="mono muted"> {e.error_code}</span>}

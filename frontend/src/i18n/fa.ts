@@ -570,6 +570,8 @@ export const fa: Record<MessageKey, string> = {
   "system.indexSize": "اندازهٔ نمایه‌ها",
   "system.totalSize": "اندازهٔ کل",
   "system.indexes": "نمایه‌ها",
+  "system.sizeColumns": "اندازهٔ جدول و نمایه‌ها",
+  "system.sizeBreakdown": "جدول {table} · نمایه‌ها {indexes}",
   "system.index": "نمایه",
   "system.columns": "ستون‌ها",
   "system.indexFlags": "نوع",

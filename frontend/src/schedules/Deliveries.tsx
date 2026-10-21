@@ -24,7 +24,7 @@ export default function Deliveries({ items, showSchedule = false }: { items: Del
           <tr key={d.id}>
             <td>{fmt.date(d.timestamp)}</td>
             {showSchedule && (
-              <td>
+              <td className="wrap">
                 <bdi>{d.schedule_name}</bdi>
               </td>
             )}
@@ -42,7 +42,7 @@ export default function Deliveries({ items, showSchedule = false }: { items: Del
                 · {d.language} / {t(d.calendar === "jalali" ? "settings.jalali" : "settings.gregorian")}
               </span>
             </td>
-            <td className="muted small">{SKIP_REASONS.includes(d.error) ? t(`schedule.error.${d.error}` as MessageKey) : d.error}</td>
+            <td className="muted small wrap">{SKIP_REASONS.includes(d.error) ? t(`schedule.error.${d.error}` as MessageKey) : d.error}</td>
           </tr>
         ))}
       </tbody>

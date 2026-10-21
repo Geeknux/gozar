@@ -13,6 +13,7 @@ binary in $GOZAR_CHROMIUM.
 """
 
 import argparse
+import contextlib
 import importlib.util
 import io
 import json
@@ -368,6 +369,36 @@ def main():
 
 
 def capture_all(args, source, tmp):
+    with demo_server(source, tmp, args.port) as (base, sessions, refresh, ids):
+        with sync_playwright() as p:
+            browser = p.chromium.launch(executable_path=os.environ.get("GOZAR_CHROMIUM") or None)
+            capture = Capture(browser, base, sessions, refresh)
+            capture.group, capture.order, capture.product = ids
+            failed = []
+            for name in args.only or SHOTS:
+                try:
+                    img = SHOTS[name](capture)
+                except Exception as e:  # keep going; show what the page looked like
+                    failed.append(name)
+                    debug = args.debug_dir / f"gozar-shot-{name}.png"
+                    if capture.last:
+                        capture.last.screenshot(path=debug)
+                    reason = f"{type(e).__name__}: {str(e).splitlines()[0]}"
+                    print(f"{name}: FAILED ({reason}), see {debug}")
+                    continue
+                path = args.out / f"{name}.webp"
+                size = save(img, path, args.width)
+                print(f"{path.name}  {size[0]}x{size[1]}  {path.stat().st_size // 1024} KB")
+            browser.close()
+            if failed:
+                sys.exit(f"failed: {', '.join(failed)}")
+
+
+@contextlib.contextmanager
+def demo_server(source, tmp, port):
+    """Run the example project on a copy of ``source`` in ``tmp``; yields the base URL,
+    the demo users' session keys, a function that refreshes the summary tables, and
+    the ids of the Shop managers group, the largest order and the most pictured product."""
     db = tmp / "db.sqlite3"
     with sqlite3.connect(source) as src, sqlite3.connect(db) as dst:
         src.backup(dst)  # a consistent copy, even while another server uses the file
@@ -413,11 +444,11 @@ def capture_all(args, source, tmp):
             " order by count(*) desc, product_id"
         ).fetchone()[0]
 
-    base = f"http://127.0.0.1:{args.port}"
+    base = f"http://127.0.0.1:{port}"
     if up(base):
-        sys.exit(f"port {args.port} is in use; pick another with --port")
+        sys.exit(f"port {port} is in use; pick another with --port")
     server = subprocess.Popen(
-        [sys.executable, str(MANAGE), "runserver", f"127.0.0.1:{args.port}", "--noreload"],
+        [sys.executable, str(MANAGE), "runserver", f"127.0.0.1:{port}", "--noreload"],
         env=env,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -428,29 +459,8 @@ def capture_all(args, source, tmp):
                 break
             time.sleep(0.2)
         else:
-            sys.exit(f"the example project did not start on port {args.port}")
-        with sync_playwright() as p:
-            browser = p.chromium.launch(executable_path=os.environ.get("GOZAR_CHROMIUM") or None)
-            capture = Capture(browser, base, sessions, refresh)
-            capture.group, capture.order, capture.product = group, order, product
-            failed = []
-            for name in args.only or SHOTS:
-                try:
-                    img = SHOTS[name](capture)
-                except Exception as e:  # keep going; show what the page looked like
-                    failed.append(name)
-                    debug = args.debug_dir / f"gozar-shot-{name}.png"
-                    if capture.last:
-                        capture.last.screenshot(path=debug)
-                    reason = f"{type(e).__name__}: {str(e).splitlines()[0]}"
-                    print(f"{name}: FAILED ({reason}), see {debug}")
-                    continue
-                path = args.out / f"{name}.webp"
-                size = save(img, path, args.width)
-                print(f"{path.name}  {size[0]}x{size[1]}  {path.stat().st_size // 1024} KB")
-            browser.close()
-            if failed:
-                sys.exit(f"failed: {', '.join(failed)}")
+            sys.exit(f"the example project did not start on port {port}")
+        yield base, sessions, refresh, (group, order, product)
     finally:
         server.terminate()
         server.wait()

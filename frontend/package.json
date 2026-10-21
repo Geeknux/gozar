@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "node scripts/check-bidi.mjs && tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "test": "node --test tests/",
     "lint:bidi": "node scripts/check-bidi.mjs"
   },
   "dependencies": {

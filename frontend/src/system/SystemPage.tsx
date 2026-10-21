@@ -252,6 +252,7 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<TableKind | "">("");
   const [open, setOpen] = useState<string | null>(null);
+  const [sizes, setSizes] = useState(false); // the table and index size columns (total size shows by default)
 
   const value = useCallback(
     (x: TableInfo, key: SortKey): string | number | null => {
@@ -281,8 +282,8 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
     });
   }, [database.tables, query, kind, sort, value]);
 
-  const head = (key: SortKey, label: string, numeric = false) => (
-    <th className={numeric ? "num" : undefined}>
+  const head = (key: SortKey, label: string, numeric = false, className = "") => (
+    <th className={`${numeric ? "num" : ""} ${className}`.trim() || undefined}>
       <button
         type="button"
         className="link"
@@ -294,7 +295,7 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
   );
 
   return (
-    <section className="card sys-section">
+    <section className="card sys-section sys-tables-card">
       <div className="sys-section-head">
         <h2>{t("system.tableList", { count: database.table_count })}</h2>
         <span className="sys-tools">
@@ -312,20 +313,23 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
               ? t("system.counting", { done: countingAll.done, total: countingAll.total })
               : t("system.countAll")}
           </button>
+          <label className="sys-toggle">
+            <input type="checkbox" checked={sizes} onChange={(e) => setSizes(e.target.checked)} /> {t("system.sizeColumns")}
+          </label>
         </span>
       </div>
       <p className="muted">{t("system.estimateHelp")}</p>
       <div className="table-wrap">
-        <table className="grid sys-tables">
+        <table className={sizes ? "grid sys-tables" : "grid sys-tables no-sizes"}>
           <thead>
             <tr>
               {head("name", t("system.table"))}
-              {head("model", t("system.model"))}
-              {head("kind", t("system.kind"))}
-              {head("estimated_rows", t("system.estimatedRows"), true)}
+              {head("model", t("system.model"), false, "sys-col-model")}
+              {head("kind", t("system.kind"), false, "sys-col-kind")}
+              {head("estimated_rows", t("system.estimatedRows"), true, "sys-col-estimate")}
               {head("exact", t("system.exactRows"), true)}
-              {head("table_size", t("system.tableSize"), true)}
-              {head("index_size", t("system.indexSize"), true)}
+              {head("table_size", t("system.tableSize"), true, "sys-col-size")}
+              {head("index_size", t("system.indexSize"), true, "sys-col-size")}
               {head("total_size", t("system.totalSize"), true)}
               {head("indexes", t("system.indexes"), true)}
             </tr>
@@ -337,9 +341,11 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
                 <Fragment key={x.name}>
                   <tr>
                     <td>
-                      <code dir="ltr">{x.name}</code>
+                      <code dir="ltr" className="sys-name" title={x.name}>
+                        {x.name}
+                      </code>
                     </td>
-                    <td>
+                    <td className="sys-col-model">
                       {x.model ? (
                         <span title={x.model}>
                           <bdi>{cap(x.verbose_name ?? x.model)}</bdi> <small className="muted"><bdi>{x.app_verbose_name ?? x.app}</bdi></small>
@@ -348,10 +354,10 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
                         "—"
                       )}
                     </td>
-                    <td>
+                    <td className="sys-col-kind">
                       <span className={`badge kind-${x.kind}`}>{t(`system.kind.${x.kind}` as MessageKey)}</span>
                     </td>
-                    <td className="num">{x.estimated_rows === null ? "—" : fmt.number(x.estimated_rows)}</td>
+                    <td className="num sys-col-estimate">{x.estimated_rows === null ? "—" : fmt.number(x.estimated_rows)}</td>
                     <td className="num">
                       {typeof c === "number" ? (
                         fmt.number(c)
@@ -363,9 +369,11 @@ function Tables({ database, counts, onCount, onCountAll, countingAll, bytes }: T
                         </button>
                       )}
                     </td>
-                    <td className="num">{bytes(x.table_size)}</td>
-                    <td className="num">{bytes(x.index_size)}</td>
-                    <td className="num">{bytes(x.total_size)}</td>
+                    <td className="num sys-col-size">{bytes(x.table_size)}</td>
+                    <td className="num sys-col-size">{bytes(x.index_size)}</td>
+                    <td className="num" title={t("system.sizeBreakdown", { table: bytes(x.table_size), indexes: bytes(x.index_size) })}>
+                      {bytes(x.total_size)}
+                    </td>
                     <td className="num">
                       {x.indexes.length ? (
                         <button type="button" className="link" onClick={() => setOpen(open === x.name ? null : x.name)} aria-expanded={open === x.name}>
