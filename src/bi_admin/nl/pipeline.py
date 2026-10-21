@@ -565,7 +565,11 @@ class _Run:
             except ProviderError as exc:
                 logger.warning("NL provider %s failed: %s", provider.name, exc)
                 self.transcript.append({"attempt": attempts, "error": exc.code, "detail": str(exc)})
-                if nl_setting("FALLBACK") and not provider.local:
+                fallback = bool(nl_setting("FALLBACK") and not provider.local)
+                from bi_admin.alerts import hooks
+
+                hooks.nl_provider_error(provider.name, exc.code, fallback)
+                if fallback:
                     from bi_admin.nl.heuristic import HeuristicProvider
 
                     self.warnings.append(

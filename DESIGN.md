@@ -1727,6 +1727,135 @@ Decided (bidirectional text and translatable content, 2026-10-21):
   v2)*), the English dashboard with Persian ones, and the HTML e-mail in both
   languages; the README screenshots were regenerated.
 
+Decided (alerts to Telegram, 2026-10-21):
+
+- Package `bi_admin.alerts`; settings `GOZAR["ALERTS"]` (`alerts/conf.py`, every key
+  in the README). Models: `Alert` (source, key, severity info | warning | error |
+  critical, kind alert | resolved, scrubbed title/message/details, language,
+  release, `repeats`, `suppressed_before`, delivery pending | deferred | sent |
+  failed | muted | below_threshold | no_channel, acknowledgement with user and
+  channel), `AlertState` (one row per key: firing, severity, last alert, last
+  delivery, held-back count, `notified`, `muted_until`), `AlertDelivery` (the
+  outbox: one row per alert and recipient, lease, attempts, `next_attempt_at`),
+  `AlertSource` (System page overrides) and `WorkerHeartbeat`. No Django
+  permissions: `bi_admin.view_system` governs all of it, including the switches.
+  Migration `0012_alerts`.
+- **Pipeline** (`alerts.pipeline`): `raise_alert(source, key, severity, title,
+  message, details)` and `resolve(source, key)` never raise (a re-entrancy guard
+  drops alerts raised while recording one) and write to `default` only. The key
+  is `<source>:<key>`; the state row is locked (`select_for_update`) so concurrent
+  processes agree. Within the source's window after an alert row was created, a
+  repeat that isn't more severe bumps that row's `repeats` and the held-back
+  counter instead of adding a row; the next row after the window carries the
+  count, which its message states ("2 more alerts like this were held back").
+  Escalation (higher severity) breaks through. Below the source's minimum
+  severity, muted, or without a channel, the alert is recorded but not queued.
+  In quiet hours (`QUIET_HOURS`, may wrap midnight, `QUIET_HOURS_TIMEZONE`)
+  anything below critical is queued for the end of them. `resolve` writes a
+  resolved notice only for a firing key, delivered only if the episode was
+  delivered; it keeps the condition's severity. Event sources (exceptions, job
+  failures) simply never resolve.
+- **Sending never happens in a request**: the pipeline inserts outbox rows;
+  `gozar_worker` sends them every 5 s (`outbox.deliver_due`): conditional-UPDATE
+  claim with a lease, render, `sendMessage`; transient errors (network, 5xx, 429
+  with `retry_after`) retry with `RETRY_BACKOFF` doubling up to
+  `RETRY_BACKOFF_MAX` until `MAX_ATTEMPTS`; permanent ones (400/401/403/404, an id
+  outside the allow-list, channel off) fail at once; rows stuck in `sending` are
+  retried after `DELIVERY_LEASE_SECONDS`. Failures are logged (token removed) and
+  never raised. Caveat: an alert raised inside a transaction that later rolls
+  back is lost with it (the 500 handler runs after `ATOMIC_REQUESTS` ends, so it
+  isn't affected).
+- **Telegram** (`alerts.telegram`, stdlib `urllib`, no new dependency): the token
+  is read only from the variable named by `TOKEN_ENV` (`GOZAR_TELEGRAM_BOT_TOKEN`),
+  never stored, logged, returned or shown — the API says `token_configured` and
+  the variable's name; a literal `TOKEN` in settings is check error
+  `bi_admin.E006`. `ALLOWED_CHAT_IDS` (a list or a comma/space string, falling
+  back to `GOZAR_TELEGRAM_ALLOWED_CHAT_IDS`) must be non-empty and all numeric,
+  otherwise the channel stays off with `problems` (check warning
+  `bi_admin.W002`, a warning on the System page); `ENABLED` None = on when both
+  are set, True = required, False = off. `Client.send` refuses any id outside
+  the list before any HTTP call, whatever the outbox row says; the API returns
+  only the number of ids. Messages use HTML parse mode with everything escaped,
+  in `LANGUAGE` (en | fa; Persian lines start with RLM, inserted values are
+  FSI…PDI isolated, Persian digits), cut to 4 096 characters (traceback first),
+  and link to `<BASE_URL>/system?alert=<id>` when `GOZAR["BASE_URL"]` is set.
+- **Interactive bot** (`alerts.bot`, `TELEGRAM["INTERACTIVE"]`): long polling
+  (`getUpdates`, offset kept in an `AlertState` row) in a daemon thread of
+  `gozar_worker` (`POLL_IN_WORKER`) or `manage.py gozar_telegram_poll` — no
+  webhook. An update is acted on only if it is a plain `message` with text, in a
+  `private` chat, with `chat.id == from.id`, `from.id` in the allow-list, not from
+  a bot, not sent on behalf of a chat or via a bot, not forwarded. A sender
+  outside the list (spoofed chat ids, groups, channel posts, member updates
+  included) gets no reply, a log line at most once a minute with the count, and
+  a `telegram` alert to the allowed users (sender id and username, never their
+  text); allowed senders in other shapes are ignored and logged. Commands:
+  `/status` (worker heartbeat, job counts, firing and recent alerts, outbox,
+  release), `/alerts` (latest 10), `/ack <id>`, `/mute <key> <30m|2h|1d>` (capped
+  at `MAX_MUTE`), `/unmute <key>`, `/help` — operational state only, never report
+  data. Polling refuses to start unless the channel is enabled and interactive.
+- **Sources** (`alerts.sources`; each `enabled`, `min_severity`, `window` in
+  `SOURCES`, overridden from the System page): `exceptions` — `AlertHandler` on
+  `django.request` (attached in `ready()` with `LOG_HANDLER`, or via `LOGGING`):
+  method, path without query, route, user id (only when the auth middleware
+  already loaded the user, no query), exception type and message, the last
+  `TRACEBACK_FRAMES` frames (file relative to its package, line, function, source
+  line — never locals), release (`RELEASE` → `GOZAR_RELEASE` → version + git sha
+  read from `.git`); key = exception type + innermost project frame, or status +
+  route for 5xx without an exception. `jobs` — failures with a 5xx status
+  (`statement_timeout` is a warning; 403/422 are the user's, not alerts) and
+  `worker_lost`. `worker` — heartbeat rows written every 15 s, marked stopped on
+  a clean exit (SIGTERM is turned into one); stale past `WORKER_STALE_SECONDS` is
+  an error (only once a worker has run), a crash is critical, a restart
+  resolves it. A dead worker can't report itself: `manage.py gozar_alerts`
+  (cron) runs the checks and sends the outbox; the System page shows the
+  heartbeat. `schedules` — one alert per send with failed recipients (ids, not
+  addresses), resolved by a clean send. `preaggregations`/`columnar` — refresh
+  and sync failures (configuration errors included), resolved by the next
+  success; stale for longer than `max(max_staleness, refresh/sync interval) +
+  STALENESS_GRACE`. `nl` — `NL_ERRORS` provider errors or fallbacks within
+  `NL_ERRORS_WINDOW` (a counter in the report cache), resolved when the window
+  passes quietly. `checks` — `run_checks(include_deployment_checks=True)` at
+  worker start and every `SYSTEM_CHECKS_EVERY`: one alert listing every error and
+  warning, re-raised (after a resolved notice) when the set of ids changes.
+  `database` — `DATABASE_MAX_BYTES`, `TABLE_GROWTH_PERCENT` (and
+  `TABLE_GROWTH_MIN_BYTES`) between snapshots `TABLE_GROWTH_PERIOD` apart,
+  `DISK_USAGE_PERCENT` per device of `DISK_PATHS` (default `MEDIA_ROOT` and the
+  SQLite file's folder). `logins` — `user_login_failed` plus Gozar's own refusal
+  of non-staff accounts, `FAILED_LOGINS` per IP (`REMOTE_ADDR`, or
+  `CLIENT_IP_HEADER` behind a trusted proxy) within `FAILED_LOGINS_WINDOW`;
+  neither username nor password is kept. `telegram` and `test` as above. The
+  periodic checks run every `CHECK_EVERY` in the worker, each isolated.
+- **Scrubbing** (`alerts.scrub`) applies to every title, message, detail and
+  traceback line: known secret values (bot token, LLM key, `SECRET_KEY`,
+  database passwords), values of secret-named keys (password, token, cookie,
+  CSRF, session, authorization, API key…), bearer/basic credentials, URL
+  passwords, bot tokens, JWTs, `sk-`/GitHub/Slack/AWS keys, long hex and mixed
+  base64-like runs, and e-mail addresses.
+- **API** (`/api/system/alerts*`, System page permission): `GET /alerts/status`,
+  `GET /alerts` (filters severity, source, kind, delivery, acknowledged, `q`,
+  `id`; paginated; delivery rows without their chat ids), `POST /alerts/test`
+  (202; queued, the worker sends it), `POST /alerts/{id}/ack`, `PATCH
+  /alerts/sources/{name} {enabled, min_severity}` (`null` resets). SPA:
+  **System → Alerts** (`system/AlertsSection.tsx`): channel card with the refusal
+  reasons, worker and outbox, the source table with switches and severity
+  selects, recent alerts with filters, details (message, traceback, key,
+  release, per-recipient delivery state) and Acknowledge; `?alert=<id>` opens
+  one. All strings in en/fa.
+- **Commands**: `gozar_alert_test [--message] [--severity] [--queue-only]`,
+  `gozar_telegram_whoami` (getMe), `gozar_telegram_poll [--once]`,
+  `gozar_alerts [--no-check] [--system-checks] [--no-deliver] [--purge]`.
+  `gozar_worker` also purges alerts older than `KEEP_DAYS`.
+- **Demo**: reads `GOZAR_TELEGRAM_BOT_TOKEN` and `GOZAR_TELEGRAM_ALLOWED_CHAT_IDS`
+  (off when unset), `GOZAR_TELEGRAM_INTERACTIVE`, `GOZAR_ALERTS_LANGUAGE`,
+  `GOZAR_ALERTS_QUIET_HOURS`. Tests fake the Bot API (`telegram._http`) and an
+  autouse fixture clears the variables and fails any real call; the token and
+  ids in tests are obviously fake.
+- Checked (2026-10-21) with Playwright on a copy of the demo database: the Alerts
+  section in English, Persian and at 390 px, with a fake token so the channel
+  shows as configured; no console errors or failed requests.
+- Upgrading: run `migrate` and restart `gozar_worker` (an old worker neither
+  sends alert messages nor records its heartbeat).
+
 Still open:
 
 - Support databases other than PostgreSQL in v1?

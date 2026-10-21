@@ -327,6 +327,12 @@ def test_a_failing_recipient_does_not_stop_the_others(schedule, monkeypatch):
     deliveries = {d.username: d for d in scheduling.send_due()}
     assert deliveries["tehran"].status == "failed" and "SMTP down" in deliveries["tehran"].error
     assert deliveries["east"].status == deliveries["owner"].status == "sent"
+    # one alert for the send (bi_admin.alerts), naming the recipient by id only
+    from bi_admin.models import Alert
+
+    (alert,) = Alert.objects.filter(source="schedules")
+    assert alert.key == f"schedules:schedule:{schedule.pk}" and "SMTP down" in alert.message
+    assert "tehran@example.com" not in alert.message
 
 
 def test_dashboard_email_has_a_section_per_widget(people, report):

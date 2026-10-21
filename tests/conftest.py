@@ -37,6 +37,29 @@ def _fresh_cache(settings):
 
 
 @pytest.fixture(autouse=True)
+def _no_telegram(settings, monkeypatch):
+    """Whatever the developer's environment exports, tests never see a Telegram
+    token or allow-list and never reach the network (tests/test_alerts.py fakes it)."""
+    monkeypatch.delenv("GOZAR_TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("GOZAR_TELEGRAM_ALLOWED_CHAT_IDS", raising=False)
+    gozar = dict(settings.GOZAR)
+    alerts = dict(gozar.get("ALERTS") or {})
+    alerts["TELEGRAM"] = {
+        **(alerts.get("TELEGRAM") or {}),
+        "ALLOWED_CHAT_IDS": "",
+        "INTERACTIVE": False,
+    }
+    alerts.pop("QUIET_HOURS", None)
+    gozar["ALERTS"] = alerts
+    settings.GOZAR = gozar
+
+    def no_network(*args, **kwargs):
+        raise AssertionError("tests must not call the Telegram API")
+
+    monkeypatch.setattr("bi_admin.alerts.telegram._http", no_network)
+
+
+@pytest.fixture(autouse=True)
 def _fresh_registry():
     reset_registry()
     site.clear_cache()

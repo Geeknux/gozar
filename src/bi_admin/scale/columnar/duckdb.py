@@ -698,7 +698,21 @@ class DuckDBBackend(ColumnarBackend):
     # -- sync ---------------------------------------------------------------------
 
     def sync(self) -> dict[str, Any]:
-        """Copy the tables into a new file and switch to it."""
+        """Copy the tables into a new file and switch to it (failures are alerted)."""
+        from bi_admin.alerts import hooks
+        from bi_admin.scale.refresh import BuildBusy
+
+        try:
+            outcome = self._locked_sync()
+        except BuildBusy:
+            raise
+        except Exception as exc:
+            hooks.sync_failed(self.name, exc)
+            raise
+        hooks.sync_succeeded(self.name)
+        return outcome
+
+    def _locked_sync(self) -> dict[str, Any]:
         if not self.available():
             raise RuntimeError("DuckDB isn't installed (pip install 'gozar[duckdb]')")
         target = self.path()

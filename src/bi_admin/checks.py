@@ -87,3 +87,25 @@ def check_nl_settings(app_configs=None, **kwargs):
             )
         )
     return errors
+
+
+@checks.register()
+def check_alert_settings(app_configs=None, **kwargs):
+    """The Telegram token comes from the environment only; a channel that was asked
+    for but lacks its token or allow-list stays off, with a warning."""
+    from bi_admin.alerts import telegram
+
+    cfg = telegram.config()
+    out = []
+    for problem in cfg.problems:
+        if problem["code"] == "token_in_settings":
+            out.append(checks.Error(problem["message"], id="bi_admin.E006"))
+        else:
+            out.append(
+                checks.Warning(
+                    problem["message"],
+                    hint="The Telegram alert channel stays off until this is fixed.",
+                    id="bi_admin.W002",
+                )
+            )
+    return out

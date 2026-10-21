@@ -622,6 +622,18 @@ def test_unreachable_llm_falls_back_to_the_heuristic(seeded, admin_request):
     assert any("unavailable" in w for w in answer.warnings)
 
 
+def test_repeated_llm_failures_raise_an_alert(seeded, admin_request, settings):
+    from bi_admin.models import Alert
+
+    settings.GOZAR = {**settings.GOZAR, "ALERTS": {**settings.GOZAR["ALERTS"], "NL_ERRORS": 2}}
+    with nl(BASE_URL="http://127.0.0.1:9/v1", MODEL="m", TIMEOUT=1):
+        ask("revenue by city", admin_request, today=TODAY, use_cache=False)
+        assert not Alert.objects.filter(source="nl").exists()
+        ask("revenue by month", admin_request, today=TODAY, use_cache=False)
+    alert = Alert.objects.get(source="nl")
+    assert alert.details["fallback"] is True and alert.details["count"] == 2
+
+
 def test_unreachable_llm_without_fallback_is_502(seeded, admin_client):
     with nl(BASE_URL="http://127.0.0.1:9/v1", MODEL="m", TIMEOUT=1, FALLBACK=False):
         resp = admin_client.post(f"{API}/nl/ask", {"question": "revenue"}, "application/json")

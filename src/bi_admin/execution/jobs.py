@@ -204,7 +204,7 @@ def recover_stale(now: dt.datetime | None = None) -> dict[str, int]:
         status=Status.RUNNING, heartbeat_at__lt=cutoff
     )
     counts = {"requeued": 0, "failed": 0}
-    for job in stale.only("pk", "lease", "attempts", "options"):
+    for job in stale.only("pk", "lease", "attempts", "options", "kind"):
         same = ReportJob.objects.using(DEFAULT_DB_ALIAS).filter(
             pk=job.pk, status=Status.RUNNING, lease=job.lease
         )
@@ -225,6 +225,9 @@ def recover_stale(now: dt.datetime | None = None) -> dict[str, int]:
         ):
             counts["failed"] += 1
             logger.error("Report job %s failed after %s lost attempts", job.pk, job.attempts)
+            from bi_admin.alerts import hooks
+
+            hooks.job_lost(job, job.attempts)
     return counts
 
 
@@ -299,10 +302,14 @@ def run_job(job: ReportJob, *, heartbeat: bool = True) -> ReportJob:
                 pulse.__exit__(None, None, None)
     # Only while the lease is ours: a job cancelled meanwhile stays cancelled, and one
     # requeued as stale belongs to its next attempt.
-    ReportJob.objects.filter(pk=job.pk, status=Status.RUNNING, lease=job.lease).update(
+    stored = ReportJob.objects.filter(pk=job.pk, status=Status.RUNNING, lease=job.lease).update(
         finished_at=timezone.now(), **outcome
     )
     job.refresh_from_db()
+    if stored and outcome["status"] == Status.FAILED:
+        from bi_admin.alerts import hooks
+
+        hooks.job_failed(job, outcome.get("error"), outcome.get("error_status"))
     return job
 
 

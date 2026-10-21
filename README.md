@@ -173,8 +173,8 @@ uv sync --extra postgres
 GOZAR_DB=postgres POSTGRES_HOST=localhost uv run pytest
 ```
 
-`manage.py gozar_worker` runs background report jobs and e-mail schedules and
-keeps the pre-aggregations fresh. The optional DuckDB engine (and its parity
+`manage.py gozar_worker` runs background report jobs and e-mail schedules,
+keeps the pre-aggregations fresh and sends alert messages. The optional DuckDB engine (and its parity
 tests) needs the extra; then put the demo's `OrderMetrics` on it:
 
 ```sh
@@ -665,6 +665,103 @@ GOZAR_NL_BASE_URL=... GOZAR_NL_MODEL=... uv run python example_project/manage.py
 `--provider`, `--only fa`, `--user`, `--fail-under 0.9`). Expected values are
 those of the English demo data (`seed_demo`).
 
+### Alerts (Telegram)
+
+Gozar records operational alerts and sends them to a Telegram bot. Each one is
+on the System page (**Alerts**: channel status, sources, a **Send test alert**
+button, recent alerts with filters and **Acknowledge**) for users with the
+System page permission. Sources, each with an on/off switch and a minimum
+severity (`info` < `warning` < `error` < `critical`), set in settings and
+changeable on the System page:
+
+| Source | What raises it |
+|---|---|
+| `exceptions` | unhandled exceptions and HTTP 5xx responses (a logging handler on `django.request`): method, path, route, user id, exception type and message, the innermost traceback frames and the release, scrubbed of secrets |
+| `jobs` | background jobs that failed on the server (5xx), and `worker_lost` |
+| `worker` | no `gozar_worker` heartbeat for `WORKER_STALE_SECONDS`, or a worker crash |
+| `schedules` | e-mail schedule sends with failed recipients (resolved by the next clean send) |
+| `preaggregations`, `columnar` | refresh/sync failures, and copies stale longer than `max(max_staleness, refresh interval) + STALENESS_GRACE` |
+| `nl` | `NL_ERRORS` language model errors or fallbacks within `NL_ERRORS_WINDOW` |
+| `checks` | Django's system and deployment checks (errors and warnings) at worker start and every `SYSTEM_CHECKS_EVERY` |
+| `database` | database size, table growth and disk usage above their thresholds |
+| `logins` | `FAILED_LOGINS` failed logins from one IP within `FAILED_LOGINS_WINDOW` (never the username or password) |
+| `telegram` | someone outside the allow-list writing to the bot |
+| `test` | the test button and `manage.py gozar_alert_test` |
+
+Every alert has a stable key: the same key is sent at most once per window
+(`WINDOW`, per source `window`), and the next message after the window says how
+many repeats were held back. A condition that clears sends a resolved notice.
+In optional quiet hours only critical alerts are sent; the rest wait until they
+end. Requests never send anything: alerts go to an outbox that `gozar_worker`
+sends (every 5 s) with retries and exponential backoff; Telegram failures are
+only logged.
+
+Set it up with a bot from @BotFather and the numeric ids of the people who
+should get the alerts. **The token is read only from the environment**; never
+put it (or real ids) in settings files:
+
+```sh
+export GOZAR_TELEGRAM_BOT_TOKEN=...           # environment only; never stored or shown
+export GOZAR_TELEGRAM_ALLOWED_CHAT_IDS=...    # numeric user/chat ids, comma separated
+uv run python example_project/manage.py gozar_telegram_whoami   # getMe: is the token right?
+uv run python example_project/manage.py gozar_alert_test        # send a test alert now
+```
+
+The bot sends only to the allowed ids. Without a token *and* a non-empty
+allow-list the channel stays off (system check `bi_admin.W002`, a warning on
+the System page); a token in settings is system check error `bi_admin.E006`.
+With `INTERACTIVE` on, the worker (or `manage.py gozar_telegram_poll`) long-polls
+`getUpdates` — no webhook — and answers `/status`, `/alerts`, `/ack <id>`,
+`/mute <key> <duration>`, `/unmute <key>` and `/help` with operational status
+only, never report data. It answers only plain messages in a private chat whose
+chat id is the sender's id and in the allow-list; everything else (groups,
+forwarded messages, other senders) is ignored without a reply, with a
+rate-limited log line and a `telegram` alert for messages from strangers.
+`manage.py gozar_alerts` runs the checks and sends the outbox without a worker;
+run it from cron as a watchdog, since a dead worker can't report itself.
+
+Environment variables: `GOZAR_TELEGRAM_BOT_TOKEN` (the token; the variable's
+name is `TELEGRAM["TOKEN_ENV"]`), `GOZAR_TELEGRAM_ALLOWED_CHAT_IDS` (used when
+`TELEGRAM["ALLOWED_CHAT_IDS"]` isn't set), `GOZAR_RELEASE` (the release shown in
+alerts; default Gozar's version plus the git sha). The demo also reads
+`GOZAR_ALERTS_LANGUAGE`, `GOZAR_ALERTS_QUIET_HOURS` and
+`GOZAR_TELEGRAM_INTERACTIVE=1`. Settings, with their defaults
+(`bi_admin/alerts/conf.py`):
+
+```python
+GOZAR["ALERTS"] = {
+    "ENABLED": True, "LANGUAGE": "en",          # "en" | "fa" (right-to-left messages)
+    "WINDOW": 900,                              # seconds between messages of one key
+    "QUIET_HOURS": None, "QUIET_HOURS_TIMEZONE": None,   # "23:00-07:00", TIME_ZONE
+    "SOURCES": {},                              # {"checks": {"enabled": False, "min_severity": "error", "window": 3600}}
+    "LOG_HANDLER": True,                        # attach the handler to django.request
+    "RELEASE": None, "TRACEBACK_FRAMES": 4,
+    "MAX_ATTEMPTS": 6, "RETRY_BACKOFF": 30, "RETRY_BACKOFF_MAX": 3600,
+    "DELIVERY_LEASE_SECONDS": 120, "KEEP_DAYS": 30,
+    "CHECK_EVERY": 300, "SYSTEM_CHECKS_EVERY": 21600, "WORKER_STALE_SECONDS": 300,
+    "STALENESS_GRACE": 600,
+    "DATABASE_MAX_BYTES": None, "TABLE_GROWTH_PERCENT": None,
+    "TABLE_GROWTH_MIN_BYTES": 52428800, "TABLE_GROWTH_PERIOD": 86400,
+    "DISK_USAGE_PERCENT": 90, "DISK_PATHS": None,   # None: MEDIA_ROOT and the SQLite file
+    "FAILED_LOGINS": 10, "FAILED_LOGINS_WINDOW": 600,
+    "CLIENT_IP_HEADER": None,                   # e.g. "HTTP_X_FORWARDED_FOR" behind a trusted proxy
+    "NL_ERRORS": 5, "NL_ERRORS_WINDOW": 600,
+    "TELEGRAM": {
+        "ENABLED": None,                        # None: on when token and ids are set
+        "TOKEN_ENV": "GOZAR_TELEGRAM_BOT_TOKEN",
+        "ALLOWED_CHAT_IDS": None,               # None: GOZAR_TELEGRAM_ALLOWED_CHAT_IDS
+        "INTERACTIVE": False, "POLL_IN_WORKER": True,
+        "API_URL": "https://api.telegram.org", "TIMEOUT": 10, "POLL_TIMEOUT": 25,
+        "MAX_MUTE": 604800,
+    },
+}
+```
+
+With `GOZAR["BASE_URL"]` set, every message links to the alert on the System
+page. Your own code can raise alerts too:
+`from bi_admin import alerts; alerts.raise_alert("jobs", "nightly-import", "error",
+"Nightly import failed", str(exc))` and `alerts.resolve("jobs", "nightly-import")`.
+
 Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [...],
 "EXCLUDE_APPS": [...], "EXCLUDE_MODELS": ["app.model"], "VITE_DEV_SERVER": None,
 "WEEKEND_DAYS": [4], "DEFAULT_LANGUAGE": "en", "DEFAULT_CALENDAR": "gregorian",
@@ -675,7 +772,8 @@ Optional settings (defaults in `bi_admin/conf.py`): `GOZAR = {"INCLUDE_APPS": [.
 "JOB_LEASE_SECONDS": 60, "JOB_MAX_ATTEMPTS": 3, "API_DOCS": "staff", "NL": {…},
 "EMAIL_FROM": None, "EMAIL_MAX_ROWS": 50, "BASE_URL": None, "WORKER_SENDS_SCHEDULES": True,
 "UPLOAD_MAX_BYTES": 10485760, "CRUD_EXPORT_MAX_ROWS": 50000, "CRUD_IMPORT_MAX_ROWS": 5000,
-"BULK_EDIT_MAX_ROWS": 1000, "GLOBAL_SEARCH_PER_MODEL": 5, "SYSTEM_CACHE_TIMEOUT": 60}`.
+"BULK_EDIT_MAX_ROWS": 1000, "GLOBAL_SEARCH_PER_MODEL": 5, "SYSTEM_CACHE_TIMEOUT": 60,
+"ALERTS": {…}}` (alerts: above).
 
 The JSON API (django-ninja, staff session + CSRF) is documented at
 `/gozar/api/docs` (Swagger UI; schema at `/gozar/api/openapi.json`). The docs are
@@ -703,6 +801,9 @@ for staff only by default — anonymous visitors are sent to the login first; se
   - `scale/` — pre-aggregations (declaration, additive parts, matcher, refresh,
     freshness and change records, scope translation), the engine planner and the
     columnar engines (`columnar/duckdb.py`);
+  - `alerts/` — operational alerts: settings, sources, the pipeline (dedup,
+    windows, quiet hours, mutes), the outbox, the Telegram channel and bot,
+    the logging handler, the periodic checks and the secret scrubber;
   - `api/` — auth, metadata, CRUD, report, job, audit, preferences, saved-report,
     dashboard and schedule endpoints;
   - `sharing.py`, `dashboards.py`, `scheduling.py`, `formatting.py` — who may

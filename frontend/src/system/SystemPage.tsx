@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 import { api } from "../api";
 import { type MessageKey, useI18n } from "../i18n";
+import AlertsSection from "./AlertsSection";
 import BarChart from "./BarChart";
 import ScaleSection from "./ScaleSection";
 import type { Check, Checks, Count, Database, Overview, TableInfo, TableKind } from "./types";
@@ -113,6 +114,8 @@ export default function SystemPage() {
           ))}
         </>
       )}
+
+      {overview && <AlertsSection />}
 
       {overview && <ScaleSection bytes={bytes} />}
 

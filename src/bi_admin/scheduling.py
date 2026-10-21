@@ -31,6 +31,7 @@ from django.utils.text import slugify
 from django.utils.translation import gettext as _
 
 from bi_admin import formatting, preferences
+from bi_admin.alerts import hooks as alert_hooks
 from bi_admin.calendar import jalali
 from bi_admin.conf import setting
 from bi_admin.models import Schedule, ScheduleDelivery
@@ -327,6 +328,7 @@ def deliver(
         delivery.duration_ms = int((time.monotonic() - started) * 1000)
         delivery.save()
         out.append(delivery)
+    alert_hooks.schedule_deliveries(schedule, out)
     return out
 
 

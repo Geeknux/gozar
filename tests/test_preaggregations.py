@@ -11,7 +11,7 @@ from django.db.models import Count, F, Max, Q, Sum
 
 from bi_admin.engine import ReportError, run
 from bi_admin.execution import cache
-from bi_admin.models import Materialization, ReportLog
+from bi_admin.models import Alert, Materialization, ReportLog
 from bi_admin.scale import PreAggregation, refresh, state
 from bi_admin.scale.preaggregations import get
 from bi_admin.semantic import Dimension, Measure, Semantic, semantic_site
@@ -649,6 +649,8 @@ class TestRefresh:
             refresh.refresh(get(DAILY), "rebuild")
         row = state_of()
         assert row.status == "failed" and "disk full" in row.last_error and not row.table
+        alert = Alert.objects.get(source="preaggregations")
+        assert alert.key == f"preaggregations:{DAILY}:failed" and "disk full" in alert.message
         assert refresh.due(get(DAILY), row) is None  # not retried at once
         assert not [t for t in refresh_tables() if "daily_sales" in t]
 

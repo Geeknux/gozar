@@ -221,3 +221,84 @@ export type Scale = {
   columnar: ColumnarInfo[];
   jobs: ScaleJob[];
 };
+
+export type Severity = "info" | "warning" | "error" | "critical";
+
+export type AlertChannel = {
+  name: string;
+  enabled: boolean;
+  requested: boolean | null;
+  token_configured: boolean;
+  token_env: string;
+  allowed_count: number;
+  interactive: boolean;
+  interactive_requested: boolean;
+  problems: { code: string; message: string }[];
+};
+
+export type AlertSourceInfo = {
+  name: string;
+  label: string;
+  enabled: boolean;
+  min_severity: Severity;
+  window: number;
+  overridden: boolean;
+  default_enabled: boolean;
+  default_min_severity: Severity;
+};
+
+export type AlertsStatus = {
+  enabled: boolean;
+  language: string;
+  window: number;
+  quiet_hours: { start: string; end: string; timezone: string } | null;
+  channels: AlertChannel[];
+  sources: AlertSourceInfo[];
+  severities: Severity[];
+  outbox: {
+    queued: number;
+    sent: number;
+    failed: number;
+    next_attempt_at: string | null;
+    last_sent_at: string | null;
+    last_error: string | null;
+  };
+  worker: {
+    workers: { name: string; started_at: string; beat_at: string; stopped_at: string | null; stale: boolean }[];
+    last_beat_at: string | null;
+    stale: boolean;
+    stale_seconds: number;
+  };
+};
+
+export type AlertEntry = {
+  id: number;
+  created_at: string;
+  last_seen_at: string | null;
+  source: string;
+  key: string;
+  severity: Severity;
+  severity_display: string;
+  kind: "alert" | "resolved";
+  title: string;
+  message: string;
+  details: Record<string, unknown> & { traceback?: string };
+  release: string;
+  repeats: number;
+  suppressed_before: number;
+  delivery: string;
+  delivery_display: string;
+  delivered_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+  acknowledged_via: string | null;
+  deliveries: { channel: string; status: string; attempts: number; next_attempt_at: string; sent_at: string | null; error: string }[];
+};
+
+export type AlertPage = {
+  entries: AlertEntry[];
+  count: number;
+  page: number;
+  num_pages: number;
+  filters: Record<"severity" | "kind" | "delivery" | "source", { value: string; label: string }[]>;
+};

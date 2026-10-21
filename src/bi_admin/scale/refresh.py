@@ -28,6 +28,7 @@ from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from bi_admin.alerts import hooks as alert_hooks
 from bi_admin.calendar import periods, table
 from bi_admin.conf import setting
 from bi_admin.engine.errors import ReportError
@@ -234,9 +235,11 @@ def refresh(preagg: PreAggregation, mode: str = "auto", today: dt.date | None = 
             details={**row.details, "failed_at": timezone.now().isoformat()},
             **({"status": Materialization.Status.FAILED} if not row.table else {}),
         )
+        alert_hooks.refresh_failed(preagg.key, exc, mode)
         raise
     finally:
         release(row, token)
+    alert_hooks.refresh_succeeded(preagg.key)
     outcome["duration_ms"] = int((time.monotonic() - started) * 1000)
     Materialization.objects.using(DEFAULT_DB_ALIAS).filter(pk=row.pk).update(
         duration_ms=outcome["duration_ms"]

@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 
@@ -693,3 +694,178 @@ class Materialization(models.Model):
 
     def __str__(self):
         return f"{self.get_kind_display()} {self.name}"
+
+
+# --- alerts (Telegram and other channels) ---------------------------------------------
+
+
+class Alert(models.Model):
+    """One operational alert (``bi_admin.alerts``): an unhandled exception, a failed
+    job, a stale worker, a resolved condition… Repeats of the same ``key`` inside the
+    rate-limit window fold into the latest row (``repeats``) instead of adding rows;
+    the next message after the window says how many were held back
+    (``suppressed_before``). Visible on the System page (``bi_admin.view_system``)."""
+
+    class Severity(models.TextChoices):
+        INFO = "info", _("Info")
+        WARNING = "warning", _("Warning")
+        ERROR = "error", _("Error")
+        CRITICAL = "critical", _("Critical")
+
+    class Kind(models.TextChoices):
+        ALERT = "alert", _("Alert")
+        RESOLVED = "resolved", _("Resolved")
+
+    class Delivery(models.TextChoices):
+        PENDING = "pending", _("Queued")
+        DEFERRED = "deferred", _("Held for quiet hours")
+        SENT = "sent", _("Sent")
+        FAILED = "failed", _("Failed")
+        MUTED = "muted", _("Muted")
+        BELOW_THRESHOLD = "below_threshold", _("Below the source's minimum severity")
+        NO_CHANNEL = "no_channel", _("No channel configured")
+
+    created_at = models.DateTimeField(_("time"), default=timezone.now, db_index=True)
+    last_seen_at = models.DateTimeField(_("last seen"), null=True, blank=True)
+    source = models.CharField(_("source"), max_length=40, db_index=True)
+    key = models.CharField(_("key"), max_length=200, db_index=True)
+    severity = models.CharField(_("severity"), max_length=10, choices=Severity.choices)
+    kind = models.CharField(_("kind"), max_length=10, choices=Kind.choices, default=Kind.ALERT)
+    title = models.CharField(_("title"), max_length=300)
+    message = models.TextField(_("message"), blank=True)
+    details = models.JSONField(_("details"), default=dict, blank=True)
+    language = models.CharField(_("language"), max_length=10, blank=True)
+    release = models.CharField(_("release"), max_length=80, blank=True)
+    repeats = models.PositiveIntegerField(_("repeats"), default=0)
+    suppressed_before = models.PositiveIntegerField(_("held back before"), default=0)
+    delivery = models.CharField(
+        _("delivery"), max_length=20, choices=Delivery.choices, default=Delivery.PENDING
+    )
+    delivered_at = models.DateTimeField(_("delivered at"), null=True, blank=True)
+    acknowledged_at = models.DateTimeField(_("acknowledged at"), null=True, blank=True)
+    acknowledged_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("acknowledged by"),
+    )
+    acknowledged_via = models.CharField(_("acknowledged via"), max_length=40, blank=True)
+
+    class Meta:
+        verbose_name = _("alert")
+        verbose_name_plural = _("alerts")
+        ordering = ["-created_at", "-id"]
+        default_permissions = ()  # the System page's bi_admin.view_system governs it
+
+    def __str__(self):
+        return f"[{self.severity}] {self.title}"
+
+
+class AlertState(models.Model):
+    """Per alert key: whether its condition is firing, when it was last delivered,
+    how many repeats were held back since, and a mute set from the bot."""
+
+    key = models.CharField(_("key"), max_length=200, unique=True)
+    source = models.CharField(_("source"), max_length=40, blank=True)
+    firing = models.BooleanField(_("firing"), default=False)
+    severity = models.CharField(_("severity"), max_length=10, blank=True)
+    last_alert = models.ForeignKey(
+        Alert, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    last_sent_at = models.DateTimeField(_("last delivered"), null=True, blank=True)
+    notified = models.BooleanField(_("notified while firing"), default=False)
+    suppressed = models.PositiveIntegerField(_("held back"), default=0)
+    muted_until = models.DateTimeField(_("muted until"), null=True, blank=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    data = models.JSONField(_("data"), default=dict, blank=True)
+
+    class Meta:
+        verbose_name = _("alert state")
+        verbose_name_plural = _("alert states")
+        default_permissions = ()
+
+    def __str__(self):
+        return self.key
+
+
+class AlertDelivery(models.Model):
+    """The outbox: one message of one alert to one recipient of a channel, sent by
+    ``gozar_worker`` with retries and backoff. Requests only ever insert rows."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", _("Queued")
+        SENDING = "sending", _("Sending")
+        SENT = "sent", _("Sent")
+        FAILED = "failed", _("Failed")
+
+    alert = models.ForeignKey(Alert, on_delete=models.CASCADE, related_name="deliveries")
+    channel = models.CharField(_("channel"), max_length=20)
+    target = models.CharField(_("recipient"), max_length=64)
+    status = models.CharField(
+        _("status"), max_length=10, choices=Status.choices, default=Status.QUEUED, db_index=True
+    )
+    attempts = models.PositiveSmallIntegerField(_("attempts"), default=0)
+    next_attempt_at = models.DateTimeField(_("next attempt"), db_index=True)
+    lease = models.CharField(_("lease"), max_length=64, blank=True)
+    leased_at = models.DateTimeField(_("leased at"), null=True, blank=True)
+    sent_at = models.DateTimeField(_("sent at"), null=True, blank=True)
+    last_error = models.TextField(_("last error"), blank=True)
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("alert delivery")
+        verbose_name_plural = _("alert deliveries")
+        ordering = ["next_attempt_at", "id"]
+        default_permissions = ()
+
+    def __str__(self):
+        return f"{self.alert_id} → {self.channel} ({self.status})"
+
+
+class AlertSource(models.Model):
+    """A System page override of one alert source's switch and minimum severity
+    (``GOZAR["ALERTS"]["SOURCES"]`` holds the defaults)."""
+
+    source = models.CharField(_("source"), max_length=40, unique=True)
+    enabled = models.BooleanField(_("enabled"), null=True, blank=True)
+    min_severity = models.CharField(_("minimum severity"), max_length=10, blank=True)
+    updated_at = models.DateTimeField(_("updated at"), auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name=_("updated by"),
+    )
+
+    class Meta:
+        verbose_name = _("alert source setting")
+        verbose_name_plural = _("alert source settings")
+        default_permissions = ()
+
+    def __str__(self):
+        return self.source
+
+
+class WorkerHeartbeat(models.Model):
+    """``gozar_worker`` processes and their last heartbeat; a running worker whose
+    heartbeat is older than ``GOZAR["ALERTS"]["WORKER_STALE_SECONDS"]`` is alerted."""
+
+    name = models.CharField(_("name"), max_length=200, unique=True)  # host:pid
+    host = models.CharField(_("host"), max_length=150, blank=True)
+    pid = models.PositiveIntegerField(_("process id"), null=True, blank=True)
+    started_at = models.DateTimeField(_("started at"))
+    beat_at = models.DateTimeField(_("heartbeat"), db_index=True)
+    stopped_at = models.DateTimeField(_("stopped at"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("worker heartbeat")
+        verbose_name_plural = _("worker heartbeats")
+        ordering = ["-beat_at"]
+        default_permissions = ()
+
+    def __str__(self):
+        return self.name

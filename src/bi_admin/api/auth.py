@@ -54,6 +54,12 @@ def do_login(request, data: LoginIn):
         raise HttpError(403, _("CSRF verification failed"))
     user = authenticate(request, username=data.username, password=data.password)
     if user is None or not (user.is_active and user.is_staff):
+        from bi_admin.alerts import hooks
+
+        # bad credentials already went through user_login_failed; count the rest too
+        if not getattr(request, "_gozar_login_failure_counted", False):
+            request._gozar_login_failure_counted = True
+            hooks.login_failed(request)
         raise HttpError(
             401, _("Incorrect username or password, or the account has no admin access.")
         )

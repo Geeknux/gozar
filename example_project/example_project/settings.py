@@ -125,6 +125,19 @@ GOZAR = {
         "PATH": os.environ.get("GOZAR_DUCKDB_PATH") or BASE_DIR / ".duckdb" / "gozar.duckdb",
         "SYNC_EVERY": 60,
     },
+    # Alerts: always recorded (System page); sent to Telegram once both variables
+    # below are exported, off otherwise. Never put the token or real ids in this file:
+    #   export GOZAR_TELEGRAM_BOT_TOKEN=…  (read only from the environment)
+    #   export GOZAR_TELEGRAM_ALLOWED_CHAT_IDS=…  (numeric ids, comma separated)
+    "ALERTS": {
+        "LANGUAGE": os.environ.get("GOZAR_ALERTS_LANGUAGE", "en"),
+        "QUIET_HOURS": os.environ.get("GOZAR_ALERTS_QUIET_HOURS") or None,  # "23:00-07:00"
+        "TELEGRAM": {
+            "ALLOWED_CHAT_IDS": os.environ.get("GOZAR_TELEGRAM_ALLOWED_CHAT_IDS", ""),
+            # "1": also answer /status, /alerts, /ack, /mute and /help (long polling)
+            "INTERACTIVE": os.environ.get("GOZAR_TELEGRAM_INTERACTIVE") == "1",
+        },
+    },
 }
 
 # Scheduled e-mail reports (`manage.py gozar_send_schedules`, or `gozar_worker`) are

@@ -264,6 +264,9 @@ def test_jobs_fail_after_the_last_attempt(admin_client, orders, report_api, goza
     )
     resp = admin_client.get(f"{API}/jobs/{job_id}/result")
     assert resp.status_code == 500 and resp.json()["code"] == "worker_lost"
+    from bi_admin.models import Alert
+
+    assert Alert.objects.get(source="jobs").key == "jobs:worker_lost:report"
     assert "Processed 0 job(s)." in worker()
 
 

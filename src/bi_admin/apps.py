@@ -21,3 +21,10 @@ class BiAdminConfig(AppConfig):
         from bi_admin.scale import state
 
         state.connect()  # change records for pre-aggregations and columnar copies
+
+        from bi_admin.alerts import handlers, hooks
+        from bi_admin.alerts.conf import alert_setting
+
+        hooks.connect()  # failed logins
+        if alert_setting("ENABLED") and alert_setting("LOG_HANDLER"):
+            handlers.attach()  # unhandled exceptions and HTTP 5xx → alerts
